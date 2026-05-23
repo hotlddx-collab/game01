@@ -1,0 +1,7 @@
+{
+  "home_bear":  { "x": 200,  "y": 200, "label": "小熊家" },
+  "home_fox":   { "x": 1000, "y": 200, "label": "狐狸家" },
+  "bakery":     { "x": 400,  "y": 500, "label": "面包店" },
+  "post_office":{ "x": 800,  "y": 500, "label": "邮局" },
+  "plaza":      { "x": 600,  "y": 350, "label": "广场" }
+}

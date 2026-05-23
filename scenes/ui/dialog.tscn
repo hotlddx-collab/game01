@@ -1,0 +1,126 @@
+[gd_scene load_steps=4 format=3 uid="uid://bdialog001"]
+
+[ext_resource type="Script" path="res://scripts/dialog_ui.gd" id="1_dialog"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.98, 0.95, 0.85, 0.95)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.4, 0.28, 0.18, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.6, 0.5, 0.35, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+
+[node name="DialogUI" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_dialog")
+
+[node name="Panel" type="Panel" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = -260.0
+offset_right = -60.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="SpeakerName" type="Label" parent="Panel"]
+unique_name_in_owner = true
+offset_left = 24.0
+offset_top = 12.0
+offset_right = 400.0
+offset_bottom = 44.0
+text = "说话者"
+theme_override_colors/font_color = Color(0.4, 0.25, 0.15, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="StatusLabel" type="Label" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -180.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 40.0
+horizontal_alignment = 2
+text = ""
+theme_override_colors/font_color = Color(0.55, 0.4, 0.2, 0.8)
+theme_override_font_sizes/font_size = 14
+
+[node name="DialogText" type="RichTextLabel" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 50.0
+offset_right = -24.0
+offset_bottom = -80.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+bbcode_enabled = true
+fit_content = false
+scroll_active = true
+scroll_following = true
+clip_contents = true
+theme_override_colors/default_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_font_sizes/normal_font_size = 18
+
+[node name="InputLine" type="LineEdit" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -68.0
+offset_right = -24.0
+offset_bottom = -36.0
+grow_horizontal = 2
+grow_vertical = 0
+placeholder_text = "输入想说的话，回车发送..."
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+theme_override_styles/focus = SubResource("StyleBoxFlat_input")
+theme_override_colors/font_color = Color(0.15, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="Hint" type="Label" parent="Panel"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -28.0
+offset_right = -16.0
+offset_bottom = -8.0
+horizontal_alignment = 2
+text = "[Enter] 发送   [Esc] 关闭"
+theme_override_colors/font_color = Color(0.5, 0.4, 0.3, 0.8)
+theme_override_font_sizes/font_size = 12

@@ -1,0 +1,31 @@
+# Godot 4
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+*.translation
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python (P0-2 起用)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Logs
+*.log
