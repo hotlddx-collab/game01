@@ -34,7 +34,7 @@ log = logging.getLogger("agent_server")
 init_schema()
 log.info("数据库就绪 (town.db)")
 
-app = FastAPI(title="Animal Town Agent Server")
+app = FastAPI(title="怪物森林 Agent Server")
 
 llm: LLMClient = LLMClient()
 personas = load_all_personas()

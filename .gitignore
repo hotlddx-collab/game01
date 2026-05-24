@@ -13,6 +13,9 @@ export_presets.cfg
 .DS_Store
 Thumbs.db
 
+# 第三方素材原包（太大，单独保留本地，使用的部分拷贝到 assets/）
+res/
+
 # Python (P0-2 起用)
 __pycache__/
 *.py[cod]

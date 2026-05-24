@@ -2,13 +2,14 @@ extends CharacterBody2D
 ## 玩家角色
 ##
 ## WASD/方向键 移动，E 与最近的 NPC 交互。
-## Camera2D 子节点跟随。
+## Camera2D 子节点跟随。AnimatedSprite2D 子节点根据移动方向播放动画。
 ## input_enabled = false 时（如对话中）冻结移动与交互输入。
 
 signal interact_pressed(target: Node)
 
 @export var move_speed: float = 120.0
 @export var interact_radius: float = 48.0
+@export_file("*.png") var sprite_file: String = "res://assets/characters/player.png"
 ## 主控开关。对话开启时设 false。
 var input_enabled: bool = true:
 	set(value):
@@ -22,14 +23,20 @@ var input_enabled: bool = true:
 			velocity = Vector2.ZERO
 		input_enabled = value
 
-# NPC 列表由主场景注册（也可全局组）
-var _nearby_npcs: Array[Node] = []
+var _last_dir: String = "down"
+
+@onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
+
+
+func _ready() -> void:
+	_load_sprite_frames()
 
 
 func _physics_process(_delta: float) -> void:
 	if not input_enabled:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		_play_idle()
 		return
 	var input_vec := Vector2(
 		Input.get_axis("move_left", "move_right"),
@@ -39,6 +46,7 @@ func _physics_process(_delta: float) -> void:
 		input_vec = input_vec.normalized()
 	velocity = input_vec * move_speed
 	move_and_slide()
+	_update_animation()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -48,6 +56,51 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _find_closest_npc()
 		if target != null:
 			interact_pressed.emit(target)
+
+
+func _load_sprite_frames() -> void:
+	if sprite == null:
+		return
+	# 已在场景里挂了 SpriteFrames（编辑器配置）→ 不覆盖
+	if sprite.sprite_frames != null:
+		return
+	if sprite_file == "":
+		return
+	var sf := SpriteFactory.build_frames_from_path(sprite_file)
+	if sf == null:
+		push_warning("Player: 加载 sprite 失败 %s" % sprite_file)
+		return
+	sprite.sprite_frames = sf
+	sprite.play("idle")
+
+
+func _update_animation() -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	var dir := SpriteFactory.direction_from_velocity(velocity)
+	if dir == "":
+		_play_idle()
+	else:
+		# 维持上次"是否朝左"判断，仅当当前移动到左/右时才更新 flip
+		if dir == "left" or dir == "right":
+			sprite.flip_h = SpriteFactory.direction_needs_flip(dir)
+			_last_dir = dir
+		else:
+			_last_dir = dir
+		if sprite.animation != "walk":
+			sprite.play("walk")
+
+
+func _play_idle() -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	# idle 时保持上次的水平翻转
+	if _last_dir == "left":
+		sprite.flip_h = true
+	elif _last_dir == "right":
+		sprite.flip_h = false
+	if sprite.animation != "idle":
+		sprite.play("idle")
 
 
 func _find_closest_npc() -> Node:

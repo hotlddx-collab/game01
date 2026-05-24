@@ -1,7 +1,4 @@
 {
-  "home_bear":  { "x": 200,  "y": 200, "label": "小熊家" },
-  "home_fox":   { "x": 1000, "y": 200, "label": "狐狸家" },
-  "bakery":     { "x": 400,  "y": 500, "label": "面包店" },
-  "post_office":{ "x": 800,  "y": 500, "label": "邮局" },
-  "plaza":      { "x": 600,  "y": 350, "label": "广场" }
+  "_deprecated": "P1.1 起本文件不再使用。地点位置由 main.tscn 里的 Building 节点提供（@export building_id 标识，EntryPoint Marker2D 提供坐标）。LocationDB autoload 由 Building._ready 自行注册。",
+  "_keys_for_reference": ["home_bear", "home_fox", "bakery", "post_office", "plaza"]
 }

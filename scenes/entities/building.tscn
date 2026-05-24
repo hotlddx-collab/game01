@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3 uid="uid://bbuilding001"]
+
+[ext_resource type="Script" path="res://scripts/building.gd" id="1_building"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_building"]
+font_size = 16
+font_color = Color(1, 1, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="Building" type="Node2D"]
+script = ExtResource("1_building")
+
+[node name="HouseSprite" type="Sprite2D" parent="."]
+visible = false
+centered = true
+texture_filter = 1
+
+[node name="Sprite" type="ColorRect" parent="."]
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = 50.0
+color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -70.0
+offset_top = -78.0
+offset_right = 70.0
+offset_bottom = -54.0
+horizontal_alignment = 1
+text = "建筑"
+label_settings = SubResource("LabelSettings_building")
+
+[node name="EntryPoint" type="Marker2D" parent="."]

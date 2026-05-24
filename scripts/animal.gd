@@ -1,9 +1,10 @@
 extends CharacterBody2D
 class_name Animal
-## 动物 NPC
+## 怪物 NPC
 ##
-## 加载 persona JSON（性格 + 日程），按 WorldClock 时间走向目标地点。
-## 头顶气泡显示当前 intent。可被玩家用 E 触发对话。
+## 加载 persona JSON（性格 + 日程 + sprite），按 WorldClock 时间走向目标地点。
+## AnimatedSprite2D 根据移动方向播放动画。头顶 Label 显示名字+当前 intent。
+## 玩家可用 E 触发对话。
 ##
 ## P0 用直线 move_toward 移动；P1+ 换 NavigationAgent2D。
 
@@ -13,18 +14,20 @@ class_name Animal
 
 var animal_id: String = ""
 var animal_name: String = ""
+var species: String = ""
 var personality: String = ""
 var speech_style: String = ""
 var catchphrase: String = ""
-var color_hex: String = "#a06b3c"
+var sprite_file: String = ""
 
 var _schedule: Array = []          # [{time, location, intent}]
 var _current_intent: String = "..."
 var _target_location: String = ""
 var _target_pos: Vector2 = Vector2.ZERO
 var _moving: bool = false
+var _last_dir: String = "down"
 
-@onready var sprite: ColorRect = %Body
+@onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
 @onready var name_label: Label = %NameLabel
 @onready var thought_label: Label = %ThoughtLabel
 
@@ -38,15 +41,17 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if not _moving:
-		return
-	var to_target: Vector2 = _target_pos - global_position
-	if to_target.length() <= arrive_distance:
-		_moving = false
+	if _moving:
+		var to_target: Vector2 = _target_pos - global_position
+		if to_target.length() <= arrive_distance:
+			_moving = false
+			velocity = Vector2.ZERO
+		else:
+			velocity = to_target.normalized() * move_speed
+			move_and_slide()
+	else:
 		velocity = Vector2.ZERO
-		return
-	velocity = to_target.normalized() * move_speed
-	move_and_slide()
+	_update_animation()
 
 
 func _load_persona() -> void:
@@ -61,16 +66,52 @@ func _load_persona() -> void:
 		return
 	animal_id = data.get("id", "")
 	animal_name = data.get("name", "无名")
+	species = data.get("species", "")
 	personality = data.get("personality", "")
 	speech_style = data.get("speech_style", "")
 	catchphrase = data.get("catchphrase", "")
-	color_hex = data.get("color", color_hex)
+	sprite_file = data.get("sprite_file", "")
 	_schedule = data.get("schedule", [])
 
 	if name_label:
 		name_label.text = animal_name
-	if sprite:
-		sprite.color = Color(color_hex)
+	_load_sprite_frames()
+
+
+func _load_sprite_frames() -> void:
+	if sprite == null or sprite_file == "":
+		return
+	# 已在场景里挂了 SpriteFrames（编辑器配置）→ 不覆盖
+	if sprite.sprite_frames != null:
+		return
+	var sf := SpriteFactory.build_frames_from_path(sprite_file)
+	if sf == null:
+		push_warning("Animal[%s]: 加载 sprite 失败 %s" % [animal_id, sprite_file])
+		return
+	sprite.sprite_frames = sf
+	sprite.play("idle")
+
+
+func _update_animation() -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	var dir := SpriteFactory.direction_from_velocity(velocity)
+	if dir == "":
+		# idle 时保持上次水平翻转
+		if _last_dir == "left":
+			sprite.flip_h = true
+		elif _last_dir == "right":
+			sprite.flip_h = false
+		if sprite.animation != "idle":
+			sprite.play("idle")
+	else:
+		if dir == "left" or dir == "right":
+			sprite.flip_h = SpriteFactory.direction_needs_flip(dir)
+			_last_dir = dir
+		else:
+			_last_dir = dir
+		if sprite.animation != "walk":
+			sprite.play("walk")
 
 
 func _on_tick(_time_str: String, _total_minutes: int) -> void:
@@ -118,6 +159,6 @@ func get_target_location() -> String:
 	return _target_location
 
 
-## P0 占位对话；P0-2 起改为后端 LLM 返回
+## 占位对话；P0-2 起改为后端 LLM 返回
 func get_placeholder_line() -> String:
 	return "%s（这里以后接 LLM 对话）" % catchphrase
