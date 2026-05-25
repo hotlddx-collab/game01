@@ -1,13 +1,12 @@
-[gd_resource type="TileSet" load_steps=9 format=3 uid="uid://zjc3v8rfp8yq0"]
+[gd_resource type="TileSet" format=3 uid="uid://ccvvdv8wc1p7f"]
 
-[ext_resource type="Texture2D" path="res://assets/tilesets/TilesetField.png" id="1_field"]
-[ext_resource type="Texture2D" path="res://assets/tilesets/TilesetNature.png" id="2_nature"]
-[ext_resource type="Texture2D" path="res://assets/tilesets/TilesetFloor.png" id="3_floor"]
-[ext_resource type="Texture2D" path="res://assets/tilesets/TilesetHouse.png" id="4_house"]
+[ext_resource type="Texture2D" uid="uid://dqopk747xiafd" path="res://assets/tilesets/TilesetField.png" id="1_field"]
+[ext_resource type="Texture2D" uid="uid://fgffgahckc4w" path="res://assets/tilesets/TilesetNature.png" id="2_nature"]
+[ext_resource type="Texture2D" uid="uid://cy065dkkpqom0" path="res://assets/tilesets/TilesetFloor.png" id="3_floor"]
+[ext_resource type="Texture2D" uid="uid://dbbi6nq1kixdc" path="res://assets/tilesets/TilesetHouse.png" id="4_house"]
 
 [sub_resource type="TileSetAtlasSource" id="atlas_0"]
 texture = ExtResource("1_field")
-texture_region_size = Vector2i(16, 16)
 0:0/0 = 0
 1:0/0 = 0
 2:0/0 = 0
@@ -76,7 +75,6 @@ texture_region_size = Vector2i(16, 16)
 
 [sub_resource type="TileSetAtlasSource" id="atlas_1"]
 texture = ExtResource("2_nature")
-texture_region_size = Vector2i(16, 16)
 0:0/0 = 0
 1:0/0 = 0
 2:0/0 = 0
@@ -463,7 +461,6 @@ texture_region_size = Vector2i(16, 16)
 
 [sub_resource type="TileSetAtlasSource" id="atlas_2"]
 texture = ExtResource("3_floor")
-texture_region_size = Vector2i(16, 16)
 0:0/0 = 0
 1:0/0 = 0
 2:0/0 = 0
@@ -925,7 +922,6 @@ texture_region_size = Vector2i(16, 16)
 
 [sub_resource type="TileSetAtlasSource" id="atlas_3"]
 texture = ExtResource("4_house")
-texture_region_size = Vector2i(16, 16)
 0:0/0 = 0
 1:0/0 = 0
 2:0/0 = 0
@@ -1576,7 +1572,6 @@ texture_region_size = Vector2i(16, 16)
 31:22/0 = 0
 
 [resource]
-tile_size = Vector2i(16, 16)
 sources/0 = SubResource("atlas_0")
 sources/1 = SubResource("atlas_1")
 sources/2 = SubResource("atlas_2")
