@@ -74,6 +74,12 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def _handle_message(ws: WebSocket, msg: dict) -> None:
     msg_type = msg.get("type")
+
+    # NPC↔NPC 对话（特殊：需要两个 agent，不走 animal_id 单查）
+    if msg_type == "npc_chat":
+        await _handle_npc_chat(ws, msg)
+        return
+
     animal_id = msg.get("animal_id", "")
     agent = manager.get(animal_id)
     if agent is None:
@@ -110,6 +116,30 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
             {"type": "reply", "animal_id": animal_id, "text": text, "ok": True},
             ensure_ascii=False,
         )
+    )
+
+
+async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
+    speaker_id = msg.get("speaker_id", "")
+    listener_id = msg.get("listener_id", "")
+    context = msg.get("context", {})
+    if not speaker_id or not listener_id:
+        await _send_error(ws, "npc_chat 需要 speaker_id 和 listener_id")
+        return
+    if speaker_id == listener_id:
+        await _send_error(ws, "npc_chat 不能自言自语")
+        return
+    try:
+        result = await manager.trigger_npc_chat(speaker_id, listener_id, context)
+    except Exception as e:
+        log.exception("npc_chat LLM 失败")
+        await _send_error(ws, f"LLM 错误: {e}")
+        return
+    if result is None:
+        await _send_error(ws, "未知 speaker 或 listener")
+        return
+    await ws.send_text(
+        json.dumps({"type": "npc_chat_reply", **result, "ok": True}, ensure_ascii=False)
     )
 
 

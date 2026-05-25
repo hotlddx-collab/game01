@@ -159,6 +159,33 @@ func get_target_location() -> String:
 	return _target_location
 
 
+## 暴露 animal_id（供 ChatManager 等用 has_method 探测）
+func get_animal_id() -> String:
+	return animal_id
+
+
+## 当前完整上下文（用于 NPC 互动时给后端）
+func get_current_context() -> Dictionary:
+	return {
+		"time": WorldClock.format_time() if has_node("/root/WorldClock") else "",
+		"location": _target_location,
+		"location_label": LocationDB.get_label(_target_location) if _target_location else "",
+		"intent": _current_intent,
+	}
+
+
+const SPEECH_BUBBLE_SCENE := preload("res://scenes/ui/speech_bubble.tscn")
+
+## NPC 头顶弹气泡说一句（自动用自己的名字作 speaker）
+func show_speech_bubble(text: String, lifetime: float = 4.0) -> void:
+	if text == "":
+		return
+	var bubble := SPEECH_BUBBLE_SCENE.instantiate()
+	add_child(bubble)
+	bubble.position = Vector2(0, -36)  # 头顶起点（气泡内部还会自动上移整个高度）
+	bubble.show_text(animal_name, text, lifetime)
+
+
 ## 占位对话；P0-2 起改为后端 LLM 返回
 func get_placeholder_line() -> String:
 	return "%s（这里以后接 LLM 对话）" % catchphrase

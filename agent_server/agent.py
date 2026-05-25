@@ -205,8 +205,38 @@ class Agent:
         )
         return reply
 
-    async def reply(self, user_text: str, context: Dict[str, Any]) -> str:
-        # 1. 构造 prompt（含检索到的相关记忆等）
+    async def speak_to_npc(self, listener_name: str, listener_species: str, context: Dict[str, Any]) -> str:
+        """speaker (self) 主动跟另一只 NPC 说一句话。
+
+        用于 NPC↔NPC 在共享地点撞见时的自动闲聊。
+        返回 speaker 的台词，调用方负责给 listener 写记忆。
+        """
+        sys_prompt = self._build_system_prompt(context, query=f"（你和{listener_name}碰到了）")
+        user_msg = (
+            f"你刚和「{listener_name}」（{listener_species}）在{context.get('location_label', '某处')}撞见。\n"
+            "请用 1 句话主动开口——可以是寒暄、八卦、抱怨、好奇、聊天气等等，"
+            "符合你的性格和说话风格。\n"
+            "直接输出你说的话，不要加旁白或动作描述。"
+        )
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_msg},
+        ]
+        line = await self.llm.chat(messages, max_tokens=80, temperature=1.0)
+        log.info("[npc_chat] %s → %s: %s", self.name, listener_name, line)
+
+        # 写自己的记忆（自己对别的 NPC 说过的话）
+        self.memory.add(
+            self.animal_id,
+            f"对{listener_name}说：{line}",
+            type="dialog",
+            speaker="self",
+            importance=2,
+            game_time=context.get("time", ""),
+        )
+        return line
+
+    async def reply(self, user_text: str, context: Dict[str, Any]) -> str:        # 1. 构造 prompt（含检索到的相关记忆等）
         sys_prompt = self._build_system_prompt(context, query=user_text)
         history = self._build_recent_history()
 
@@ -284,3 +314,40 @@ class AgentManager:
 
     def all_ids(self) -> List[str]:
         return list(self._agents.keys())
+
+    async def trigger_npc_chat(
+        self,
+        speaker_id: str,
+        listener_id: str,
+        context: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """触发一次 NPC↔NPC 对话（speaker → listener 单向 1 句）。
+
+        返回 {speaker_id, listener_id, text} 或 None（如果某 agent 不存在）。
+        """
+        speaker = self.get(speaker_id)
+        listener = self.get(listener_id)
+        if speaker is None or listener is None:
+            return None
+
+        listener_name = listener.name
+        listener_species = listener.persona.get("species", "怪物")
+        line = await speaker.speak_to_npc(listener_name, listener_species, context)
+
+        # 给 listener 写一条"听见 X 说"的记忆
+        listener.memory.add(
+            listener_id,
+            f"{speaker.name}对我说：{line}",
+            type="dialog",
+            speaker=speaker_id,
+            importance=2,
+            game_time=context.get("time", ""),
+        )
+
+        return {
+            "speaker_id": speaker_id,
+            "speaker_name": speaker.name,
+            "listener_id": listener_id,
+            "listener_name": listener_name,
+            "text": line,
+        }

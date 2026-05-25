@@ -25,6 +25,7 @@ config/icon="res://icon.svg"
 WorldClock="*res://scripts/world_clock.gd"
 LocationDB="*res://scripts/location_db.gd"
 AgentClient="*res://scripts/agent_client.gd"
+ChatManager="*res://scripts/chat_manager.gd"
 
 [display]
 

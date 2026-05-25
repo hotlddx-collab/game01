@@ -7,6 +7,7 @@ extends Node
 signal connected
 signal disconnected
 signal reply_received(animal_id: String, text: String)
+signal npc_chat_received(speaker_id: String, listener_id: String, text: String)
 signal error_received(message: String)
 
 @export var host: String = "127.0.0.1"
@@ -98,6 +99,16 @@ func request_reset(animal_id: String) -> bool:
 	})
 
 
+## 触发 NPC↔NPC 对话（speaker 主动跟 listener 说一句）
+func request_npc_chat(speaker_id: String, listener_id: String, context: Dictionary = {}) -> bool:
+	return _send({
+		"type": "npc_chat",
+		"speaker_id": speaker_id,
+		"listener_id": listener_id,
+		"context": context,
+	})
+
+
 # ---------- 内部 ----------
 
 func _send(payload: Dictionary) -> bool:
@@ -121,6 +132,12 @@ func _handle_packet(text: String) -> void:
 	match msg_type:
 		"reply":
 			reply_received.emit(data.get("animal_id", ""), data.get("text", ""))
+		"npc_chat_reply":
+			npc_chat_received.emit(
+				data.get("speaker_id", ""),
+				data.get("listener_id", ""),
+				data.get("text", "")
+			)
 		"error":
 			var m: String = data.get("message", "未知错误")
 			push_warning("[AgentClient] server error: %s" % m)
