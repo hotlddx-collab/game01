@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -19,6 +20,7 @@ from db import init_schema
 from memory import MemoryStore
 from profile import PlayerProfile
 from world_events import WorldEventStore
+from affection import AffectionStore
 
 
 # ---------- 启动初始化 ----------
@@ -41,7 +43,8 @@ personas = load_all_personas()
 memory_store = MemoryStore()
 profile_store = PlayerProfile()
 world_store = WorldEventStore()
-manager = AgentManager(personas, llm, memory_store, profile_store, world_store)
+affection_store = AffectionStore()
+manager = AgentManager(personas, llm, memory_store, profile_store, world_store, affection_store)
 log.info("加载 personas: %s", manager.all_ids())
 
 
@@ -80,6 +83,11 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         await _handle_npc_chat(ws, msg)
         return
 
+    # 玩家偷听
+    if msg_type == "eavesdrop":
+        await _handle_eavesdrop(ws, msg)
+        return
+
     animal_id = msg.get("animal_id", "")
     agent = manager.get(animal_id)
     if agent is None:
@@ -90,13 +98,13 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
 
     try:
         if msg_type == "greet":
-            text = await agent.greet(context)
+            result = await agent.greet(context)
         elif msg_type == "chat":
             user_text = msg.get("user_text", "")
             if not user_text.strip():
                 await _send_error(ws, "user_text 为空")
                 return
-            text = await agent.reply(user_text, context)
+            result = await agent.reply(user_text, context)
         elif msg_type == "reset":
             agent.reset_history()
             await ws.send_text(
@@ -111,12 +119,14 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         await _send_error(ws, f"LLM 错误: {e}")
         return
 
-    await ws.send_text(
-        json.dumps(
-            {"type": "reply", "animal_id": animal_id, "text": text, "ok": True},
-            ensure_ascii=False,
-        )
-    )
+    payload = {
+        "type": "reply",
+        "animal_id": animal_id,
+        "text": result["text"],
+        "affection": result.get("affection", {}),
+        "ok": True,
+    }
+    await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
 
 async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
@@ -129,18 +139,80 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
     if speaker_id == listener_id:
         await _send_error(ws, "npc_chat 不能自言自语")
         return
-    try:
-        result = await manager.trigger_npc_chat(speaker_id, listener_id, context)
-    except Exception as e:
-        log.exception("npc_chat LLM 失败")
-        await _send_error(ws, f"LLM 错误: {e}")
-        return
-    if result is None:
+    if manager.get(speaker_id) is None or manager.get(listener_id) is None:
         await _send_error(ws, "未知 speaker 或 listener")
         return
-    await ws.send_text(
-        json.dumps({"type": "npc_chat_reply", **result, "ok": True}, ensure_ascii=False)
+
+    turns = int(os.getenv("NPC_CHAT_TURNS", "3"))
+    bubble_gap = float(os.getenv("NPC_CHAT_GAP_SEC", "2.5"))
+
+    try:
+        first_packet = True
+        async for line_pkt in manager.trigger_npc_chat_session(
+            speaker_id, listener_id, context, turns=turns
+        ):
+            if not first_packet:
+                # 句间气泡显示节奏
+                await asyncio.sleep(bubble_gap)
+            first_packet = False
+            await ws.send_text(
+                json.dumps({"type": "npc_chat_reply", **line_pkt, "ok": True}, ensure_ascii=False)
+            )
+    except Exception as e:
+        log.exception("npc_chat session 失败")
+        await _send_error(ws, f"LLM 错误: {e}")
+        return
+
+
+async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
+    """玩家偷听到一句 NPC 对话：双方各加记忆 + 写一条世界事件。"""
+    speaker_id = msg.get("speaker_id", "")
+    listener_id = msg.get("listener_id", "")
+    text = msg.get("text", "")
+    context = msg.get("context", {})
+
+    speaker = manager.get(speaker_id)
+    listener = manager.get(listener_id)
+    if speaker is None or listener is None:
+        await _send_error(ws, "未知 speaker 或 listener")
+        return
+    if not text.strip():
+        await _send_error(ws, "eavesdrop text 为空")
+        return
+
+    game_time = context.get("time", "")
+    location = context.get("location", "")
+    location_label = context.get("location_label", "")
+    short = text[:60]
+
+    # speaker 视角：自己刚说的话被玩家听到
+    speaker.memory.add(
+        speaker_id,
+        f"我对{listener.name}说「{short}」时，被玩家听到了",
+        type="event",
+        speaker="self",
+        importance=4,
+        game_time=game_time,
     )
+    # listener 视角：和 speaker 的对话被玩家听到
+    listener.memory.add(
+        listener_id,
+        f"{speaker.name}对我说「{short}」时，被玩家听到了",
+        type="event",
+        speaker="self",
+        importance=4,
+        game_time=game_time,
+    )
+    # 世界事件：玩家偷听过这段对话
+    world_store.add(
+        actor="player",
+        description=f"在{location_label or '附近'}偷听到{speaker.name}对{listener.name}说的话",
+        location=location,
+        game_time=game_time,
+    )
+
+    log.info("[eavesdrop] player overheard %s→%s: %s", speaker_id, listener_id, short)
+    await ws.send_text(json.dumps({"type": "ok", "context": "eavesdrop"}, ensure_ascii=False))
 
 
 async def _send_error(ws: WebSocket, message: str) -> None:

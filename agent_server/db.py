@@ -51,7 +51,21 @@ CREATE TABLE IF NOT EXISTS reflection_state (
   last_reflect_at  INTEGER NOT NULL,
   last_memory_id   INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS affection (
+  animal_id       TEXT PRIMARY KEY,
+  value           INTEGER NOT NULL DEFAULT 0,
+  updated_at      INTEGER NOT NULL,
+  last_greet_day  INTEGER NOT NULL DEFAULT -1
+);
 """
+
+
+def _migrate(conn) -> None:
+    """SQLite 简易迁移：CREATE TABLE IF NOT EXISTS 不会加新列，旧库需 ALTER。"""
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(affection)").fetchall()}
+    if "last_greet_day" not in cols:
+        conn.execute("ALTER TABLE affection ADD COLUMN last_greet_day INTEGER NOT NULL DEFAULT -1")
 
 _lock = threading.Lock()
 _initialized = False
@@ -65,6 +79,8 @@ def init_schema() -> None:
             return
         with _connect() as conn:
             conn.executescript(_SCHEMA_SQL)
+            _migrate(conn)
+            conn.commit()
         _initialized = True
 
 

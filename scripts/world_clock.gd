@@ -55,3 +55,8 @@ func get_hour() -> int:
 ## 当前总游戏分钟数（自起始累计）
 func get_total_minutes() -> int:
 	return int(_total_seconds / 60.0)
+
+
+## 当前游戏日序号（自启动累计，0,1,2...）
+func get_day() -> int:
+	return int(_total_seconds / 60.0) / (24 * 60)

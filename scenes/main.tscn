@@ -98,6 +98,14 @@ persona_file = "res://data/animals/herbalist_cui.json"
 position = Vector2(400, 500)
 persona_file = "res://data/animals/traveler_lan.json"
 
+[node name="PirateLao" parent="." unique_id=112233445 instance=ExtResource("3_animal")]
+position = Vector2(700, 450)
+persona_file = "res://data/animals/pirate_lao.json"
+
+[node name="MysticXuan" parent="." unique_id=556677889 instance=ExtResource("3_animal")]
+position = Vector2(850, 300)
+persona_file = "res://data/animals/mystic_xuan.json"
+
 [node name="HintLayer" type="CanvasLayer" parent="." unique_id=393384615]
 layer = 4
 

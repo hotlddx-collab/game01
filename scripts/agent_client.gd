@@ -8,6 +8,7 @@ signal connected
 signal disconnected
 signal reply_received(animal_id: String, text: String)
 signal npc_chat_received(speaker_id: String, listener_id: String, text: String)
+signal affection_changed(animal_id: String, value: int, level: String, delta: int)
 signal error_received(message: String)
 
 @export var host: String = "127.0.0.1"
@@ -109,6 +110,17 @@ func request_npc_chat(speaker_id: String, listener_id: String, context: Dictiona
 	})
 
 
+## 玩家偷听到 NPC 对话，通知后端写双方记忆 + 世界事件
+func request_eavesdrop(speaker_id: String, listener_id: String, text: String, context: Dictionary = {}) -> bool:
+	return _send({
+		"type": "eavesdrop",
+		"speaker_id": speaker_id,
+		"listener_id": listener_id,
+		"text": text,
+		"context": context,
+	})
+
+
 # ---------- 内部 ----------
 
 func _send(payload: Dictionary) -> bool:
@@ -131,7 +143,16 @@ func _handle_packet(text: String) -> void:
 	var msg_type: String = data.get("type", "")
 	match msg_type:
 		"reply":
-			reply_received.emit(data.get("animal_id", ""), data.get("text", ""))
+			var aid: String = data.get("animal_id", "")
+			reply_received.emit(aid, data.get("text", ""))
+			var aff = data.get("affection", null)
+			if typeof(aff) == TYPE_DICTIONARY and aff.has("value"):
+				affection_changed.emit(
+					aid,
+					int(aff.get("value", 0)),
+					String(aff.get("level", "neutral")),
+					int(aff.get("delta", 0)),
+				)
 		"npc_chat_reply":
 			npc_chat_received.emit(
 				data.get("speaker_id", ""),

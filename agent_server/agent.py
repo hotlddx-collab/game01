@@ -10,6 +10,7 @@ from llm import LLMClient
 from memory import MemoryStore, Memory
 from profile import PlayerProfile
 from world_events import WorldEventStore, WorldEvent
+from affection import AffectionStore, level_of, level_label, delta_for_chat
 from retrieval import retrieve_relevant
 from fact_extractor import extract_facts, estimate_importance
 from reflection import reflect_if_needed
@@ -33,6 +34,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 - 当前在做：{intent}
 
 {player_profile_block}
+{affection_block}
 {relevant_memories_block}
 {reflections_block}
 {world_events_block}
@@ -44,7 +46,8 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 4. 自然带入当前在做的事或所处地点，让对话有生活感。
 5. 如果你听说过最近发生的事（世界事件），合适时可主动提起，让玩家觉得世界真实。
 6. 不要复读相关记忆里的内容，要"利用"它们在对话中体现你认得人/记得事。
-7. 别说太长，留白让玩家继续聊。"""
+7. 别说太长，留白让玩家继续聊。
+8. 你对玩家的好感度（见上文）应自然影响语气：好感越高越亲近热络，好感为负则冷淡甚至排斥。"""
 
 
 class Agent:
@@ -55,6 +58,7 @@ class Agent:
         memory: MemoryStore,
         profile: PlayerProfile,
         world: WorldEventStore,
+        affection: AffectionStore,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -62,6 +66,7 @@ class Agent:
         self.memory = memory
         self.profile = profile
         self.world = world
+        self.affection = affection
         self.max_history_turns = max_history_turns
 
     @property
@@ -134,6 +139,19 @@ class Agent:
             lines.append(f"- ({e.game_time or '...'}){actor}{loc}：{e.description[:60]}")
         return "\n【你最近耳闻的镇上动静】\n" + "\n".join(lines)
 
+    def _build_affection_block(self) -> str:
+        v = self.affection.get(self.animal_id)
+        lvl = level_of(v)
+        label = level_label(lvl)
+        hint = {
+            "hate":    "你对这位玩家有强烈反感，语气冷硬、想赶走对方，必要时直接呛回去。",
+            "cold":    "你对这位玩家有些不快，语气冷淡、敷衍，懒得多搭理。",
+            "neutral": "你跟这位玩家不算熟，礼貌但不亲昵。",
+            "like":    "你对这位玩家有好感，热情一些、爱聊几句，会主动找话题。",
+            "love":    "你很喜欢这位玩家，语气亲近、关心、爱开玩笑，把对方当朋友。",
+        }.get(lvl, "")
+        return f"\n【你对玩家的好感度】{label}（{v}/100）\n- {hint}"
+
     def _build_system_prompt(self, context: Dict[str, Any], query: str) -> str:
         return SYSTEM_PROMPT_TEMPLATE.format(
             name=self.name,
@@ -147,6 +165,7 @@ class Agent:
             intent=context.get("intent", "随便走走"),
             world_facts_block=self._build_world_facts_block(),
             player_profile_block=self._build_player_profile_block(),
+            affection_block=self._build_affection_block(),
             relevant_memories_block=self._build_relevant_memories_block(query),
             reflections_block=self._build_reflections_block(),
             world_events_block=self._build_world_events_block(),
@@ -166,7 +185,7 @@ class Agent:
 
     # ---------- 公共接口 ----------
 
-    async def greet(self, context: Dict[str, Any]) -> str:
+    async def greet(self, context: Dict[str, Any]) -> Dict[str, Any]:
         sys_prompt = self._build_system_prompt(context, query="（玩家走近你）")
 
         # 根据是否认得玩家，给截然不同的引导，避免 LLM 偷懒说"旅人"
@@ -203,7 +222,10 @@ class Agent:
             importance=3,
             game_time=context.get("time", ""),
         )
-        return reply
+        # 好感度：每个 NPC 每"游戏日"最多 +1（首次/久别重逢），同一日不再加
+        game_day = int(context.get("game_day", -1))
+        aff = self.affection.adjust_for_greet(self.animal_id, game_day)
+        return {"text": reply, "affection": aff}
 
     async def speak_to_npc(self, listener_name: str, listener_species: str, context: Dict[str, Any]) -> str:
         """speaker (self) 主动跟另一只 NPC 说一句话。
@@ -236,7 +258,41 @@ class Agent:
         )
         return line
 
-    async def reply(self, user_text: str, context: Dict[str, Any]) -> str:        # 1. 构造 prompt（含检索到的相关记忆等）
+    async def reply_to_npc(
+        self,
+        other_name: str,
+        other_species: str,
+        other_line: str,
+        context: Dict[str, Any],
+    ) -> str:
+        """对另一只 NPC 刚说的话做出回应（用于多轮 NPC↔NPC 对话）。"""
+        sys_prompt = self._build_system_prompt(context, query=f"（你在和{other_name}聊天）")
+        user_msg = (
+            f"你正和「{other_name}」（{other_species}）在{context.get('location_label', '某处')}聊天。\n"
+            f"ta 刚对你说：\"{other_line}\"\n"
+            "请用 1 句话回应——可以接话、附和、调侃、争论、转移话题等等，"
+            "符合你的性格和说话风格。\n"
+            "直接输出你说的话，不要加旁白或动作描述。"
+        )
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_msg},
+        ]
+        line = await self.llm.chat(messages, max_tokens=80, temperature=1.0)
+        log.info("[npc_chat] %s ← %s: %s", self.name, other_name, line)
+
+        # 写自己的记忆（"我对 X 说过这句"）
+        self.memory.add(
+            self.animal_id,
+            f"对{other_name}说：{line}",
+            type="dialog",
+            speaker="self",
+            importance=2,
+            game_time=context.get("time", ""),
+        )
+        return line
+
+    async def reply(self, user_text: str, context: Dict[str, Any]) -> Dict[str, Any]:        # 1. 构造 prompt（含检索到的相关记忆等）
         sys_prompt = self._build_system_prompt(context, query=user_text)
         history = self._build_recent_history()
 
@@ -279,7 +335,14 @@ class Agent:
         # 5. 异步触发反思（不阻塞回复）
         asyncio.create_task(self._maybe_reflect())
 
-        return reply_text
+        # 6. 好感度结算（基于玩家发言关键词，普通对话不加分）
+        aff_delta = delta_for_chat(user_text)
+        if aff_delta != 0:
+            aff = self.affection.adjust(self.animal_id, aff_delta)
+        else:
+            aff = self.affection.snapshot(self.animal_id)
+
+        return {"text": reply_text, "affection": aff}
 
     async def _maybe_reflect(self) -> None:
         try:
@@ -302,10 +365,11 @@ class AgentManager:
         memory: MemoryStore,
         profile: PlayerProfile,
         world: WorldEventStore,
+        affection: AffectionStore,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "12"))
         self._agents: Dict[str, Agent] = {
-            aid: Agent(p, llm, memory, profile, world, max_history_turns=max_turns)
+            aid: Agent(p, llm, memory, profile, world, affection, max_history_turns=max_turns)
             for aid, p in personas.items()
         }
 
@@ -351,3 +415,66 @@ class AgentManager:
             "listener_name": listener_name,
             "text": line,
         }
+
+    async def trigger_npc_chat_session(
+        self,
+        speaker_id: str,
+        listener_id: str,
+        context: Dict[str, Any],
+        turns: int = 3,
+    ):
+        """流式生成多轮 NPC↔NPC 对话。
+
+        异步生成器：每生成一句立刻 yield 一包，调用方决定 send/sleep 节奏。
+        每包格式同 trigger_npc_chat 返回值。
+        speaker 与 listener 的角色按句子奇偶交替（第 1/3 句 speaker 说，第 2 句 listener 说）。
+        每句话双方记忆都写：说的一方 self，听的一方 other。
+        """
+        speaker = self.get(speaker_id)
+        listener = self.get(listener_id)
+        if speaker is None or listener is None:
+            return
+
+        speaker_name = speaker.name
+        listener_name = listener.name
+        speaker_species = speaker.persona.get("species", "怪物")
+        listener_species = listener.persona.get("species", "怪物")
+
+        last_line: str = ""
+        for i in range(turns):
+            if i == 0:
+                # 第 1 句：speaker 主动开口
+                line = await speaker.speak_to_npc(listener_name, listener_species, context)
+                cur_speaker_id, cur_speaker_name = speaker_id, speaker_name
+                cur_listener_id, cur_listener_name = listener_id, listener_name
+            elif i % 2 == 1:
+                # listener 回应
+                line = await listener.reply_to_npc(speaker_name, speaker_species, last_line, context)
+                cur_speaker_id, cur_speaker_name = listener_id, listener_name
+                cur_listener_id, cur_listener_name = speaker_id, speaker_name
+            else:
+                # speaker 再回
+                line = await speaker.reply_to_npc(listener_name, listener_species, last_line, context)
+                cur_speaker_id, cur_speaker_name = speaker_id, speaker_name
+                cur_listener_id, cur_listener_name = listener_id, listener_name
+
+            # 给"听到的一方"写 other 记忆（说话方在 speak/reply_to_npc 内已写自己）
+            self._agents[cur_listener_id].memory.add(
+                cur_listener_id,
+                f"{cur_speaker_name}对我说：{line}",
+                type="dialog",
+                speaker=cur_speaker_id,
+                importance=2,
+                game_time=context.get("time", ""),
+            )
+
+            yield {
+                "speaker_id": cur_speaker_id,
+                "speaker_name": cur_speaker_name,
+                "listener_id": cur_listener_id,
+                "listener_name": cur_listener_name,
+                "text": line,
+                "turn": i + 1,
+                "total_turns": turns,
+            }
+            last_line = line

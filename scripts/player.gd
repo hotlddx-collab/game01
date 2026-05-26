@@ -24,11 +24,13 @@ var input_enabled: bool = true:
 		input_enabled = value
 
 var _last_dir: String = "down"
+var _hover_target: Node = null
 
 @onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
 
 
 func _ready() -> void:
+	add_to_group("player")
 	_load_sprite_frames()
 
 
@@ -37,6 +39,7 @@ func _physics_process(_delta: float) -> void:
 		velocity = Vector2.ZERO
 		move_and_slide()
 		_play_idle()
+		_update_hover_target()
 		return
 	var input_vec := Vector2(
 		Input.get_axis("move_left", "move_right"),
@@ -47,6 +50,21 @@ func _physics_process(_delta: float) -> void:
 	velocity = input_vec * move_speed
 	move_and_slide()
 	_update_animation()
+	_update_hover_target()
+
+
+## 每帧更新当前 hover 的 NPC，并切换 ▼ 箭头显示
+func _update_hover_target() -> void:
+	var target: Node = null
+	if input_enabled:
+		target = _find_closest_npc()
+	if target == _hover_target:
+		return
+	if _hover_target and is_instance_valid(_hover_target) and _hover_target.has_method("set_interact_hint"):
+		_hover_target.set_interact_hint(false)
+	_hover_target = target
+	if _hover_target and _hover_target.has_method("set_interact_hint"):
+		_hover_target.set_interact_hint(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:

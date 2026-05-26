@@ -5,6 +5,9 @@ extends Node2D
 ##   玩家 E → 打开对话框 → 请求后端 greet → NPC 开口
 ##   玩家输入回车 → 请求后端 chat → NPC 回应
 ##   后端断开 → 显示提示，仍可关闭对话
+##   玩家走远（> auto_close_distance）→ 自动关闭对话
+
+@export var auto_close_distance: float = 130.0
 
 @onready var player: CharacterBody2D = %Player
 @onready var dialog_ui: CanvasLayer = %DialogUI
@@ -24,7 +27,20 @@ func _ready() -> void:
 
 	# 后端信号
 	AgentClient.reply_received.connect(_on_reply_received)
+	AgentClient.affection_changed.connect(_on_affection_changed)
 	AgentClient.error_received.connect(_on_error_received)
+
+
+func _process(_delta: float) -> void:
+	# 对话期间，玩家走远 → 自动关闭
+	if _current_animal == null or not dialog_ui.is_open():
+		return
+	if not is_instance_valid(_current_animal):
+		dialog_ui.close()
+		return
+	var d: float = player.global_position.distance_to(_current_animal.global_position)
+	if d > auto_close_distance:
+		dialog_ui.close()
 
 
 # ---------- 玩家交互 ----------
@@ -35,10 +51,17 @@ func _on_player_interact(target: Node) -> void:
 	if not (target is Animal):
 		return
 	var animal: Animal = target
+	# 对方正在和别人交谈：拒绝开始对话
+	if animal.is_busy():
+		return
 	_current_animal = animal
 
 	# 锁玩家输入，避免打字时角色乱跑
 	player.input_enabled = false
+
+	# NPC 进入"和玩家对话"状态：停步 + 朝向玩家
+	animal.set_busy(animal.BusyState.TALKING_PLAYER)
+	animal.face_to(player.global_position)
 
 	dialog_ui.open_chat(animal.animal_id, animal.animal_name)
 
@@ -65,6 +88,9 @@ func _on_chat_send(animal_id: String, user_text: String) -> void:
 
 
 func _on_dialog_finished(_animal_id: String) -> void:
+	# NPC 解除 busy，恢复日程
+	if _current_animal and is_instance_valid(_current_animal):
+		_current_animal.clear_busy()
 	_current_animal = null
 	# 解锁玩家输入
 	player.input_enabled = true
@@ -87,12 +113,22 @@ func _on_error_received(message: String) -> void:
 	dialog_ui.set_input_enabled(true)
 
 
+func _on_affection_changed(animal_id: String, value: int, level: String, delta: int) -> void:
+	# 找到对应 animal 节点把好感度状态推过去（emote + 飘字）。
+	# 不强制依赖 _current_animal，遍历群组兼容多种触发场景（如未来世界事件）。
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n is Animal and n.animal_id == animal_id:
+			n.update_affection(value, level, delta)
+			break
+
+
 # ---------- 上下文构造 ----------
 
 func _build_context(animal: Animal) -> Dictionary:
 	var loc_id: String = animal.get_target_location()
 	return {
 		"time": WorldClock.format_time(),
+		"game_day": WorldClock.get_day(),
 		"location": loc_id,
 		"location_label": LocationDB.get_label(loc_id),
 		"intent": animal.get_current_intent(),
