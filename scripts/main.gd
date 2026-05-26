@@ -23,6 +23,7 @@ func _ready() -> void:
 
 	# 对话框信号
 	dialog_ui.chat_send_requested.connect(_on_chat_send)
+	dialog_ui.gift_send_requested.connect(_on_gift_send)
 	dialog_ui.dialog_finished.connect(_on_dialog_finished)
 
 	# 后端信号
@@ -47,6 +48,10 @@ func _process(_delta: float) -> void:
 
 func _on_player_interact(target: Node) -> void:
 	if dialog_ui.is_open():
+		return
+	# 拾取物品
+	if target.is_in_group("pickup") and target.has_method("pickup"):
+		target.pickup()
 		return
 	if not (target is Animal):
 		return
@@ -85,6 +90,20 @@ func _on_chat_send(animal_id: String, user_text: String) -> void:
 
 	dialog_ui.set_status("正在思考...")
 	AgentClient.request_chat(animal_id, user_text, _build_context(_current_animal))
+
+
+func _on_gift_send(animal_id: String, item_id: String) -> void:
+	if _current_animal == null or _current_animal.animal_id != animal_id:
+		return
+	if not PlayerInventory.has_item(item_id):
+		dialog_ui.set_status("（你没有这个物品）")
+		return
+	if not AgentClient.is_connected_to_server():
+		dialog_ui.show_npc_line("……（连不上服务器，礼物没送出去）")
+		return
+	# 客户端先扣库存（即使服务端失败也无伤大雅，物品散落即可补给）
+	PlayerInventory.remove_item(item_id, 1)
+	AgentClient.request_gift(animal_id, item_id, _build_context(_current_animal))
 
 
 func _on_dialog_finished(_animal_id: String) -> void:

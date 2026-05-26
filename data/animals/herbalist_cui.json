@@ -24,5 +24,11 @@
     { "time": "14:00", "location": "home_fox",    "intent": "去焰仔家送清火茶，看他今天又被什么气炸了" },
     { "time": "17:00", "location": "plaza",       "intent": "黄昏在广场采露水，听虫鸣" },
     { "time": "21:00", "location": "plaza",       "intent": "在广场过夜，盖一片大叶子睡觉" }
-  ]
+  ],
+  "gift_prefs": {
+    "loves":    ["herb", "flower"],
+    "likes":    ["mushroom", "feather"],
+    "dislikes": ["fish"],
+    "hates":    ["crystal"]
+  }
 }

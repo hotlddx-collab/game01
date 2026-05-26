@@ -9,6 +9,7 @@ signal disconnected
 signal reply_received(animal_id: String, text: String)
 signal npc_chat_received(speaker_id: String, listener_id: String, text: String)
 signal affection_changed(animal_id: String, value: int, level: String, delta: int)
+signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
 signal error_received(message: String)
 
 @export var host: String = "127.0.0.1"
@@ -121,6 +122,16 @@ func request_eavesdrop(speaker_id: String, listener_id: String, text: String, co
 	})
 
 
+## 玩家送礼给 NPC（item_id 必须是 ItemDB 已知物品）
+func request_gift(animal_id: String, item_id: String, context: Dictionary = {}) -> bool:
+	return _send({
+		"type": "gift",
+		"animal_id": animal_id,
+		"item_id": item_id,
+		"context": context,
+	})
+
+
 # ---------- 内部 ----------
 
 func _send(payload: Dictionary) -> bool:
@@ -152,6 +163,15 @@ func _handle_packet(text: String) -> void:
 					int(aff.get("value", 0)),
 					String(aff.get("level", "neutral")),
 					int(aff.get("delta", 0)),
+				)
+			var gift = data.get("gift", null)
+			if typeof(gift) == TYPE_DICTIONARY and gift.has("item_id"):
+				gift_received.emit(
+					aid,
+					String(gift.get("item_id", "")),
+					int(gift.get("delta", 0)),
+					String(gift.get("pref", "neutral")),
+					int(gift.get("count_after", 0)),
 				)
 		"npc_chat_reply":
 			npc_chat_received.emit(

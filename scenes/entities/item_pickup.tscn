@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://bitempickup1"]
+
+[ext_resource type="Script" path="res://scripts/item_pickup.gd" id="1_pickup"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_name"]
+font_size = 11
+font_color = Color(1, 1, 0.85, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 0.95)
+
+[node name="ItemPickup" type="Area2D"]
+script = ExtResource("1_pickup")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -8)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+unique_name_in_owner = true
+
+[node name="NameLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = -16.0
+text = "野花"
+label_settings = SubResource("LabelSettings_name")
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = -16.0
+offset_top = -52.0
+offset_right = 16.0
+offset_bottom = -32.0
+text = "▼"
+label_settings = SubResource("LabelSettings_name")
+horizontal_alignment = 1

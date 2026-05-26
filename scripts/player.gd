@@ -57,7 +57,7 @@ func _physics_process(_delta: float) -> void:
 func _update_hover_target() -> void:
 	var target: Node = null
 	if input_enabled:
-		target = _find_closest_npc()
+		target = _find_closest_interactable()
 	if target == _hover_target:
 		return
 	if _hover_target and is_instance_valid(_hover_target) and _hover_target.has_method("set_interact_hint"):
@@ -71,7 +71,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
 	if event.is_action_pressed("interact"):
-		var target := _find_closest_npc()
+		var target := _find_closest_interactable()
 		if target != null:
 			interact_pressed.emit(target)
 
@@ -132,4 +132,20 @@ func _find_closest_npc() -> Node:
 		if d < min_dist:
 			min_dist = d
 			closest = n
+	return closest
+
+
+## 找最近的可交互对象（NPC 或 ItemPickup）
+## NPC 在 group "npc"；ItemPickup 在 group "pickup"
+func _find_closest_interactable() -> Node:
+	var closest: Node = null
+	var min_dist: float = interact_radius
+	for group_name in ["npc", "pickup"]:
+		for n in get_tree().get_nodes_in_group(group_name):
+			if not (n is Node2D):
+				continue
+			var d: float = global_position.distance_to((n as Node2D).global_position)
+			if d < min_dist:
+				min_dist = d
+				closest = n
 	return closest

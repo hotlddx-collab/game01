@@ -23,5 +23,11 @@
     { "time": "13:00", "location": "bakery",      "intent": "下午继续做面包，给邻居准备明天的早餐" },
     { "time": "18:00", "location": "plaza",       "intent": "去广场散步消食" },
     { "time": "20:00", "location": "home_bear",   "intent": "回家休息，给自己浇点水" }
-  ]
+  ],
+  "gift_prefs": {
+    "loves":    ["mushroom", "herb"],
+    "likes":    ["bread", "flower"],
+    "dislikes": ["feather"],
+    "hates":    ["crystal"]
+  }
 }

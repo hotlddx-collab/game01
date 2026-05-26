@@ -38,6 +38,7 @@ const NAME_COLORS := {
 	"hate":    Color(1.0, 0.35, 0.35),  # 红
 	"cold":    Color(1.0, 0.7, 0.7),    # 淡红
 	"neutral": Color(1.0, 1.0, 1.0),    # 白（默认）
+	"warm":    Color(1.0, 0.95, 0.55),  # 浅黄（开始有好感）
 	"like":    Color(0.7, 1.0, 0.7),    # 淡绿
 	"love":    Color(0.35, 1.0, 0.35),  # 绿
 }

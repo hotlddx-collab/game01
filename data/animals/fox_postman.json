@@ -24,5 +24,11 @@
     { "time": "13:00", "location": "post_office", "intent": "下午满森林飞着送件" },
     { "time": "19:00", "location": "plaza",       "intent": "广场闲逛等夜风" },
     { "time": "21:00", "location": "home_fox",    "intent": "回家把火苗调小睡觉" }
-  ]
+  ],
+  "gift_prefs": {
+    "loves":    ["ancient_book", "crystal"],
+    "likes":    ["feather", "fish"],
+    "dislikes": ["bread"],
+    "hates":    ["flower"]
+  }
 }

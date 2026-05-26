@@ -2,16 +2,18 @@
 
 存储：SQLite 独立表 `affection(animal_id PK, value, updated_at, last_greet_day)`，范围 [VALUE_MIN, VALUE_MAX]。
 
-等级映射（5 档对称）：
+等级映射（6 档，配合 gift 系统的小数值 delta，反馈频繁）：
   hate    : value < -10        → 讨厌（名字板 红色）
   cold    : -10 <= value < 0   → 冷漠（名字板 淡红）
-  neutral : 0 <= value < 20    → 中立（名字板 白色，默认）
-  like    : 20 <= value < 50   → 好感（名字板 淡绿）
-  love    : value >= 50        → 喜欢（名字板 绿色）
+  neutral : 0 <= value < 5     → 中立（名字板 白色，默认）
+  warm    : 5 <= value < 15    → 略有好感（名字板 浅黄）
+  like    : 15 <= value < 30   → 好感（名字板 淡绿）
+  love    : value >= 30        → 喜欢（名字板 绿色）
 
 delta 规则（"有事才跳"，避免廉价感）：
   greet : 每个 NPC 每"游戏日"最多 +1（首次 / 久别重逢）
   chat  : 普通对话 0；含正向词 +2；含负向词 -3（正负互斥时取一边）
+  gift  : 公式化（见 gifts.py），最大 +5，普通 +1~+3
 
 返回的 dict 会被 main.py 拼进 reply 包发回 Godot。
 """
@@ -27,11 +29,15 @@ VALUE_MIN = -50
 VALUE_MAX = 100
 
 # 等级阈值（下限），从高到低排
+# 6 档：hate / cold / neutral / warm / like / love
+# 配合 gift 系统的小数值 delta，区间收紧到 5-15，
+# 送 2-3 次普通礼物就能从 neutral 升到 warm，反馈频繁
 _LEVELS = [
-    ("love", 50),
-    ("like", 20),
-    ("neutral", 0),
-    ("cold", -10),
+    ("love",    30),
+    ("like",    15),
+    ("warm",     5),
+    ("neutral",  0),
+    ("cold",   -10),
     ("hate", VALUE_MIN),
 ]
 
@@ -55,11 +61,12 @@ def level_of(value: int) -> str:
 
 def level_label(level: str) -> str:
     return {
-        "hate": "讨厌",
-        "cold": "冷漠",
+        "hate":    "讨厌",
+        "cold":    "冷漠",
         "neutral": "中立",
-        "like": "好感",
-        "love": "喜欢",
+        "warm":    "略有好感",
+        "like":    "好感",
+        "love":    "喜欢",
     }.get(level, "中立")
 
 

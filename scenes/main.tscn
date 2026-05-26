@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://bclock0001" path="res://scenes/ui/clock_hud.tscn" id="5_clock"]
 [ext_resource type="Script" uid="uid://poh4hk81x732" path="res://scripts/day_night.gd" id="6_daynight"]
 [ext_resource type="PackedScene" uid="uid://bbuilding001" path="res://scenes/entities/building.tscn" id="7_building"]
+[ext_resource type="PackedScene" uid="uid://bitempickup1" path="res://scenes/entities/item_pickup.tscn" id="8_pickup"]
 [ext_resource type="TileSet" uid="uid://ccvvdv8wc1p7f" path="res://assets/tilesets/world.tres" id="10_tileset"]
 [ext_resource type="Script" uid="uid://dko1vc3sg4e2a" path="res://scripts/ground_layer.gd" id="11_ground"]
 [ext_resource type="Texture2D" uid="uid://dbbi6nq1kixdc" path="res://assets/tilesets/TilesetHouse.png" id="12_houses"]
@@ -106,15 +107,97 @@ persona_file = "res://data/animals/pirate_lao.json"
 position = Vector2(850, 300)
 persona_file = "res://data/animals/mystic_xuan.json"
 
+[node name="Pickups" type="Node2D" parent="."]
+
+[node name="P01" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(120, 180)
+item_id = "herb"
+
+[node name="P02" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(230, 360)
+item_id = "flower"
+
+[node name="P03" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(150, 540)
+item_id = "mushroom"
+
+[node name="P04" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(330, 650)
+item_id = "bread"
+
+[node name="P05" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(460, 640)
+item_id = "fish"
+
+[node name="P06" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(450, 190)
+item_id = "feather"
+
+[node name="P07" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(700, 160)
+item_id = "mushroom"
+
+[node name="P08" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(370, 310)
+item_id = "herb"
+
+[node name="P09" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(590, 620)
+item_id = "flower"
+
+[node name="P10" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(820, 600)
+item_id = "fish"
+
+[node name="P11" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(950, 650)
+item_id = "bread"
+
+[node name="P12" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(1140, 580)
+item_id = "fish"
+
+[node name="P13" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(1150, 160)
+item_id = "ancient_book"
+
+[node name="P14" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(1060, 360)
+item_id = "crystal"
+
+[node name="P15" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(900, 160)
+item_id = "feather"
+
+[node name="P16" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(730, 430)
+item_id = "herb"
+
+[node name="P17" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(220, 150)
+item_id = "mushroom"
+
+[node name="P18" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(540, 460)
+item_id = "feather"
+
+[node name="P19" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(860, 460)
+item_id = "crystal"
+
+[node name="P20" parent="Pickups" instance=ExtResource("8_pickup")]
+position = Vector2(1050, 250)
+item_id = "flower"
+
 [node name="HintLayer" type="CanvasLayer" parent="." unique_id=393384615]
 layer = 4
 
 [node name="HintLabel" type="Label" parent="HintLayer" unique_id=816628713]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 600.0
+offset_right = 800.0
 offset_bottom = 48.0
-text = "WASD 移动 / 走近动物按 E 对话"
+text = "WASD 移动 / E 对话或拾取 / 对话中点 🎁 送礼"
 label_settings = SubResource("LabelSettings_hint")
 
 [node name="DialogUI" parent="." unique_id=1120618652 instance=ExtResource("4_dialog")]

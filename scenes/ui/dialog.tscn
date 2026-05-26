@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://bdialog001"]
+[gd_scene load_steps=5 format=3 uid="uid://bdialog001"]
 
 [ext_resource type="Script" path="res://scripts/dialog_ui.gd" id="1_dialog"]
 
@@ -29,6 +29,18 @@ content_margin_left = 10.0
 content_margin_top = 6.0
 content_margin_right = 10.0
 content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_picker"]
+bg_color = Color(1, 0.98, 0.92, 0.98)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.45, 0.32, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [node name="DialogUI" type="CanvasLayer"]
 layer = 10
@@ -100,7 +112,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
 offset_top = -68.0
-offset_right = -24.0
+offset_right = -120.0
 offset_bottom = -36.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -109,6 +121,89 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
 theme_override_colors/font_color = Color(0.15, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 16
+
+[node name="GiftButton" type="Button" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -110.0
+offset_top = -68.0
+offset_right = -24.0
+offset_bottom = -36.0
+text = "🎁 送礼"
+theme_override_font_sizes/font_size = 16
+
+[node name="GiftPicker" type="Panel" parent="Panel"]
+unique_name_in_owner = true
+visible = false
+offset_left = 24.0
+offset_top = 50.0
+offset_right = -24.0
+offset_bottom = -80.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_picker")
+
+[node name="GiftTitle" type="Label" parent="Panel/GiftPicker"]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = -60.0
+offset_bottom = 34.0
+anchor_right = 1.0
+text = "选择要送出的礼物"
+theme_override_colors/font_color = Color(0.4, 0.25, 0.15, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="GiftClose" type="Button" parent="Panel/GiftPicker"]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -48.0
+offset_top = 6.0
+offset_right = -8.0
+offset_bottom = 36.0
+text = "✕"
+
+[node name="GiftScroll" type="ScrollContainer" parent="Panel/GiftPicker"]
+offset_left = 8.0
+offset_top = 40.0
+offset_right = -8.0
+offset_bottom = -8.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="GiftGrid" type="GridContainer" parent="Panel/GiftPicker/GiftScroll"]
+unique_name_in_owner = true
+columns = 4
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+
+[node name="GiftEmpty" type="Label" parent="Panel/GiftPicker"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -16.0
+offset_right = 200.0
+offset_bottom = 16.0
+horizontal_alignment = 1
+text = "你的背包是空的——出门捡点东西再来吧"
+theme_override_colors/font_color = Color(0.5, 0.4, 0.3, 1)
+theme_override_font_sizes/font_size = 14
 
 [node name="Hint" type="Label" parent="Panel"]
 anchors_preset = 3

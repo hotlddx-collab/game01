@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS affection (
   updated_at      INTEGER NOT NULL,
   last_greet_day  INTEGER NOT NULL DEFAULT -1
 );
+
+CREATE TABLE IF NOT EXISTS gift_log (
+  animal_id      TEXT NOT NULL,
+  item_id        TEXT NOT NULL,
+  count          INTEGER NOT NULL DEFAULT 0,
+  last_gift_day  INTEGER NOT NULL DEFAULT -1,
+  updated_at     INTEGER NOT NULL,
+  PRIMARY KEY (animal_id, item_id)
+);
 """
 
 

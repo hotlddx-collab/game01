@@ -21,6 +21,7 @@ from memory import MemoryStore
 from profile import PlayerProfile
 from world_events import WorldEventStore
 from affection import AffectionStore
+from gifts import GiftStore
 
 
 # ---------- 启动初始化 ----------
@@ -44,7 +45,8 @@ memory_store = MemoryStore()
 profile_store = PlayerProfile()
 world_store = WorldEventStore()
 affection_store = AffectionStore()
-manager = AgentManager(personas, llm, memory_store, profile_store, world_store, affection_store)
+gift_store = GiftStore()
+manager = AgentManager(personas, llm, memory_store, profile_store, world_store, affection_store, gift_store)
 log.info("加载 personas: %s", manager.all_ids())
 
 
@@ -105,6 +107,12 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
                 await _send_error(ws, "user_text 为空")
                 return
             result = await agent.reply(user_text, context)
+        elif msg_type == "gift":
+            item_id = msg.get("item_id", "")
+            if not item_id:
+                await _send_error(ws, "gift 缺少 item_id")
+                return
+            result = await agent.receive_gift(item_id, context)
         elif msg_type == "reset":
             agent.reset_history()
             await ws.send_text(
@@ -126,6 +134,8 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         "affection": result.get("affection", {}),
         "ok": True,
     }
+    if "gift" in result:
+        payload["gift"] = result["gift"]
     await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
 

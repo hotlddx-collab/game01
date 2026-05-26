@@ -63,6 +63,26 @@
   - 玩家走远 > `auto_close_distance(130px)` → main.gd 自动关闭对话
   - ChatManager 触发 npc_chat：双方 set TALKING_NPC(lock=global_cooldown 14s)，互相 face_to；超时自动清
   - ChatManager `_is_pair_eligible` 排除 busy NPC，避免 NPC 同时多个对话
+- **C：礼物系统** ✅ 2026-05-26 完成
+  - 8 种物品（base 3-15）：flower/feather/mushroom/fish/bread/herb/crystal/ancient_book
+  - 后端 `agent_server/items.py` + `agent_server/gifts.py`：
+    - 公式 `delta = round(base × pref_mult × affection_mult × fatigue_mult)`
+    - pref_mult：loves×2.0 / likes×1.3 / neutral×1.0 / dislikes×0.3 / hates×-1.5
+    - affection_mult：hate×0.2 / cold×0.5 / neutral×1.0 / like×1.2 / love×1.5
+    - fatigue_mult：`1.0 - 0.3 × count` clamp [-0.5, 1.0]，每 2 游戏日 -1 自然淡忘
+    - 同 NPC 同物品送多了 mult 会变负 → 反感（"你只送这个吗？"）
+  - SQLite 新表 `gift_log(animal_id, item_id, count, last_gift_day)`
+  - LLM 不决定数值，只生成反应文本（按 delta 量级提示语气）
+  - 6 个 NPC persona JSON 各加 `gift_prefs: {loves/likes/dislikes/hates}`
+  - 协议 `gift` C→S，`reply` 包附带 `gift: {item_id, delta, pref, count_after, ...}`
+  - 客户端：
+    - `PlayerInventory` autoload（dict 存储 + 信号）
+    - `ItemDB` autoload（id → name/icon/base_value）
+    - `ItemPickup` 节点（地图散落，按 E 拾取）
+    - `Player._find_closest_interactable` 同时找 NPC + pickup
+    - `DialogUI` 加 🎁送礼按钮 + GiftPicker 网格弹窗
+    - `AgentClient.gift_received` 信号
+  - 8 个 ItemPickup 散布在镇上各处
 
 ### 🔄 进行中
 （无，等用户决定下一项）
@@ -81,6 +101,7 @@
 | `npc_chat` | C→S | 触发两 NPC 互动 |
 | `npc_chat_reply` | S→C | NPC 互动结果（含 speaker_id, listener_id, text，多轮时一句一包） |
 | `eavesdrop` | C→S | 玩家偷听到 NPC 对话，后端写双方 event 记忆 + 世界事件 |
+| `gift` | C→S | 玩家送礼给 NPC（item_id），后端走公式算 delta + 写记忆 + LLM 反应文本 |
 
 ---
 
@@ -105,3 +126,5 @@
 | `LocationDB` | `scripts/location_db.gd` | 地点注册 + 查询 |
 | `ChatManager` | `scripts/chat_manager.gd` | 距离检测 + 冷却 + 触发 NPC 互动 |
 | `AgentClient` | `scripts/agent_client.gd` | WebSocket 与 Python 后端通信 |
+| `PlayerInventory` | `scripts/player_inventory.gd` | 玩家库存（item_id → count） |
+| `ItemDB` | `scripts/item_db.gd` | 物品定义（id/name/icon/base_value） |

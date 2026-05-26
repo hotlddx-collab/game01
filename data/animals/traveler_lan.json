@@ -26,5 +26,11 @@
     { "time": "16:00", "location": "plaza",       "intent": "回广场继续摆摊，吆喝今天的新货" },
     { "time": "19:00", "location": "home_fox",    "intent": "晚饭蹭焰仔家，他做饭难吃但话题精彩" },
     { "time": "22:00", "location": "plaza",       "intent": "广场过夜，背包当枕头看星星" }
-  ]
+  ],
+  "gift_prefs": {
+    "loves":    ["ancient_book", "crystal"],
+    "likes":    ["bread", "fish"],
+    "dislikes": ["flower"],
+    "hates":    ["mushroom"]
+  }
 }

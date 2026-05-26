@@ -24,5 +24,11 @@
     { "time": "15:00", "location": "hilltop",      "intent": "回高处，俯视整个村子" },
     { "time": "18:00", "location": "plaza",        "intent": "傍晚人最多时出现在广场，偶尔开口说一句" },
     { "time": "22:00", "location": "hilltop",      "intent": "夜里发光最明显，独自在高处直到天亮" }
-  ]
+  ],
+  "gift_prefs": {
+    "loves":    ["crystal", "ancient_book"],
+    "likes":    ["feather", "herb"],
+    "dislikes": ["bread"],
+    "hates":    ["fish"]
+  }
 }

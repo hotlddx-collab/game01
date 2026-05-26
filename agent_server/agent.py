@@ -14,6 +14,8 @@ from affection import AffectionStore, level_of, level_label, delta_for_chat
 from retrieval import retrieve_relevant
 from fact_extractor import extract_facts, estimate_importance
 from reflection import reflect_if_needed
+import items as items_module
+from gifts import GiftStore, compute_delta, pref_label
 
 
 log = logging.getLogger("agent")
@@ -59,6 +61,7 @@ class Agent:
         profile: PlayerProfile,
         world: WorldEventStore,
         affection: AffectionStore,
+        gifts: GiftStore,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -67,6 +70,7 @@ class Agent:
         self.profile = profile
         self.world = world
         self.affection = affection
+        self.gifts = gifts
         self.max_history_turns = max_history_turns
 
     @property
@@ -147,6 +151,7 @@ class Agent:
             "hate":    "你对这位玩家有强烈反感，语气冷硬、想赶走对方，必要时直接呛回去。",
             "cold":    "你对这位玩家有些不快，语气冷淡、敷衍，懒得多搭理。",
             "neutral": "你跟这位玩家不算熟，礼貌但不亲昵。",
+            "warm":    "你对这位玩家有点初步好感，比之前自然一些，开始愿意多聊两句。",
             "like":    "你对这位玩家有好感，热情一些、爱聊几句，会主动找话题。",
             "love":    "你很喜欢这位玩家，语气亲近、关心、爱开玩笑，把对方当朋友。",
         }.get(lvl, "")
@@ -350,6 +355,115 @@ class Agent:
         except Exception as e:
             log.warning("reflect 异常: %s", e)
 
+    async def receive_gift(self, item_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """玩家送礼：按公式算 delta + 调好感度 + 存疲劳 + 让 LLM 生成反应文本。
+
+        返回 {text, affection, gift: {item_id, item_name, delta, pref, count_after}}
+        """
+        item = items_module.get(item_id)
+        if item is None:
+            return {
+                "text": "（这是什么东西？我不认识。）",
+                "affection": self.affection.snapshot(self.animal_id),
+                "gift": {"item_id": item_id, "delta": 0, "error": "未知物品"},
+            }
+
+        # 1) 当前关系等级
+        cur_value = self.affection.get(self.animal_id)
+        aff_level = level_of(cur_value)
+
+        # 2) 疲劳衰减 + 计算 delta
+        game_day = int(context.get("game_day", -1))
+        decayed_count = self.gifts.apply_decay(self.animal_id, item_id, game_day)
+        prefs = self.persona.get("gift_prefs", {}) or {}
+        calc = compute_delta(item_id, prefs, aff_level, decayed_count)
+        delta = int(calc["delta"])
+        pref = calc["pref"]
+
+        # 3) 写疲劳记录
+        new_count = self.gifts.register(self.animal_id, item_id, game_day, decayed_count)
+
+        # 4) 应用 affection delta
+        if delta != 0:
+            aff = self.affection.adjust(self.animal_id, delta)
+        else:
+            aff = self.affection.snapshot(self.animal_id)
+
+        # 5) 让 LLM 写反应文本（不改数值，仅生成台词）
+        sys_prompt = self._build_system_prompt(context, query=f"（玩家送了你 {item.name}）")
+
+        # 给 LLM 明确告知数值方向，让台词与之匹配
+        if delta >= 10:
+            tone = "热烈感谢、惊喜，明显表现出喜悦。"
+        elif delta >= 3:
+            tone = "高兴、感谢，但不夸张。"
+        elif delta > 0:
+            tone = "礼貌道谢，平淡。"
+        elif delta == 0:
+            tone = "敷衍收下或表现出'又来这个'的疲态。"
+        elif delta > -8:
+            tone = "明显不喜欢，皱眉、嫌弃，但不至于发火。"
+        else:
+            tone = "强烈反感、生气甚至呵斥，明确不想要。"
+
+        repeat_hint = ""
+        if new_count >= 3:
+            repeat_hint = f"（这已经是玩家第 {new_count} 次送你 {item.name} 了，可以提一句'老送一样的'。）"
+
+        user_msg = (
+            f"玩家刚送给你一份「{item.name}」（{item.desc}）。\n"
+            f"对你而言这是 {pref_label(pref)} 礼物。\n"
+            f"你的反应数值变化：{delta:+d}（{tone}）\n"
+            f"{repeat_hint}\n"
+            "请用 1 句话表达你的反应——直接说出你说的话，不要加旁白动作描述。"
+        )
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_msg},
+        ]
+        try:
+            reply_text = await self.llm.chat(messages, max_tokens=120, temperature=0.95)
+        except Exception as e:
+            log.warning("[gift] LLM 反应文本失败 %s: %s，用兜底", self.animal_id, e)
+            reply_text = "（默默收下了%s。）" % item.name
+
+        # 6) 写记忆 + 世界事件
+        self.memory.add(
+            self.animal_id,
+            f"玩家送了我 {item.name}（{pref_label(pref)}），我说：{reply_text}",
+            type="event",
+            speaker="self",
+            importance=6 if abs(delta) >= 8 else 4,
+            game_time=context.get("time", ""),
+        )
+        self.world.add(
+            actor="player",
+            description=f"送给{self.name}一份{item.name}",
+            location=context.get("location", ""),
+            game_time=context.get("time", ""),
+        )
+
+        log.info(
+            "[gift] %s ← %s | pref=%s aff=%s count=%d→%d delta=%+d (raw=%.2f)",
+            self.animal_id, item_id, pref, aff_level, decayed_count, new_count, delta, calc.get("raw", 0.0),
+        )
+
+        return {
+            "text": reply_text,
+            "affection": aff,
+            "gift": {
+                "item_id": item_id,
+                "item_name": item.name,
+                "delta": delta,
+                "pref": pref,
+                "count_after": new_count,
+                "base": calc["base"],
+                "pref_mult": calc["pref_mult"],
+                "affection_mult": calc["affection_mult"],
+                "fatigue_mult": calc["fatigue_mult"],
+            },
+        }
+
     def reset_history(self) -> None:
         """注：仅用于 reset 命令，不删 memory；只是不读取最近几条。
         实际 P0-3 不再有"内存历史"概念，此函数保留接口但 no-op。"""
@@ -366,10 +480,11 @@ class AgentManager:
         profile: PlayerProfile,
         world: WorldEventStore,
         affection: AffectionStore,
+        gifts: GiftStore,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "12"))
         self._agents: Dict[str, Agent] = {
-            aid: Agent(p, llm, memory, profile, world, affection, max_history_turns=max_turns)
+            aid: Agent(p, llm, memory, profile, world, affection, gifts, max_history_turns=max_turns)
             for aid, p in personas.items()
         }
 
