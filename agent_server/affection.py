@@ -126,9 +126,10 @@ class AffectionStore:
             )
 
     def adjust(self, animal_id: str, delta: int) -> Dict[str, int | str]:
-        """累加 delta（不动 last_greet_day），返回 {value, delta, level}。"""
+        """累加 delta（不动 last_greet_day），返回 {value, delta, level, prev_level}。"""
         rec = self.get_record(animal_id)
         cur = rec["value"]
+        prev_level = level_of(cur)
         new_v = max(VALUE_MIN, min(VALUE_MAX, cur + delta))
         applied = new_v - cur
         if applied != 0:
@@ -137,6 +138,7 @@ class AffectionStore:
             "value": new_v,
             "delta": applied,
             "level": level_of(new_v),
+            "prev_level": prev_level,
         }
 
     def adjust_for_greet(self, animal_id: str, game_day: int) -> Dict[str, int | str]:

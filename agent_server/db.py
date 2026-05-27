@@ -52,6 +52,29 @@ CREATE TABLE IF NOT EXISTS reflection_state (
   last_memory_id   INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS reflections (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  animal_id   TEXT NOT NULL,
+  game_day    INTEGER NOT NULL,
+  content     TEXT NOT NULL,
+  importance  INTEGER NOT NULL DEFAULT 5,
+  tags        TEXT,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refl_animal_day ON reflections(animal_id, game_day DESC);
+
+CREATE TABLE IF NOT EXISTS animal_intents (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  animal_id     TEXT NOT NULL,       -- 发起意图的 NPC
+  target_id     TEXT,                -- 目标 NPC id（可为空）
+  intent_text   TEXT NOT NULL,       -- 原始意图文本（反思原句）
+  game_day      INTEGER NOT NULL,    -- 产生于第几天
+  activate_hour INTEGER NOT NULL DEFAULT 10,  -- 几点激活（游戏时间）
+  consumed      INTEGER NOT NULL DEFAULT 0,   -- 0=待执行, 1=已执行
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_intent_day ON animal_intents(game_day, consumed);
+
 CREATE TABLE IF NOT EXISTS affection (
   animal_id       TEXT PRIMARY KEY,
   value           INTEGER NOT NULL DEFAULT 0,

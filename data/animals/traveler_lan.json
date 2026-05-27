@@ -28,9 +28,10 @@
     { "time": "22:00", "location": "plaza",       "intent": "广场过夜，背包当枕头看星星" }
   ],
   "gift_prefs": {
-    "loves":    ["ancient_book", "crystal"],
-    "likes":    ["bread", "fish"],
-    "dislikes": ["flower"],
-    "hates":    ["mushroom"]
-  }
+    "loves":    ["ancient_book", "crystal", "map_piece"],
+    "likes":    ["bread", "fish", "letter"],
+    "dislikes": ["flower", "acorn"],
+    "hates":    ["mushroom", "potion_tea"]
+  },
+  "signature_gift": "map_piece"
 }

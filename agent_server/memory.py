@@ -110,3 +110,59 @@ class MemoryStore:
                 (animal_id,),
             ).fetchone()
         return row["c"] if row else 0
+
+    def cleanup_old(
+        self,
+        animal_id: str,
+        *,
+        keep_recent: int = 60,
+        min_importance: int = 5,
+        max_total: int = 200,
+    ) -> int:
+        """清理旧的低重要度记忆，保持 memories 表轻量。
+
+        保留规则（任一满足则保留）：
+          1. importance >= min_importance （重要事件永久保留）
+          2. 最近 keep_recent 条（无论重要度，保证短期连贯）
+
+        若清理后仍超过 max_total 条，再按时间截断最老的。
+        返回删除条数。
+        """
+        with get_conn() as conn:
+            # 找出最近 keep_recent 条的最小 id（保留这个 id 以上的）
+            row = conn.execute(
+                """SELECT id FROM memories WHERE animal_id = ?
+                   ORDER BY real_time DESC LIMIT 1 OFFSET ?""",
+                (animal_id, keep_recent - 1),
+            ).fetchone()
+            cutoff_id = row["id"] if row else 0
+
+            # 删除：id < cutoff_id 且 importance < min_importance
+            cur = conn.execute(
+                """DELETE FROM memories
+                   WHERE animal_id = ?
+                     AND id < ?
+                     AND importance < ?
+                     AND type != 'reflection'""",
+                (animal_id, cutoff_id, min_importance),
+            )
+            deleted = cur.rowcount
+
+            # 二次截断：超 max_total 则删最老的
+            count_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM memories WHERE animal_id = ?",
+                (animal_id,),
+            ).fetchone()
+            total = count_row["c"] if count_row else 0
+            if total > max_total:
+                overflow = total - max_total
+                cur2 = conn.execute(
+                    """DELETE FROM memories WHERE id IN (
+                         SELECT id FROM memories WHERE animal_id = ?
+                         ORDER BY real_time ASC LIMIT ?
+                       )""",
+                    (animal_id, overflow),
+                )
+                deleted += cur2.rowcount
+
+        return deleted

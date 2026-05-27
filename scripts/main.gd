@@ -30,6 +30,8 @@ func _ready() -> void:
 	AgentClient.reply_received.connect(_on_reply_received)
 	AgentClient.affection_changed.connect(_on_affection_changed)
 	AgentClient.error_received.connect(_on_error_received)
+	AgentClient.npc_intent_received.connect(_on_npc_intent)
+	AgentClient.npc_gift_received.connect(_on_npc_gift)
 
 
 func _process(_delta: float) -> void:
@@ -132,6 +134,13 @@ func _on_error_received(message: String) -> void:
 	dialog_ui.set_input_enabled(true)
 
 
+func _on_npc_gift(animal_id: String, item_id: String, _item_name: String, message: String) -> void:
+	## NPC 升到 love 时赠送签名礼物，加入背包并在对话框显示
+	PlayerInventory.add_item(item_id, 1)
+	if dialog_ui.is_open():
+		dialog_ui.show_npc_gift_note(message)
+
+
 func _on_affection_changed(animal_id: String, value: int, level: String, delta: int) -> void:
 	# 找到对应 animal 节点把好感度状态推过去（emote + 飘字）。
 	# 不强制依赖 _current_animal，遍历群组兼容多种触发场景（如未来世界事件）。
@@ -139,6 +148,42 @@ func _on_affection_changed(animal_id: String, value: int, level: String, delta: 
 		if n is Animal and n.animal_id == animal_id:
 			n.update_affection(value, level, delta)
 			break
+
+
+func _on_npc_intent(initiator_id: String, target_id: String, _intent_text: String) -> void:
+	## 后端推送 NPC 自发意图：initiator 主动走向 target，到达后发起对话
+	if not AgentClient.is_connected_to_server():
+		return
+	if target_id == "":
+		return
+	var initiator: Animal = _find_animal(initiator_id)
+	var target: Animal = _find_animal(target_id)
+	if initiator == null or target == null:
+		return
+	if initiator.is_busy() or target.is_busy():
+		return
+	# target 原地等待，面向 initiator
+	target.face_to(initiator.global_position)
+	# initiator 主动走过去，到达后触发对话
+	initiator.approach_for_intent(
+		target.global_position,
+		func():
+			# 到达后双方面对面，置 busy，发 npc_chat
+			initiator.face_to(target.global_position)
+			target.face_to(initiator.global_position)
+			initiator.set_busy(Animal.BusyState.TALKING_NPC, 14.0)
+			target.set_busy(Animal.BusyState.TALKING_NPC, 14.0)
+			AgentClient.request_npc_chat(
+				initiator_id, target_id, initiator.get_current_context()
+			)
+	)
+
+
+func _find_animal(animal_id: String) -> Animal:
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n is Animal and n.animal_id == animal_id:
+			return n
+	return null
 
 
 # ---------- 上下文构造 ----------

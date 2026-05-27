@@ -1,0 +1,201 @@
+[gd_scene format=3 uid="uid://inventory001"]
+
+[ext_resource type="Script" path="res://scripts/inventory_ui.gd" id="1_inv"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.12, 0.1, 0.08, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.45, 0.35, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
+bg_color = Color(0.22, 0.18, 0.13, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.4, 0.25, 0.6)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_empty"]
+bg_color = Color(0.15, 0.12, 0.09, 0.5)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.28, 0.18, 0.4)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="InventoryUI" type="CanvasLayer"]
+layer = 15
+script = ExtResource("1_inv")
+
+[node name="Panel" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 200.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="Title" type="Label" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 10.0
+offset_right = 100.0
+offset_bottom = 34.0
+horizontal_alignment = 1
+text = "🎒 背包"
+theme_override_colors/font_color = Color(0.9, 0.8, 0.6, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="CloseBtn" type="Button" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -36.0
+offset_top = 6.0
+offset_right = -6.0
+offset_bottom = 36.0
+text = "✕"
+theme_override_font_sizes/font_size = 14
+
+[node name="CloseHint" type="Label" parent="Panel"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -22.0
+offset_right = -8.0
+offset_bottom = -6.0
+horizontal_alignment = 2
+text = "[I] 或 [Esc] 关闭"
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 0.8)
+theme_override_font_sizes/font_size = 11
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel"]
+offset_left = 12.0
+offset_top = 40.0
+offset_right = -12.0
+offset_bottom = -28.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="ItemGrid" type="GridContainer" parent="Panel/ScrollContainer"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+columns = 4
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="EmptyLabel" type="Label" parent="Panel"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -20.0
+offset_right = 150.0
+offset_bottom = 20.0
+horizontal_alignment = 1
+text = "背包是空的——出门捡点东西吧"
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 0.8)
+theme_override_font_sizes/font_size = 13
+
+[node name="ConfirmPanel" type="Panel" parent="Panel"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -100.0
+offset_right = 140.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel/ConfirmPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="ItemPreviewRow" type="HBoxContainer" parent="Panel/ConfirmPanel/VBox"]
+size_flags_horizontal = 4
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="ItemIcon" type="TextureRect" parent="Panel/ConfirmPanel/VBox/ItemPreviewRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+stretch_mode = 2
+
+[node name="ItemNameLabel" type="Label" parent="Panel/ConfirmPanel/VBox/ItemPreviewRow"]
+unique_name_in_owner = true
+text = "物品名"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.98, 0.9, 0.7, 1)
+
+[node name="ConfirmLabel" type="Label" parent="Panel/ConfirmPanel/VBox"]
+unique_name_in_owner = true
+horizontal_alignment = 1
+text = "确认送出给对方？"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.75, 0.7, 0.6, 0.9)
+
+[node name="HBox" type="HBoxContainer" parent="Panel/ConfirmPanel/VBox"]
+size_flags_horizontal = 4
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="BtnOK" type="Button" parent="Panel/ConfirmPanel/VBox/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 32)
+text = "✓ 送出"
+
+[node name="BtnCancel" type="Button" parent="Panel/ConfirmPanel/VBox/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 32)
+text = "✕ 取消"

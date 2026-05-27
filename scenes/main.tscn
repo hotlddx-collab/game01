@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://poh4hk81x732" path="res://scripts/day_night.gd" id="6_daynight"]
 [ext_resource type="PackedScene" uid="uid://bbuilding001" path="res://scenes/entities/building.tscn" id="7_building"]
 [ext_resource type="PackedScene" uid="uid://bitempickup1" path="res://scenes/entities/item_pickup.tscn" id="8_pickup"]
+[ext_resource type="PackedScene" uid="uid://inventory001" path="res://scenes/ui/inventory.tscn" id="9_inventory"]
 [ext_resource type="TileSet" uid="uid://ccvvdv8wc1p7f" path="res://assets/tilesets/world.tres" id="10_tileset"]
 [ext_resource type="Script" uid="uid://dko1vc3sg4e2a" path="res://scripts/ground_layer.gd" id="11_ground"]
 [ext_resource type="Texture2D" uid="uid://dbbi6nq1kixdc" path="res://assets/tilesets/TilesetHouse.png" id="12_houses"]
@@ -197,10 +198,12 @@ offset_left = 16.0
 offset_top = 16.0
 offset_right = 800.0
 offset_bottom = 48.0
-text = "WASD 移动 / E 对话或拾取 / 对话中点 🎁 送礼"
+text = "WASD 移动 / E 对话或拾取 / 对话中点 🎁 送礼 / I 背包"
 label_settings = SubResource("LabelSettings_hint")
 
 [node name="DialogUI" parent="." unique_id=1120618652 instance=ExtResource("4_dialog")]
 unique_name_in_owner = true
+
+[node name="InventoryUI" parent="." instance=ExtResource("9_inventory")]
 
 [node name="ClockHUD" parent="." unique_id=502427576 instance=ExtResource("5_clock")]

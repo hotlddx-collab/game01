@@ -8,6 +8,9 @@ signal connected
 signal disconnected
 signal reply_received(animal_id: String, text: String)
 signal npc_chat_received(speaker_id: String, listener_id: String, text: String)
+signal npc_intent_received(initiator_id: String, target_id: String, intent_text: String)
+signal chat_intent_made(animal_id: String, target_name: String, summary: String)
+signal npc_gift_received(animal_id: String, item_id: String, item_name: String, message: String)
 signal affection_changed(animal_id: String, value: int, level: String, delta: int)
 signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
 signal error_received(message: String)
@@ -27,6 +30,8 @@ var _ever_attempted: bool = false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_try_connect()
+	# 监听游戏小时变化，22:00 起通知后端触发每日反思
+	WorldClock.hour_changed.connect(_on_world_hour_changed)
 
 
 func _process(delta: float) -> void:
@@ -132,6 +137,21 @@ func request_gift(animal_id: String, item_id: String, context: Dictionary = {}) 
 	})
 
 
+## 发送游戏时间 tick，触发后端每日反思判断
+func send_time_tick() -> bool:
+	return _send({
+		"type": "time_tick",
+		"game_day": WorldClock.get_day(),
+		"game_hour": WorldClock.get_hour(),
+	})
+
+
+func _on_world_hour_changed(hour: int) -> void:
+	## 22:00 时通知后端，后端判断是否触发当日全员反思
+	if hour >= 22 and _connected:
+		send_time_tick()
+
+
 # ---------- 内部 ----------
 
 func _send(payload: Dictionary) -> bool:
@@ -173,11 +193,32 @@ func _handle_packet(text: String) -> void:
 					String(gift.get("pref", "neutral")),
 					int(gift.get("count_after", 0)),
 				)
+			var intent = data.get("intent", null)
+			if typeof(intent) == TYPE_DICTIONARY and intent.has("target_name"):
+				chat_intent_made.emit(
+					aid,
+					String(intent.get("target_name", "")),
+					String(intent.get("summary", "")),
+				)
+			var npc_gift = data.get("npc_gift", null)
+			if typeof(npc_gift) == TYPE_DICTIONARY and npc_gift.has("item_id"):
+				npc_gift_received.emit(
+					aid,
+					String(npc_gift.get("item_id", "")),
+					String(npc_gift.get("item_name", "")),
+					String(npc_gift.get("message", "")),
+				)
 		"npc_chat_reply":
 			npc_chat_received.emit(
 				data.get("speaker_id", ""),
 				data.get("listener_id", ""),
 				data.get("text", "")
+			)
+		"npc_intent":
+			npc_intent_received.emit(
+				data.get("initiator_id", ""),
+				data.get("target_id", ""),
+				data.get("intent_text", "")
 			)
 		"error":
 			var m: String = data.get("message", "未知错误")

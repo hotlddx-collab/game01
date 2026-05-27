@@ -26,9 +26,10 @@
     { "time": "21:00", "location": "plaza",       "intent": "在广场过夜，盖一片大叶子睡觉" }
   ],
   "gift_prefs": {
-    "loves":    ["herb", "flower"],
-    "likes":    ["mushroom", "feather"],
-    "dislikes": ["fish"],
-    "hates":    ["crystal"]
-  }
+    "loves":    ["herb", "flower", "acorn"],
+    "likes":    ["mushroom", "feather", "honey"],
+    "dislikes": ["fish", "compass"],
+    "hates":    ["crystal", "glow_stone"]
+  },
+  "signature_gift": "potion_tea"
 }

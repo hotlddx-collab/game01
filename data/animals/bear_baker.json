@@ -24,10 +24,11 @@
     { "time": "18:00", "location": "plaza",       "intent": "去广场散步消食" },
     { "time": "20:00", "location": "home_bear",   "intent": "回家休息，给自己浇点水" }
   ],
+  "signature_gift": "cookie",
   "gift_prefs": {
-    "loves":    ["mushroom", "herb"],
-    "likes":    ["bread", "flower"],
-    "dislikes": ["feather"],
-    "hates":    ["crystal"]
+    "loves":    ["mushroom", "herb", "honey"],
+    "likes":    ["bread", "flower", "acorn"],
+    "dislikes": ["feather", "letter"],
+    "hates":    ["crystal", "glow_stone"]
   }
 }

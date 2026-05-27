@@ -26,9 +26,10 @@
     { "time": "21:00", "location": "home_fox",    "intent": "回家把火苗调小睡觉" }
   ],
   "gift_prefs": {
-    "loves":    ["ancient_book", "crystal"],
-    "likes":    ["feather", "fish"],
-    "dislikes": ["bread"],
-    "hates":    ["flower"]
-  }
+    "loves":    ["ancient_book", "crystal", "letter"],
+    "likes":    ["map_piece", "feather", "fish"],
+    "dislikes": ["bread", "acorn"],
+    "hates":    ["flower", "mushroom"]
+  },
+  "signature_gift": "letter"
 }

@@ -22,6 +22,7 @@ from profile import PlayerProfile
 from world_events import WorldEventStore
 from affection import AffectionStore
 from gifts import GiftStore
+from reflection import ReflectionStore, IntentStore
 
 
 # ---------- 启动初始化 ----------
@@ -46,8 +47,16 @@ profile_store = PlayerProfile()
 world_store = WorldEventStore()
 affection_store = AffectionStore()
 gift_store = GiftStore()
-manager = AgentManager(personas, llm, memory_store, profile_store, world_store, affection_store, gift_store)
+reflection_store = ReflectionStore()
+intent_store = IntentStore()
+manager = AgentManager(
+    personas, llm, memory_store, profile_store, world_store,
+    affection_store, gift_store, reflection_store,
+)
 log.info("加载 personas: %s", manager.all_ids())
+
+# 记录上次触发反思的游戏日，避免同日重复触发
+_last_reflect_day: int = -1
 
 
 # ---------- HTTP 健康检查 ----------
@@ -79,6 +88,11 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def _handle_message(ws: WebSocket, msg: dict) -> None:
     msg_type = msg.get("type")
+
+    # 游戏时间同步（每游戏日 22:00 触发全员反思，不回包）
+    if msg_type == "time_tick":
+        await _handle_time_tick(msg, ws)
+        return
 
     # NPC↔NPC 对话（特殊：需要两个 agent，不走 animal_id 单查）
     if msg_type == "npc_chat":
@@ -136,6 +150,37 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
     }
     if "gift" in result:
         payload["gift"] = result["gift"]
+    if "npc_gift" in result:
+        payload["npc_gift"] = result["npc_gift"]
+
+    # 对话驱动意图：NPC 答应去找某人 → 写 intent_store + 回包通知客户端
+    intent_data = result.get("intent")
+    if intent_data and intent_data.get("agreed") and intent_data.get("target_id"):
+        target_id = intent_data["target_id"]
+        known_ids = set(manager.all_ids())
+        if target_id in known_ids and target_id != animal_id:
+            game_day = int(context.get("game_day", 0))
+            activate_hour = 10 + (abs(hash(f"{animal_id}{game_day}")) % 7)
+            intent_store.add(
+                animal_id,
+                intent_data.get("summary", "去找人"),
+                game_day + 1,
+                target_id=target_id,
+                activate_hour=activate_hour,
+            )
+            target_agent = manager.get(target_id)
+            target_name = target_agent.name if target_agent else target_id
+            payload["intent"] = {
+                "target_id": target_id,
+                "target_name": target_name,
+                "summary": intent_data.get("summary", ""),
+            }
+            log.info(
+                "[intent] %s 承诺 day=%d h=%d: %s → %s",
+                animal_id, game_day + 1, activate_hour,
+                intent_data.get("summary", ""), target_id,
+            )
+
     await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
 
@@ -223,6 +268,77 @@ async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
 
     log.info("[eavesdrop] player overheard %s→%s: %s", speaker_id, listener_id, short)
     await ws.send_text(json.dumps({"type": "ok", "context": "eavesdrop"}, ensure_ascii=False))
+
+
+async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
+    """接收客户端游戏时间 tick，每日 22:00 触发反思 + 9-18 激活意图。
+
+    消息格式：{"type": "time_tick", "game_day": N, "game_hour": H}
+    """
+    global _last_reflect_day
+    game_day = int(msg.get("game_day", -1))
+    game_hour = int(msg.get("game_hour", 0))
+
+    if game_day < 0:
+        return
+
+    # 激活当日待执行意图（每小时检查一次）
+    await _activate_pending_intents(game_day, game_hour, ws)
+
+    # 22:00+ 且是新的一天 → 触发反思（非阻塞）
+    if game_hour >= 22 and game_day > _last_reflect_day:
+        _last_reflect_day = game_day
+        asyncio.create_task(manager.run_all_daily_reflections(game_day, intent_store))
+
+
+async def _activate_pending_intents(game_day: int, game_hour: int, ws: WebSocket) -> None:
+    """检查待执行意图，逐条推送 npc_intent 消息给客户端。"""
+    pending = intent_store.pending(game_day, game_hour)
+    if not pending:
+        return
+    for entry in pending:
+        intent_store.mark_consumed(entry.id)
+        log.info(
+            "[intent] 激活 %s→%s day=%d: %s",
+            entry.animal_id, entry.target_id or "?", game_day, entry.intent_text[:30],
+        )
+        try:
+            await ws.send_text(json.dumps({
+                "type": "npc_intent",
+                "initiator_id": entry.animal_id,
+                "target_id": entry.target_id,
+                "intent_text": entry.intent_text,
+            }, ensure_ascii=False))
+        except Exception as e:
+            log.warning("[intent] 推送失败: %s", e)
+
+
+# ---------- Debug HTTP ----------
+
+@app.post("/debug/reflect/{animal_id}/{day}")
+async def debug_reflect(animal_id: str, day: int):
+    """强制触发指定 NPC + 游戏日的反思（force=True，跳过"今日已反思"检查）。"""
+    agent = manager.get(animal_id)
+    if agent is None:
+        return {"ok": False, "error": f"未知 animal_id: {animal_id}"}
+    from reflection import run_daily_reflection as _refl_fn
+    species = agent.persona.get("species", "怪物")
+    npc_name_map = {a.name: aid2 for aid2, a in manager._agents.items()}
+    results = await _refl_fn(
+        animal_id, agent.name, species, day,
+        agent.memory, agent.world, agent.affection,
+        agent.reflection_store, agent.llm,
+        npc_name_map=npc_name_map,
+        intent_store=intent_store,
+        force=True,
+    )
+    return {
+        "ok": True,
+        "animal_id": animal_id,
+        "day": day,
+        "count": len(results),
+        "reflections": [{"content": r.content, "importance": r.importance, "tags": r.tags} for r in results],
+    }
 
 
 async def _send_error(ws: WebSocket, message: str) -> None:

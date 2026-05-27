@@ -53,6 +53,12 @@ enum BusyState { FREE, TALKING_PLAYER, TALKING_NPC }
 var _busy_state: int = BusyState.FREE
 var _busy_until: float = 0.0  # 0 = 无限直到手动 clear；>0 = 到点自动 clear
 
+# ---------- 自发意图追踪 ----------
+const INTENT_ARRIVE_DIST: float = 70.0   # 走到这个距离触发回调
+var _intent_active: bool = false
+var _intent_target_pos: Vector2 = Vector2.ZERO
+var _intent_callback: Callable = Callable()
+
 
 func _ready() -> void:
 	add_to_group("npc")
@@ -63,11 +69,26 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	# busy 状态：停止移动（朝向已由 set_busy/face_to 设过）
+	# Y 轴排序：靠下的角色遮挡靠上的（标准 2D 纵深规则）
+	z_index = int(global_position.y / 4)
+
+	# busy 状态：停止移动
 	if is_busy():
 		velocity = Vector2.ZERO
 		_update_animation()
 		return
+	# 自发意图：走向目标，到达后回调
+	if _intent_active:
+		var d: float = global_position.distance_to(_intent_target_pos)
+		if d <= INTENT_ARRIVE_DIST:
+			_intent_active = false
+			_moving = false
+			velocity = Vector2.ZERO
+			if _intent_callback.is_valid():
+				_intent_callback.call()
+		else:
+			_target_pos = _intent_target_pos
+			_moving = true
 	if _moving:
 		var to_target: Vector2 = _target_pos - global_position
 		if to_target.length() <= arrive_distance:
@@ -291,8 +312,19 @@ func set_busy(state: int, duration: float = 0.0) -> void:
 func clear_busy() -> void:
 	_busy_state = BusyState.FREE
 	_busy_until = 0.0
+	_intent_active = false
+	_intent_callback = Callable()
 	# 重新拉起目标，让 NPC 继续日程
 	_update_target_by_time()
+
+
+## NPC 主动走向 target_pos，到达 INTENT_ARRIVE_DIST 内后调用 on_arrive。
+## 用于反思驱动的自发行为：走过去再说话。
+func approach_for_intent(target_pos: Vector2, on_arrive: Callable) -> void:
+	_intent_target_pos = target_pos
+	_intent_callback = on_arrive
+	_intent_active = true
+	_moving = true
 
 
 ## 朝向某点（简单 horizontal flip + last_dir 记录，立即生效不依赖 velocity）

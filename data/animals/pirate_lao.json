@@ -26,9 +26,10 @@
     { "time": "20:00", "location": "home_pirate",  "intent": "回家，对着罗盘喝一口酒，睡觉" }
   ],
   "gift_prefs": {
-    "loves":    ["fish", "ancient_book"],
-    "likes":    ["bread", "crystal"],
-    "dislikes": ["flower"],
-    "hates":    ["feather"]
-  }
+    "loves":    ["fish", "ancient_book", "honey"],
+    "likes":    ["bread", "crystal", "acorn"],
+    "dislikes": ["flower", "potion_tea"],
+    "hates":    ["feather", "letter"]
+  },
+  "signature_gift": "compass"
 }

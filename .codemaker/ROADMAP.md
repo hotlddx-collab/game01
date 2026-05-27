@@ -11,12 +11,68 @@
 | P0-1 | Godot 骨架、玩家、NPC 日程、对话占位 | ❌ | ✅ 完成 |
 | P0-2 | Python 后端 + DeepSeek 接通 | ✅ | ✅ 完成 |
 | P0-3 | 短期记忆 + 昼夜滤镜 | ✅ | ✅ 完成 |
-| P1   | 多动物、关系网、地图扩展 | ✅ | 🔄 进行中 |
-| P2   | 反思机制、长期记忆、涌现剧情 | ✅ | ⏳ 未开始 |
+| P1   | 多动物、关系网、地图扩展 | ✅ | ✅ 完成 |
+| P2   | 反思机制、长期记忆、涌现剧情 | ✅ | ✅ 完成 |
+| P3   | 物理世界扩充（物品/地点/装饰/生物/NPC）| ❌ | 🔄 进行中（阶段1完成/阶段3暂停）|
 
 ---
 
-## 当前迭代任务（P1 细项）
+## P3：物理世界扩充
+
+> 目标：在不依赖 LLM 想象力的前提下，靠扎实的"已知事物"让对话和场景丰富起来。
+> 顺序：1→2→3→4→5，做完一个验收一个，再继续下一个。
+
+### 阶段 1：物品库扩充（16 → 40）
+
+| 类目 | 现 | 新增 | base_value 区间 |
+|---|---|---|---|
+| 食物 | 7 | +4（meat/noodle/octopus/gourd）| 2 |
+| 资源 | 0 | +5（branch/rock/gem_green/gem_red/bar_copper）| 1-3 |
+| 工具 | 0 | +5（shovel/hoe/pickaxe/watering_can/sickle）| 2-3 |
+| 物件 | 3 | +3（coin_purse/dice/pan_flute）| 1-3 |
+| 宝物 | 0 | +5（treasure_small/gold_cup/silver_cup/gold_key/silver_key）| 3-5 |
+| 卷轴 | 0 | +4（scroll_fire/scroll_ice/scroll_thunder/scroll_blank）| 1-3 |
+| 药水 | 0 | +3（water_pot/heart_pot/medi_pack）| 1-3 |
+| **合计** | **16** | **+24** | — |
+
+改动：`agent_server/items.py` + `scripts/item_db.gd` 同步加 24 条。
+
+### 阶段 2：地点扩充（6 → 12）
+新地点：河边码头、田野、洞穴、沙漠边缘、废弃村、露营地。
+对应 Tileset：Water、Field、Dungeon、Desert、VillageAbandoned、tileset_camp。
+每个地点写进 `LocationDB`，部分 NPC schedule 加新行程。
+
+### 阶段 3：动态装饰（零交互氛围）
+基于 `res/ninja_adventure/Backgrounds/Animated/`：
+- 风车（MillPropeller A/B）→ 面包店旁
+- 水车（Watermill A/B）→ 河边
+- 旗帜（Flag）→ 广场
+- 瀑布（Waterfall 上中下）→ 森林深处
+- 摆动花朵 / 植物 → 各处散布
+- 水波纹（WaterRipples）→ 水面
+
+实现：用 AnimatedSprite2D + SpriteFrames（从 SpriteSheet 切帧），或 Sprite2D 周期 region 切换。
+
+### 阶段 4：背景生物（不可交互）
+`res/ninja_adventure/Actor/Animal/`：鸡、蝴蝶、青蛙、流浪猫、鱼。
+让世界有"活物"。实现：简化版 AI（在固定区域随机游走 + 动画）。
+
+### P3 当前进度
+- **P3 阶段 1：物品库扩充** ✅ 2026-05-27 完成
+  - `agent_server/items.py`：16 → 45 种物品（食物/资源/工具/物件/宝物/卷轴/药水）
+  - `scripts/item_db.gd`：同步加 45 条（含 icon 路径，全部验证存在）
+  - 6 个 NPC persona JSON 加 `signature_gift` + 更新 `gift_prefs`（覆盖新物品）
+- **P3 阶段 3：动态装饰** ⏸️ 暂停
+  - 技术框架已完成（`anim_decoration.gd` SHEET/SWAP 双模式）
+  - 尝试用 Bamboo Monster 精灵做树木装饰，视觉效果差，已回退
+  - **待解决**：需要在 Godot 编辑器里手动预览 tileset 资源，确认可用图块位置后再做
+  - **下次继续**：P3 阶段 2（地点扩充）或让用户在编辑器里完成阶段 3
+
+### P3 Pending（阶段 2-5）
+- 阶段 2：地点扩充（需 Tilemap 编辑器操作）
+- 阶段 3：动态装饰（需先预览资源确认图块）
+- 阶段 4：背景生物
+- 阶段 5：新 NPC
 
 ### ✅ 已完成
 - A：SpriteFrames `.tres` 资源（Python 生成）+ Char 素材接入
@@ -85,7 +141,24 @@
   - 8 个 ItemPickup 散布在镇上各处
 
 ### 🔄 进行中
-（无，等用户决定下一项）
+- **P2-1：反思机制** ✅ 2026-05-27 完成
+  - 触发：客户端 22:00 发 `time_tick`，后端检查 game_day > last_reflect_day → 触发全员反思
+  - LLM 输入：当日 event 记忆（最近 20 条）+ 世界事件（6 条）+ 好感度 + NPC 名单
+  - LLM 输出：3-5 条 JSON `{content, importance(1-10), tags, target_id?}`
+  - 存储：独立 `reflections` 表 + `animal_intents` 表（intent 类反思自动写入）
+  - 注入：每次对话 prompt 加 `【你最近的想法】` 块（最近 7 天，importance>=4，最多 5 条）
+  - debug：`POST /debug/reflect/{animal_id}/{day}` 强制触发（force=True）
+
+- **P2-C：importance 自动评分** ✅ 2026-05-27 完成
+  - `fact_extractor.py` 扩展关键词表（情感词/互动词/承诺词，共 ~30 项）
+  - 新增 `importance_for_gift(delta)` 4 档映射
+  - agent.py 所有 memory.add 改用 `estimate_importance(text, base=N)`
+  - 分布：普通闲聊 3-4 / 礼物 6-8 / 名字/承诺/吵架 7-9
+
+- **P2-B：反思驱动 NPC 自发行为** ✅ 2026-05-27 完成
+  - 反思 tags=["intent"] 自动写 `animal_intents(animal_id, target_id, intent_text, game_day, activate_hour)`
+  - 意图激活：每小时 `time_tick` 时检查，时间到 → 推送 `npc_intent` WS 消息
+  - 客户端：`AgentClient.npc_intent_received` 信号 → `main.gd._on_npc_intent` → 两 NPC free 则触发 `request_npc_chat`
 
 ### ⏳ Pending
 （P1 全部完成，等开始 P2 反思 / 长期记忆 / 涌现剧情）
@@ -102,6 +175,7 @@
 | `npc_chat_reply` | S→C | NPC 互动结果（含 speaker_id, listener_id, text，多轮时一句一包） |
 | `eavesdrop` | C→S | 玩家偷听到 NPC 对话，后端写双方 event 记忆 + 世界事件 |
 | `gift` | C→S | 玩家送礼给 NPC（item_id），后端走公式算 delta + 写记忆 + LLM 反应文本 |
+| `time_tick` | C→S | 游戏时间心跳（每游戏小时一次），后端 22:00 触发全员每日反思，无回包 |
 
 ---
 

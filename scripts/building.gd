@@ -106,8 +106,14 @@ func _update_visual() -> void:
 	# Label 跟随视觉尺寸
 	if lbl:
 		lbl.text = display_name
-		lbl.size = Vector2(visual_size.x + 60.0, 24.0)
-		lbl.position = Vector2(-visual_size.x * 0.5 - 30.0, -visual_size.y * 0.5 - 28.0)
+		lbl.size = Vector2(visual_size.x + 40.0, 18.0)
+		lbl.position = Vector2(-visual_size.x * 0.5 - 20.0, -visual_size.y * 0.5 - 22.0)
+		# 建筑标签：小灰字，无填充感，与 NPC 名字明显区分
+		lbl.add_theme_font_size_override("font_size", 10)
+		lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9, 0.65))
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
+		lbl.add_theme_constant_override("outline_size", 2)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	_update_entry_point()
 

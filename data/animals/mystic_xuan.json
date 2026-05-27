@@ -26,9 +26,10 @@
     { "time": "22:00", "location": "hilltop",      "intent": "夜里发光最明显，独自在高处直到天亮" }
   ],
   "gift_prefs": {
-    "loves":    ["crystal", "ancient_book"],
-    "likes":    ["feather", "herb"],
-    "dislikes": ["bread"],
-    "hates":    ["fish"]
-  }
+    "loves":    ["crystal", "ancient_book", "glow_stone"],
+    "likes":    ["feather", "herb", "compass"],
+    "dislikes": ["bread", "acorn"],
+    "hates":    ["fish", "cookie"]
+  },
+  "signature_gift": "glow_stone"
 }
