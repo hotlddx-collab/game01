@@ -58,6 +58,9 @@ signal exited(actor: Node)
 
 func _ready() -> void:
 	_update_visual()
+	# _update_visual 里已调用 _update_z_index，但 global_position 在 _ready 时才稳定，补一次
+	var visual_size := sprite_region.size if sprite_texture != null else size
+	_update_z_index(visual_size)
 	if Engine.is_editor_hint():
 		return
 	add_to_group("building")
@@ -120,9 +123,10 @@ func _update_visual() -> void:
 
 
 func _update_z_index(visual_size: Vector2) -> void:
-	# 以建筑底边 Y（position + 半高）参与排序，与 animal.gd 保持同一公式
-	var bottom_y := global_position.y + visual_size.y * 0.5
-	z_index = int(bottom_y / 4)
+	# 以建筑入口点 Y 为排序基准：玩家脚踩过入口 → 玩家在前；玩家在入口上方 → 建筑在前
+	# 与 animal.gd 保持同一公式 int(y / 4)
+	var sort_y := global_position.y + entry_offset.y
+	z_index = int(sort_y / 4)
 
 
 func _update_entry_point() -> void:
