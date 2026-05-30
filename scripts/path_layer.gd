@@ -30,7 +30,9 @@ extends TileMapLayer
 
 
 func _ready() -> void:
-	_paint()
+	z_index = -150  # 路径层在地面上方，但永远在角色/建筑下方
+	if Engine.is_editor_hint():
+		_paint()
 
 
 func _paint() -> void:

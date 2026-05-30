@@ -28,8 +28,9 @@ extends TileMapLayer
 
 
 func _ready() -> void:
-	# 游戏运行时不执行 _paint()，保留手画的地形（湖泊/路径等）
-	# 编辑器模式下打开场景会触发 rebuild 按钮或直接在编辑器里使用
+	# 地面层永远在所有角色/建筑下方
+	z_index = -200
+	# 游戏运行时不重铺，直接用 .tscn 保存的 tile_map_data
 	pass
 
 

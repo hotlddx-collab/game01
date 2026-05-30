@@ -52,6 +52,7 @@ extends TileMapLayer
 
 
 func _ready() -> void:
+	z_index = -100  # 装饰层在路径上方，但永远在角色/建筑下方
 	_paint()
 
 
