@@ -123,9 +123,10 @@ func _update_visual() -> void:
 
 
 func _update_z_index(visual_size: Vector2) -> void:
-	# 以建筑入口点 Y 为排序基准：玩家脚踩过入口 → 玩家在前；玩家在入口上方 → 建筑在前
-	# 与 animal.gd 保持同一公式 int(y / 4)
+	# 以建筑入口点 Y 为排序基准，与 animal/player 同一公式 int(y/4)
+	# z_as_relative=false：绝对 z_index，不受 Buildings 父节点影响
 	var sort_y := global_position.y + entry_offset.y
+	z_as_relative = false
 	z_index = int(sort_y / 4)
 
 

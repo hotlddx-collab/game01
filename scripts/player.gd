@@ -35,6 +35,8 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# Y轴排序遮挡（与 animal.gd 公式一致）
+	z_index = int(global_position.y / 4)
 	if not input_enabled:
 		velocity = Vector2.ZERO
 		move_and_slide()
