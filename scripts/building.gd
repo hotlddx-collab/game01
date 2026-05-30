@@ -116,6 +116,13 @@ func _update_visual() -> void:
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	_update_entry_point()
+	_update_z_index(visual_size)
+
+
+func _update_z_index(visual_size: Vector2) -> void:
+	# 以建筑底边 Y（position + 半高）参与排序，与 animal.gd 保持同一公式
+	var bottom_y := global_position.y + visual_size.y * 0.5
+	z_index = int(bottom_y / 4)
 
 
 func _update_entry_point() -> void:
