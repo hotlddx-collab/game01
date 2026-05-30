@@ -8,16 +8,17 @@ extends TileMapLayer
 ## 2. 在编辑器里随便画 tile（湖、岩石、围墙等），都成阻挡
 ## 3. 运行游戏即生效，玩家/NPC 走不进去
 ##
-## 注意：此层 tile 的视觉也会显示。如果只想要不可见碰撞，用透明 tile 即可。
-## 通常推荐：在 Ground 层画湖泊视觉，再在此层画"碰撞用 tile"覆盖（视觉一致即可）。
+## collision_y_frac / collision_h_frac 控制碰撞体在 tile 内的位置和高度：
+##   默认只用 tile 下半段（y_frac=0.5, h_frac=0.5），贴合俯视视角的"脚面"。
+##   设为 0 / 1.0 则是完整 tile（湖泊类障碍推荐）。
 
-## 碰撞层位（默认与玩家碰撞）
-@export_flags_2d_physics var collision_layer_mask: int = 1
-@export_flags_2d_physics var collision_mask_value: int = 0
+## 碰撞体顶部距 tile 顶部的偏移比例（0=tile顶, 0.5=tile中间, 1=tile底部）
+@export_range(0.0, 1.0, 0.05) var collision_y_frac: float = 0.5
+## 碰撞体高度占 tile 高度的比例（0.5=半格高，1.0=整格高）
+@export_range(0.1, 1.0, 0.05) var collision_h_frac: float = 0.5
 
 
 func _ready() -> void:
-	# 此层 z_index 跟随 ground，避免遮挡角色
 	z_index = -190
 	if Engine.is_editor_hint():
 		return
@@ -25,7 +26,6 @@ func _ready() -> void:
 
 
 func _build_collision() -> void:
-	# 清掉旧碰撞（重启场景时）
 	for child in get_children():
 		if child is StaticBody2D:
 			child.queue_free()
@@ -33,50 +33,48 @@ func _build_collision() -> void:
 	if tile_set == null:
 		return
 
-	var ts: float = float(tile_set.tile_size.x)  # 通常 16
+	var ts: int = tile_set.tile_size.x  # 通常 16
 	var cells := get_used_cells()
 	if cells.is_empty():
 		return
 
-	# 用贪心算法把连续 tile 合并为大矩形，减少碰撞体数量
 	var rects := _merge_cells_to_rects(cells)
 
 	for rect in rects:
 		var body := StaticBody2D.new()
-		body.collision_layer = collision_layer_mask
-		body.collision_mask = collision_mask_value
 		add_child(body)
 
 		var shape := CollisionShape2D.new()
 		var rect_shape := RectangleShape2D.new()
-		rect_shape.size = Vector2(rect.size.x * ts, rect.size.y * ts)
+
+		var w_px: float = rect.size.x * ts
+		var h_px: float = rect.size.y * ts * collision_h_frac
+		rect_shape.size = Vector2(w_px, h_px)
 		shape.shape = rect_shape
-		# tile 坐标转像素，定位到矩形中心
-		var center_x: float = (rect.position.x + rect.size.x * 0.5) * ts
-		var center_y: float = (rect.position.y + rect.size.y * 0.5) * ts
-		shape.position = Vector2(center_x, center_y)
+
+		# X 中心 = 矩形左边 + 宽/2（像素）
+		var cx: float = (rect.position.x + rect.size.x * 0.5) * ts
+		# Y 中心 = tile顶部 + 偏移 + 碰撞高/2
+		var tile_top_y: float = rect.position.y * ts
+		var cy: float = tile_top_y + rect.size.y * ts * collision_y_frac + h_px * 0.5
+		shape.position = Vector2(cx, cy)
 		body.add_child(shape)
 
-	print("[ObstacleLayer] 生成 %d 个碰撞体（覆盖 %d 个 tile）" % [rects.size(), cells.size()])
+	print("[ObstacleLayer] 生成 %d 个碰撞体（y_frac=%.2f h_frac=%.2f）" % [rects.size(), collision_y_frac, collision_h_frac])
 
 
 func _merge_cells_to_rects(cells: Array) -> Array[Rect2i]:
-	## 贪心合并：横向扫一遍连续行，再纵向合并相同范围的行
 	var grid := {}
 	for c: Vector2i in cells:
 		grid[c] = true
-
 	var rects: Array[Rect2i] = []
 	var visited := {}
-
 	for c: Vector2i in cells:
 		if visited.has(c):
 			continue
-		# 横向扩展
 		var w := 1
 		while grid.has(Vector2i(c.x + w, c.y)) and not visited.has(Vector2i(c.x + w, c.y)):
 			w += 1
-		# 纵向扩展（要求每行同样宽度）
 		var h := 1
 		while true:
 			var ok := true
@@ -88,10 +86,8 @@ func _merge_cells_to_rects(cells: Array) -> Array[Rect2i]:
 			if not ok:
 				break
 			h += 1
-		# 标记 visited
 		for dx in range(w):
 			for dy in range(h):
 				visited[Vector2i(c.x + dx, c.y + dy)] = true
 		rects.append(Rect2i(c.x, c.y, w, h))
-
 	return rects
