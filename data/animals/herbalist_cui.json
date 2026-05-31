@@ -72,8 +72,8 @@
   "signature_gift": "potion_tea",
   "movement": {
     "speed_factor": 0.95,
-    "restless": 0.35,
+    "restless": 0.6,
     "pause_chance": 0.08,
-    "wander_radius": 35
+    "wander_radius": 50
   }
 }

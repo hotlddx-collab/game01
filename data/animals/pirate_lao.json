@@ -76,8 +76,8 @@
   "signature_gift": "compass",
   "movement": {
     "speed_factor": 0.8,
-    "restless": 0.25,
+    "restless": 0.5,
     "pause_chance": 0.12,
-    "wander_radius": 30
+    "wander_radius": 45
   }
 }

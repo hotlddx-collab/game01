@@ -76,8 +76,8 @@
   "signature_gift": "letter",
   "movement": {
     "speed_factor": 1.25,
-    "restless": 0.5,
+    "restless": 0.75,
     "pause_chance": 0.08,
-    "wander_radius": 50
+    "wander_radius": 65
   }
 }

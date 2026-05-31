@@ -159,23 +159,25 @@ func _physics_process(delta: float) -> void:
 			_settle_timer -= delta
 			if _settle_timer <= 0.0:
 				_state = State.IDLE
-				_idle_timer = randf_range(3.0, 6.0)
+				_idle_timer = randf_range(1.0, 2.5)  # 到达后很快开始闲逛
 
 		# ── 待机：计时后随机闲逛 ──
 		State.IDLE:
 			velocity = Vector2.ZERO
 			_idle_timer -= delta
 			if _idle_timer <= 0.0:
-				_idle_timer = randf_range(3.0, 8.0) / (0.1 + _mv_restless)
-				if randf() < _mv_restless:
+				# 每次到期都以 restless 概率闲逛，否则再等一段
+				if randf() < 0.5 + _mv_restless * 0.5:
 					_start_wander()
+				else:
+					_idle_timer = randf_range(1.5, 3.5)
 
 		# ── 闲逛 ──
 		State.WANDERING:
 			var to_wander: Vector2 = _wander_target - global_position
 			if to_wander.length() < arrive_distance or _nav_agent.is_navigation_finished():
 				_state = State.IDLE
-				_idle_timer = randf_range(2.0, 4.0)
+				_idle_timer = randf_range(1.0, 3.0)  # 闲逛完很快再闲逛
 				velocity = Vector2.ZERO
 			else:
 				var next: Vector2 = _nav_agent.get_next_path_position()

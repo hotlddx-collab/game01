@@ -78,8 +78,8 @@
   "signature_gift": "map_piece",
   "movement": {
     "speed_factor": 1.1,
-    "restless": 0.6,
+    "restless": 0.8,
     "pause_chance": 0.08,
-    "wander_radius": 60
+    "wander_radius": 75
   }
 }

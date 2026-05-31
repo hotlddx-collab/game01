@@ -81,8 +81,8 @@
   "signature_gift": "glow_stone",
   "movement": {
     "speed_factor": 1.0,
-    "restless": 0.15,
+    "restless": 0.35,
     "pause_chance": 0.05,
-    "wander_radius": 25
+    "wander_radius": 40
   }
 }
