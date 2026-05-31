@@ -32,9 +32,10 @@ func _ready() -> void:
 	var tex: Texture2D = ItemDB.get_icon(item_id)
 	if tex != null:
 		sprite.texture = tex
-	# 名字标签
+	# 名字标签默认隐藏，靠近时才显示
 	if name_label:
 		name_label.text = ItemDB.get_item_name(item_id)
+		name_label.visible = false
 	# 提示默认隐藏
 	if hint_label:
 		hint_label.visible = false
@@ -54,6 +55,8 @@ func set_interact_hint(active: bool) -> void:
 	_hovered = active
 	if hint_label:
 		hint_label.visible = active
+	if name_label:
+		name_label.visible = active  # 靠近才显示名字
 
 
 ## 玩家按 E 时调用：拾取
