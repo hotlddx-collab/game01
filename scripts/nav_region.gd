@@ -38,7 +38,7 @@ func _build_and_bake() -> void:
 	])
 	poly.add_outline(outer)
 
-	# ── 障碍孔洞：从 ObstacleLayer 读取 tile 格并合并为矩形 ──
+	# ── 障碍孔洞：ObstacleLayer tile 障碍 ──
 	var obstacle_node := _find_obstacle_layer()
 	if obstacle_node:
 		var cells: Array = obstacle_node.get_used_cells()
@@ -50,13 +50,32 @@ func _build_and_bake() -> void:
 				var ry: float = rect.position.y * tile_size - m
 				var rw: float = rect.size.x * tile_size + m * 2.0
 				var rh: float = rect.size.y * tile_size + m * 2.0
-				# 孔洞逆时针（与外边界方向相反）
 				poly.add_outline(PackedVector2Array([
 					Vector2(rx,      ry),
 					Vector2(rx,      ry + rh),
 					Vector2(rx + rw, ry + rh),
 					Vector2(rx + rw, ry),
 				]))
+
+	# ── 障碍孔洞：建筑占地面积 ──
+	var buildings := get_tree().get_nodes_in_group("building")
+	for b in buildings:
+		var bsize: Vector2
+		if b.sprite_texture != null:
+			bsize = b.sprite_region.size
+		else:
+			bsize = b.size
+		# 只挡建筑的"脚面"（下半部分），不挡视觉上部
+		var bx: float = b.global_position.x - bsize.x * 0.5 - obstacle_margin
+		var by: float = b.global_position.y              - obstacle_margin
+		var bw: float = bsize.x + obstacle_margin * 2.0
+		var bh: float = bsize.y * 0.5 + obstacle_margin * 2.0
+		poly.add_outline(PackedVector2Array([
+			Vector2(bx,      by),
+			Vector2(bx,      by + bh),
+			Vector2(bx + bw, by + bh),
+			Vector2(bx + bw, by),
+		]))
 
 	poly.make_polygons_from_outlines()
 	navigation_polygon = poly
