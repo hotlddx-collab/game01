@@ -36,8 +36,8 @@
     },
     {
       "time": "14:00",
-      "location": "home_bear",
-      "intent": "去苔老板家送货，顺便聊新听到的故事"
+      "location": "home_lan",
+      "intent": "回旅行者小居所整理行囊"
     },
     {
       "time": "16:00",
@@ -46,8 +46,8 @@
     },
     {
       "time": "19:00",
-      "location": "home_fox",
-      "intent": "晚饭蹭焰仔家，他做饭难吃但话题精彩"
+      "location": "home_lan",
+      "intent": "回旅行者小居所整理行囊"
     },
     {
       "time": "22:00",

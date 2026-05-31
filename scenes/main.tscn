@@ -178,6 +178,26 @@ sprite_texture = ExtResource("12_houses")
 sprite_region = Rect2(128, 0, 64, 48)
 entry_offset = Vector2(0, 24)
 
+[node name="HomeCui" parent="Buildings" unique_id=5500000001 instance=ExtResource("7_building")]
+z_index = 131
+z_as_relative = false
+position = Vector2(250, 501)
+building_id = "home_cui"
+display_name = "小翠的草药屋"
+sprite_texture = ExtResource("12_houses")
+sprite_region = Rect2(416, 0, 48, 48)
+entry_offset = Vector2(0, 24)
+
+[node name="HomeLan" parent="Buildings" unique_id=5500000002 instance=ExtResource("7_building")]
+z_index = 131
+z_as_relative = false
+position = Vector2(620, 501)
+building_id = "home_lan"
+display_name = "小蓝的旅居"
+sprite_texture = ExtResource("12_houses")
+sprite_region = Rect2(464, 0, 48, 48)
+entry_offset = Vector2(0, 24)
+
 [node name="StaticBody2D6" type="StaticBody2D" parent="Buildings/HomeMystic" unique_id=1630861459]
 position = Vector2(-1150, -380)
 

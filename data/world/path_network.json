@@ -1,41 +1,139 @@
 {
   "_comment": "路网节点坐标（像素）和连线。NPC 从起点→最近路网节点→目标路网节点→目标。",
   "waypoints": {
-    "wp_a":  [200,  350],
-    "wp_b":  [400,  350],
-    "wp_c":  [600,  350],
-    "wp_d":  [700,  350],
-    "wp_e":  [800,  350],
-    "wp_f":  [992,  350],
-
-    "home_bear":    [200,  240],
-    "home_fox":     [992,  240],
-    "home_pirate":  [700,  240],
-    "bakery_door":  [400,  520],
-    "post_door":    [800,  520],
-    "home_mystic":  [1150, 390],
-
-    "river_near":       [480,  420],
-    "hilltop_near":     [1100, 220],
-    "forest_edge_near": [160,  450]
+    "wp_a": [
+      200,
+      350
+    ],
+    "wp_b": [
+      400,
+      350
+    ],
+    "wp_c": [
+      600,
+      350
+    ],
+    "wp_d": [
+      700,
+      350
+    ],
+    "wp_e": [
+      800,
+      350
+    ],
+    "wp_f": [
+      992,
+      350
+    ],
+    "home_bear": [
+      200,
+      240
+    ],
+    "home_fox": [
+      992,
+      240
+    ],
+    "home_pirate": [
+      700,
+      240
+    ],
+    "bakery_door": [
+      400,
+      520
+    ],
+    "post_door": [
+      800,
+      520
+    ],
+    "home_mystic": [
+      1150,
+      390
+    ],
+    "river_near": [
+      480,
+      420
+    ],
+    "hilltop_near": [
+      1100,
+      220
+    ],
+    "forest_edge_near": [
+      160,
+      450
+    ],
+    "home_cui": [
+      250,
+      520
+    ],
+    "home_lan": [
+      620,
+      520
+    ]
   },
   "connections": [
-    ["wp_a", "wp_b"],
-    ["wp_b", "wp_c"],
-    ["wp_c", "wp_d"],
-    ["wp_d", "wp_e"],
-    ["wp_e", "wp_f"],
-
-    ["home_bear",   "wp_a"],
-    ["home_fox",    "wp_f"],
-    ["home_pirate", "wp_d"],
-
-    ["bakery_door", "wp_b"],
-    ["post_door",   "wp_e"],
-
-    ["home_mystic",     "wp_f"],
-    ["river_near",      "wp_b"],
-    ["hilltop_near",    "wp_f"],
-    ["forest_edge_near","wp_a"]
+    [
+      "wp_a",
+      "wp_b"
+    ],
+    [
+      "wp_b",
+      "wp_c"
+    ],
+    [
+      "wp_c",
+      "wp_d"
+    ],
+    [
+      "wp_d",
+      "wp_e"
+    ],
+    [
+      "wp_e",
+      "wp_f"
+    ],
+    [
+      "home_bear",
+      "wp_a"
+    ],
+    [
+      "home_fox",
+      "wp_f"
+    ],
+    [
+      "home_pirate",
+      "wp_d"
+    ],
+    [
+      "bakery_door",
+      "wp_b"
+    ],
+    [
+      "post_door",
+      "wp_e"
+    ],
+    [
+      "home_mystic",
+      "wp_f"
+    ],
+    [
+      "river_near",
+      "wp_b"
+    ],
+    [
+      "hilltop_near",
+      "wp_f"
+    ],
+    [
+      "forest_edge_near",
+      "wp_a"
+    ],
+    [
+      "home_cui",
+      "wp_b"
+    ],
+    [
+      "home_lan",
+      "wp_c"
+    ]
   ]
 }
