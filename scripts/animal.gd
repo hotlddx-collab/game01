@@ -105,7 +105,10 @@ func _physics_process(_delta: float) -> void:
 			_moving = true
 	if _moving:
 		# ── NavigationAgent2D 路径跟随 ──
-		if _nav_agent != null and not _nav_agent.is_navigation_finished():
+		var use_nav := _nav_agent != null and \
+			not _nav_agent.is_navigation_finished() and \
+			_nav_agent.is_target_reachable()
+		if use_nav:
 			var next_pos: Vector2 = _nav_agent.get_next_path_position()
 			var dir: Vector2 = (next_pos - global_position)
 			if dir.length() < arrive_distance:
@@ -115,7 +118,7 @@ func _physics_process(_delta: float) -> void:
 				velocity = dir.normalized() * move_speed
 				move_and_slide()
 		else:
-			# 降级：直线移动（NavRegion 未就绪或路径已完成）
+			# 降级：直线移动（NavRegion 未就绪或目标不可达）
 			var to_target: Vector2 = _target_pos - global_position
 			if to_target.length() <= arrive_distance:
 				_moving = false
@@ -190,6 +193,13 @@ func _update_animation() -> void:
 
 func _on_tick(_time_str: String, _total_minutes: int) -> void:
 	_update_target_by_time()
+
+
+## NavRegion 烘焙完成后调用，重新提交导航目标（解决启动时 NavAgent 无网格问题）
+func _refresh_nav_target() -> void:
+	if _nav_agent != null and _target_pos != Vector2.ZERO:
+		_nav_agent.target_position = _target_pos
+		_moving = true
 
 
 ## 根据当前小时找日程中"最后一个 ≤ 当前时间"的条目

@@ -65,6 +65,10 @@ func _build_and_bake() -> void:
 	var hole_count := poly.get_outline_count() - 1
 	print("[NavRegion] 导航网格烘焙完成，障碍孔洞数：%d" % hole_count)
 
+	# 烘焙完成后通知所有 NPC 刷新导航目标
+	await get_tree().physics_frame
+	get_tree().call_group("npc", "_refresh_nav_target")
+
 
 func _find_obstacle_layer() -> TileMapLayer:
 	# 先找 group，找不到再用节点名扫描
