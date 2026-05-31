@@ -19,19 +19,67 @@
     "怪物森林里你常去：广场（摆摊）、面包店、邮局、苔老板家、焰仔家。"
   ],
   "schedule": [
-    { "time": "07:00", "location": "bakery",      "intent": "去面包店买早饭，跟苔老板长聊昨天的新鲜事" },
-    { "time": "09:00", "location": "plaza",       "intent": "广场摆摊，顺便看谁路过套套近乎" },
-    { "time": "12:00", "location": "post_office", "intent": "去邮局找焰仔互通八卦，他骂归骂总能给你新料" },
-    { "time": "14:00", "location": "home_bear",   "intent": "去苔老板家送货，顺便聊新听到的故事" },
-    { "time": "16:00", "location": "plaza",       "intent": "回广场继续摆摊，吆喝今天的新货" },
-    { "time": "19:00", "location": "home_fox",    "intent": "晚饭蹭焰仔家，他做饭难吃但话题精彩" },
-    { "time": "22:00", "location": "plaza",       "intent": "广场过夜，背包当枕头看星星" }
+    {
+      "time": "07:00",
+      "location": "bakery",
+      "intent": "去面包店买早饭，跟苔老板长聊昨天的新鲜事"
+    },
+    {
+      "time": "09:00",
+      "location": "plaza",
+      "intent": "广场摆摊，顺便看谁路过套套近乎"
+    },
+    {
+      "time": "12:00",
+      "location": "post_office",
+      "intent": "去邮局找焰仔互通八卦，他骂归骂总能给你新料"
+    },
+    {
+      "time": "14:00",
+      "location": "home_bear",
+      "intent": "去苔老板家送货，顺便聊新听到的故事"
+    },
+    {
+      "time": "16:00",
+      "location": "plaza",
+      "intent": "回广场继续摆摊，吆喝今天的新货"
+    },
+    {
+      "time": "19:00",
+      "location": "home_fox",
+      "intent": "晚饭蹭焰仔家，他做饭难吃但话题精彩"
+    },
+    {
+      "time": "22:00",
+      "location": "plaza",
+      "intent": "广场过夜，背包当枕头看星星"
+    }
   ],
   "gift_prefs": {
-    "loves":    ["ancient_book", "crystal", "map_piece"],
-    "likes":    ["bread", "fish", "letter"],
-    "dislikes": ["flower", "acorn"],
-    "hates":    ["mushroom", "potion_tea"]
+    "loves": [
+      "ancient_book",
+      "crystal",
+      "map_piece"
+    ],
+    "likes": [
+      "bread",
+      "fish",
+      "letter"
+    ],
+    "dislikes": [
+      "flower",
+      "acorn"
+    ],
+    "hates": [
+      "mushroom",
+      "potion_tea"
+    ]
   },
-  "signature_gift": "map_piece"
+  "signature_gift": "map_piece",
+  "movement": {
+    "speed_factor": 1.1,
+    "restless": 0.6,
+    "pause_chance": 0.08,
+    "wander_radius": 60
+  }
 }

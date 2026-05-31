@@ -17,19 +17,67 @@
     "你最讨厌别人说你'矮'或'急'。"
   ],
   "schedule": [
-    { "time": "07:00", "location": "home_fox",    "intent": "起床噼啪两下，让火苗烧旺一点" },
-    { "time": "08:00", "location": "post_office", "intent": "去邮局火速分拣信件" },
-    { "time": "11:00", "location": "bakery",      "intent": "送信顺路抢苔老板的面包" },
-    { "time": "12:00", "location": "plaza",       "intent": "广场吃午饭顺便骂街" },
-    { "time": "13:00", "location": "post_office", "intent": "下午满森林飞着送件" },
-    { "time": "19:00", "location": "plaza",       "intent": "广场闲逛等夜风" },
-    { "time": "21:00", "location": "home_fox",    "intent": "回家把火苗调小睡觉" }
+    {
+      "time": "07:00",
+      "location": "home_fox",
+      "intent": "起床噼啪两下，让火苗烧旺一点"
+    },
+    {
+      "time": "08:00",
+      "location": "post_office",
+      "intent": "去邮局火速分拣信件"
+    },
+    {
+      "time": "11:00",
+      "location": "bakery",
+      "intent": "送信顺路抢苔老板的面包"
+    },
+    {
+      "time": "12:00",
+      "location": "plaza",
+      "intent": "广场吃午饭顺便骂街"
+    },
+    {
+      "time": "13:00",
+      "location": "post_office",
+      "intent": "下午满森林飞着送件"
+    },
+    {
+      "time": "19:00",
+      "location": "plaza",
+      "intent": "广场闲逛等夜风"
+    },
+    {
+      "time": "21:00",
+      "location": "home_fox",
+      "intent": "回家把火苗调小睡觉"
+    }
   ],
   "gift_prefs": {
-    "loves":    ["ancient_book", "crystal", "letter"],
-    "likes":    ["map_piece", "feather", "fish"],
-    "dislikes": ["bread", "acorn"],
-    "hates":    ["flower", "mushroom"]
+    "loves": [
+      "ancient_book",
+      "crystal",
+      "letter"
+    ],
+    "likes": [
+      "map_piece",
+      "feather",
+      "fish"
+    ],
+    "dislikes": [
+      "bread",
+      "acorn"
+    ],
+    "hates": [
+      "flower",
+      "mushroom"
+    ]
   },
-  "signature_gift": "letter"
+  "signature_gift": "letter",
+  "movement": {
+    "speed_factor": 1.25,
+    "restless": 0.5,
+    "pause_chance": 0.08,
+    "wander_radius": 50
+  }
 }

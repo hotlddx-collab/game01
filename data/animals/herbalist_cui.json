@@ -18,18 +18,62 @@
     "怪物森林有四个主要地点：苔老板家、焰仔家、面包店、邮局、广场。"
   ],
   "schedule": [
-    { "time": "06:00", "location": "plaza",       "intent": "晨露刚下，去广场采新鲜的露水当药引" },
-    { "time": "08:00", "location": "bakery",      "intent": "去面包店取苔老板留的苔藓面包" },
-    { "time": "10:00", "location": "plaza",       "intent": "在广场晒草药，顺便给路过的怪物看看气色" },
-    { "time": "14:00", "location": "home_fox",    "intent": "去焰仔家送清火茶，看他今天又被什么气炸了" },
-    { "time": "17:00", "location": "plaza",       "intent": "黄昏在广场采露水，听虫鸣" },
-    { "time": "21:00", "location": "plaza",       "intent": "在广场过夜，盖一片大叶子睡觉" }
+    {
+      "time": "06:00",
+      "location": "plaza",
+      "intent": "晨露刚下，去广场采新鲜的露水当药引"
+    },
+    {
+      "time": "08:00",
+      "location": "bakery",
+      "intent": "去面包店取苔老板留的苔藓面包"
+    },
+    {
+      "time": "10:00",
+      "location": "plaza",
+      "intent": "在广场晒草药，顺便给路过的怪物看看气色"
+    },
+    {
+      "time": "14:00",
+      "location": "home_fox",
+      "intent": "去焰仔家送清火茶，看他今天又被什么气炸了"
+    },
+    {
+      "time": "17:00",
+      "location": "plaza",
+      "intent": "黄昏在广场采露水，听虫鸣"
+    },
+    {
+      "time": "21:00",
+      "location": "plaza",
+      "intent": "在广场过夜，盖一片大叶子睡觉"
+    }
   ],
   "gift_prefs": {
-    "loves":    ["herb", "flower", "acorn"],
-    "likes":    ["mushroom", "feather", "honey"],
-    "dislikes": ["fish", "compass"],
-    "hates":    ["crystal", "glow_stone"]
+    "loves": [
+      "herb",
+      "flower",
+      "acorn"
+    ],
+    "likes": [
+      "mushroom",
+      "feather",
+      "honey"
+    ],
+    "dislikes": [
+      "fish",
+      "compass"
+    ],
+    "hates": [
+      "crystal",
+      "glow_stone"
+    ]
   },
-  "signature_gift": "potion_tea"
+  "signature_gift": "potion_tea",
+  "movement": {
+    "speed_factor": 0.95,
+    "restless": 0.35,
+    "pause_chance": 0.08,
+    "wander_radius": 35
+  }
 }
