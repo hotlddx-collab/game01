@@ -38,6 +38,8 @@ var _pause_timer:   float = 0.0   # PAUSING 倒计时
 var _settle_timer:  float = 0.0   # SETTLING 倒计时
 var _idle_timer:    float = 0.0   # IDLE 距离下次闲逛的倒计时
 var _wander_target: Vector2 = Vector2.ZERO
+var _wander_timer: float = 0.0   # 闲逛超时（防目标在障碍内死锁）
+const WANDER_TIMEOUT: float = 4.0
 
 # 路网路径队列（PathNetwork.find_path 的结果）
 var _waypoint_queue: Array[Vector2] = []
@@ -181,8 +183,10 @@ func _physics_process(delta: float) -> void:
 
 		# ── 闲逛 ──
 		State.WANDERING:
+			_wander_timer += delta
 			var dist_to_wander := global_position.distance_to(_wander_target)
-			if dist_to_wander < arrive_distance:
+			# 到达 OR 超时放弃（目标在障碍内时的死锁保护）
+			if dist_to_wander < arrive_distance or _wander_timer >= WANDER_TIMEOUT:
 				_state = State.IDLE
 				_idle_timer = randf_range(1.0, 3.0)
 				velocity = Vector2.ZERO
@@ -198,15 +202,17 @@ func _physics_process(delta: float) -> void:
 	_update_animation()
 
 
-## 闲逛：在目标点周围随机走几步
+## 闲逛：以当前站立位置为中心随机走几步（不依赖建筑入口坐标）
 func _start_wander() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (randi() ^ int(Time.get_ticks_msec())) & 0xFFFFFF
 	var angle := rng.randf_range(0.0, TAU)
 	var dist  := rng.randf_range(15.0, _mv_wander)
-	_wander_target = _target_pos + Vector2(cos(angle), sin(angle)) * dist
+	# 以当前位置为中心，向随机方向走 dist 像素
+	_wander_target = global_position + Vector2(cos(angle), sin(angle)) * dist
 	_current_wp_target = _wander_target
 	_nav_agent.target_position = _wander_target
+	_wander_timer = 0.0
 	_state = State.WANDERING
 
 
