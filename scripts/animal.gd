@@ -42,10 +42,11 @@ var _wander_target: Vector2 = Vector2.ZERO
 # 路网路径队列（PathNetwork.find_path 的结果）
 var _waypoint_queue: Array[Vector2] = []
 
-## NavigationAgent2D（动态创建）
-var _nav_agent: NavigationAgent2D = null
+# 当前正在前往的路径点（用直接距离判断到达，不依赖 is_navigation_finished）
+var _current_wp_target: Vector2 = Vector2.ZERO
 
-@onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
+
+func _setup_nav_agent() -> void:
 @onready var name_label: Label = %NameLabel
 @onready var thought_label: Label = %ThoughtLabel
 @onready var delta_label: Label = %DeltaLabel
@@ -127,7 +128,9 @@ func _physics_process(delta: float) -> void:
 
 		# ── 行进中 ──
 		State.TRAVELING:
-			if _nav_agent.is_navigation_finished():
+			var dist_to_wp := global_position.distance_to(_current_wp_target)
+			if dist_to_wp < arrive_distance:
+				# 到达当前路径点
 				if _waypoint_queue.is_empty():
 					_state = State.SETTLING
 					_settle_timer = randf_range(0.8, 1.8)
@@ -135,12 +138,12 @@ func _physics_process(delta: float) -> void:
 					_advance_waypoint()
 			else:
 				var next: Vector2 = _nav_agent.get_next_path_position()
-				var dir: Vector2 = (next - global_position)
-				if dir.length() < arrive_distance:
-					velocity = Vector2.ZERO
-				else:
+				var dir: Vector2 = next - global_position
+				if dir.length() > 2.0:
 					velocity = dir.normalized() * eff_speed
 					move_and_slide()
+				else:
+					velocity = Vector2.ZERO
 				# 沿途随机暂停
 				if randf() < _mv_pause * delta:
 					_state = State.PAUSING
@@ -174,15 +177,19 @@ func _physics_process(delta: float) -> void:
 
 		# ── 闲逛 ──
 		State.WANDERING:
-			var to_wander: Vector2 = _wander_target - global_position
-			if to_wander.length() < arrive_distance or _nav_agent.is_navigation_finished():
+			var dist_to_wander := global_position.distance_to(_wander_target)
+			if dist_to_wander < arrive_distance:
 				_state = State.IDLE
-				_idle_timer = randf_range(1.0, 3.0)  # 闲逛完很快再闲逛
+				_idle_timer = randf_range(1.0, 3.0)
 				velocity = Vector2.ZERO
 			else:
 				var next: Vector2 = _nav_agent.get_next_path_position()
-				velocity = (next - global_position).normalized() * eff_speed * 0.65
-				move_and_slide()
+				var dir := next - global_position
+				if dir.length() > 2.0:
+					velocity = dir.normalized() * eff_speed * 0.65
+					move_and_slide()
+				else:
+					velocity = Vector2.ZERO
 
 	_update_animation()
 
@@ -192,8 +199,9 @@ func _start_wander() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (randi() ^ int(Time.get_ticks_msec())) & 0xFFFFFF
 	var angle := rng.randf_range(0.0, TAU)
-	var dist  := rng.randf_range(10.0, _mv_wander)
+	var dist  := rng.randf_range(15.0, _mv_wander)
 	_wander_target = _target_pos + Vector2(cos(angle), sin(angle)) * dist
+	_current_wp_target = _wander_target
 	_nav_agent.target_position = _wander_target
 	_state = State.WANDERING
 
@@ -203,6 +211,7 @@ func _advance_waypoint() -> void:
 	if _waypoint_queue.is_empty():
 		return
 	var next_wp: Vector2 = _waypoint_queue.pop_front()
+	_current_wp_target = next_wp
 	_nav_agent.target_position = next_wp
 
 
