@@ -356,6 +356,49 @@ func get_current_context() -> Dictionary:
 	}
 
 
+# ──── 忙碌状态 ────────────────────────────────
+
+func _update_busy_timeout() -> void:
+	if _busy_state != BusyState.FREE and _busy_until > 0.0:
+		if Time.get_ticks_msec() / 1000.0 > _busy_until:
+			_busy_state = BusyState.FREE
+			_busy_until  = 0.0
+
+func is_busy() -> bool:
+	_update_busy_timeout()
+	return _busy_state != BusyState.FREE
+
+func get_busy_state() -> int:
+	is_busy()
+	return _busy_state
+
+func set_busy(state: int, duration: float = 0.0) -> void:
+	_busy_state = state
+	_busy_until = (Time.get_ticks_msec() / 1000.0 + duration) if duration > 0.0 else 0.0
+
+func clear_busy() -> void:
+	_busy_state = BusyState.FREE
+	_busy_until  = 0.0
+	_intent_active   = false
+	_intent_callback = Callable()
+	_update_target_by_time()
+
+func face_to(target_pos: Vector2) -> void:
+	if sprite == null:
+		return
+	var dx: float = target_pos.x - global_position.x
+	var dy: float = target_pos.y - global_position.y
+	if abs(dx) > abs(dy):
+		if dx >= 0:
+			sprite.flip_h = SpriteFactory.direction_needs_flip("right")
+			_last_dir = "right"
+		else:
+			sprite.flip_h = SpriteFactory.direction_needs_flip("left")
+			_last_dir = "left"
+	else:
+		_last_dir = "down" if dy > 0 else "up"
+
+
 func approach_for_intent(target_pos: Vector2, on_arrive: Callable) -> void:
 	_intent_target_pos = target_pos
 	_intent_callback   = on_arrive
@@ -437,6 +480,3 @@ func _show_delta(delta: int) -> void:
 			delta_label.visible = false
 			delta_label.modulate.a = 1.0
 	)
-
-
-
