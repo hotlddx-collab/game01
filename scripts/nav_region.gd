@@ -57,7 +57,7 @@ func _build_and_bake() -> void:
 					Vector2(rx + rw, ry),
 				]))
 
-	# ── 障碍孔洞：建筑占地面积 ──
+	# ── 障碍孔洞：建筑上半身（入口在下方，不能被堵）──
 	var buildings := get_tree().get_nodes_in_group("building")
 	for b in buildings:
 		var bsize: Vector2
@@ -65,11 +65,13 @@ func _build_and_bake() -> void:
 			bsize = b.sprite_region.size
 		else:
 			bsize = b.size
-		# 只挡建筑的"脚面"（下半部分），不挡视觉上部
+		if bsize == Vector2.ZERO:
+			continue
+		# 从建筑顶部往下覆盖 60%，留出底部入口区域
 		var bx: float = b.global_position.x - bsize.x * 0.5 - obstacle_margin
-		var by: float = b.global_position.y              - obstacle_margin
+		var by: float = b.global_position.y - bsize.y * 0.5 - obstacle_margin
 		var bw: float = bsize.x + obstacle_margin * 2.0
-		var bh: float = bsize.y * 0.5 + obstacle_margin * 2.0
+		var bh: float = bsize.y * 0.6 + obstacle_margin
 		poly.add_outline(PackedVector2Array([
 			Vector2(bx,      by),
 			Vector2(bx,      by + bh),

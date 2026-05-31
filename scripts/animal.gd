@@ -92,7 +92,9 @@ func _setup_nav_agent() -> void:
 	_nav_agent.path_desired_distance = 8.0
 	_nav_agent.target_desired_distance = arrive_distance
 	_nav_agent.avoidance_enabled = true
-	_nav_agent.radius = 10.0
+	_nav_agent.radius = 18.0
+	_nav_agent.neighbor_distance = 80.0
+	_nav_agent.max_speed = move_speed
 	add_child(_nav_agent)
 
 
@@ -342,7 +344,8 @@ func _location_offset(loc_id: String) -> Vector2:
 		return Vector2.ZERO
 	var h: int = hash("%s|%s" % [animal_id, loc_id])
 	var angle: float = float(h % 360) * PI / 180.0
-	var radius: float = 18.0 + float((h / 360) % 18)
+	# 散布半径 30-55px（增大，避免多 NPC 叠加）
+	var radius: float = 30.0 + float((h / 360) % 26)
 	return Vector2(cos(angle), sin(angle)) * radius
 
 
