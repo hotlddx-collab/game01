@@ -195,7 +195,7 @@ position = Vector2(620, 501)
 building_id = "home_lan"
 display_name = "小蓝的旅居"
 sprite_texture = ExtResource("12_houses")
-sprite_region = Rect2(464, 0, 48, 48)
+sprite_region = Rect2(0, 144, 64, 48)
 entry_offset = Vector2(0, 24)
 
 [node name="StaticBody2D6" type="StaticBody2D" parent="Buildings/HomeMystic" unique_id=1630861459]
