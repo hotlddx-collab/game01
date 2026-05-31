@@ -1,18 +1,13 @@
-@tool
 extends CharacterBody2D
 class_name Animal
 ## 怪物 NPC
 ##
 ## 加载 persona JSON（性格 + 日程 + sprite），按 WorldClock 时间走向目标地点。
-## @tool 模式：编辑器里会显示彩色圆圈出生点，可直接拖动定位。
 ## P1 行为规则：路网寻路 / 错峰出发 / 到达闲逛 / 沿途停顿 / 个性速度差异。
 
 @export_file("*.json") var persona_file: String = ""
 @export var move_speed: float = 80.0
 @export var arrive_distance: float = 10.0
-
-## 编辑器里圆圈颜色（区分不同 NPC）
-@export var editor_color: Color = Color(0.3, 0.9, 0.4, 0.9)
 
 var animal_id: String = ""
 var animal_name: String = ""
@@ -82,34 +77,7 @@ var _intent_target_pos: Vector2  = Vector2.ZERO
 var _intent_callback:   Callable = Callable()
 
 
-## 编辑器里绘制 NPC 出生点圆圈（@tool 模式专用）
-func _draw() -> void:
-	if not Engine.is_editor_hint():
-		return
-	# 外圈（轮廓）
-	draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 32, editor_color, 2.0)
-	# 内圈（半透明填充）
-	draw_circle(Vector2.ZERO, 14.0, Color(editor_color, 0.25))
-	# 十字中心点
-	draw_line(Vector2(-6, 0), Vector2(6, 0), editor_color, 1.5)
-	draw_line(Vector2(0, -6), Vector2(0, 6), editor_color, 1.5)
-	# NPC 名字（从 JSON 读，编辑器里显示）
-	var display := name if animal_name == "" else animal_name
-	if persona_file != "":
-		# 简单从文件名猜名字，不依赖自动加载
-		display = persona_file.get_file().get_basename().replace("_", " ")
-	var font := ThemeDB.fallback_font
-	draw_string(font, Vector2(-20, -22), display,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, editor_color)
-
-
 func _ready() -> void:
-	# 编辑器模式只用于显示，不跑游戏逻辑
-	if Engine.is_editor_hint():
-		set_process(false)
-		set_physics_process(false)
-		queue_redraw()
-		return
 	add_to_group("npc")
 	_setup_nav_agent()
 	_load_persona()
