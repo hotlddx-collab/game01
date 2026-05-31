@@ -55,6 +55,13 @@ signal exited(actor: Node)
 		entry_offset = value
 		_update_entry_point()
 
+## 关闭后隐藏色块视觉（仅保留 LocationDB 注册 + 名字 Label）。
+## 广场等"地面区域"用此模式，避免遮挡角色。
+@export var show_area_visual: bool = true:
+	set(value):
+		show_area_visual = value
+		_update_visual()
+
 
 func _ready() -> void:
 	_update_visual()
@@ -99,7 +106,8 @@ func _update_visual() -> void:
 	else:
 		visual_size = size
 		if color_rect:
-			color_rect.visible = true
+			# show_area_visual=false 时隐藏色块（仅做地点标记用）
+			color_rect.visible = show_area_visual
 			color_rect.size = size
 			color_rect.position = -size * 0.5
 			color_rect.color = building_color
@@ -123,10 +131,13 @@ func _update_visual() -> void:
 
 
 func _update_z_index(visual_size: Vector2) -> void:
-	# 以建筑入口点 Y 为排序基准，与 animal/player 同一公式 int(y/4)
-	# z_as_relative=false：绝对 z_index，不受 Buildings 父节点影响
-	var sort_y := global_position.y + entry_offset.y
 	z_as_relative = false
+	if not show_area_visual:
+		# 纯区域标记：z_index 固定在地图层以上、角色层以下，不遮挡任何人
+		z_index = -80
+		return
+	# 有视觉的建筑：以入口点 Y 为排序基准，与 animal/player 同一公式
+	var sort_y := global_position.y + entry_offset.y
 	z_index = int(sort_y / 4)
 
 
