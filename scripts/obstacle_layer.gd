@@ -20,6 +20,7 @@ extends TileMapLayer
 
 func _ready() -> void:
 	z_index = -190
+	add_to_group("obstacle_layer")  # 供 NavRegion 动态查找
 	if Engine.is_editor_hint():
 		return
 	_build_collision()

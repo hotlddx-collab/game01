@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://dko1vc3sg4e2a" path="res://scripts/ground_layer.gd" id="11_ground"]
 [ext_resource type="Texture2D" uid="uid://dbbi6nq1kixdc" path="res://assets/tilesets/TilesetHouse.png" id="12_houses"]
 [ext_resource type="Script" uid="uid://48ju5a35rm3y" path="res://scripts/obstacle_layer.gd" id="13_obstacle"]
+[ext_resource type="Script" uid="uid://cnavregion001" path="res://scripts/nav_region.gd" id="14_nav"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_eb6dy"]
 size = Vector2(29.908037, 31.714153)
@@ -33,6 +34,9 @@ script = ExtResource("1_main")
 [node name="DayNight" type="Node" parent="." unique_id=2109493645]
 script = ExtResource("6_daynight")
 canvas_modulate_path = NodePath("../WorldModulate")
+
+[node name="NavRegion" type="NavigationRegion2D" parent="." unique_id=4400000001]
+script = ExtResource("14_nav")
 
 [node name="Ground" type="TileMapLayer" parent="." unique_id=145947947]
 z_index = -200

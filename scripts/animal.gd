@@ -6,7 +6,7 @@ class_name Animal
 ## AnimatedSprite2D 根据移动方向播放动画。头顶 Label 显示名字+当前 intent。
 ## 玩家可用 E 触发对话。
 ##
-## P0 用直线 move_toward 移动；P1+ 换 NavigationAgent2D。
+## 移动：使用 NavigationAgent2D 绕过障碍物。NavRegion 未就绪时降级为直线移动。
 
 @export_file("*.json") var persona_file: String = ""
 @export var move_speed: float = 80.0
@@ -26,6 +26,9 @@ var _target_location: String = ""
 var _target_pos: Vector2 = Vector2.ZERO
 var _moving: bool = false
 var _last_dir: String = "down"
+
+## NavigationAgent2D（动态创建）
+var _nav_agent: NavigationAgent2D = null
 
 @onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
 @onready var name_label: Label = %NameLabel
@@ -62,10 +65,21 @@ var _intent_callback: Callable = Callable()
 
 func _ready() -> void:
 	add_to_group("npc")
+	_setup_nav_agent()
 	_load_persona()
 	WorldClock.tick.connect(_on_tick)
 	# 先按当前时间立即决定一次目标
 	_update_target_by_time()
+
+
+func _setup_nav_agent() -> void:
+	_nav_agent = NavigationAgent2D.new()
+	_nav_agent.path_desired_distance = 8.0
+	_nav_agent.target_desired_distance = arrive_distance
+	_nav_agent.avoidance_enabled = true       # NPC 互相避让
+	_nav_agent.radius = 10.0                   # 避让半径
+	_nav_agent.max_speed = move_speed
+	add_child(_nav_agent)
 
 
 func _physics_process(_delta: float) -> void:
@@ -90,13 +104,25 @@ func _physics_process(_delta: float) -> void:
 			_target_pos = _intent_target_pos
 			_moving = true
 	if _moving:
-		var to_target: Vector2 = _target_pos - global_position
-		if to_target.length() <= arrive_distance:
-			_moving = false
-			velocity = Vector2.ZERO
+		# ── NavigationAgent2D 路径跟随 ──
+		if _nav_agent != null and not _nav_agent.is_navigation_finished():
+			var next_pos: Vector2 = _nav_agent.get_next_path_position()
+			var dir: Vector2 = (next_pos - global_position)
+			if dir.length() < arrive_distance:
+				_moving = false
+				velocity = Vector2.ZERO
+			else:
+				velocity = dir.normalized() * move_speed
+				move_and_slide()
 		else:
-			velocity = to_target.normalized() * move_speed
-			move_and_slide()
+			# 降级：直线移动（NavRegion 未就绪或路径已完成）
+			var to_target: Vector2 = _target_pos - global_position
+			if to_target.length() <= arrive_distance:
+				_moving = false
+				velocity = Vector2.ZERO
+			else:
+				velocity = to_target.normalized() * move_speed
+				move_and_slide()
 	else:
 		velocity = Vector2.ZERO
 	_update_animation()
@@ -188,6 +214,9 @@ func _update_target_by_time() -> void:
 		_target_pos = base_pos + _location_offset(loc)
 		_current_intent = picked.get("intent", "")
 		_moving = true
+		# 通知 NavAgent 新目标
+		if _nav_agent != null:
+			_nav_agent.target_position = _target_pos
 		if thought_label:
 			thought_label.text = _current_intent
 
@@ -325,6 +354,8 @@ func approach_for_intent(target_pos: Vector2, on_arrive: Callable) -> void:
 	_intent_callback = on_arrive
 	_intent_active = true
 	_moving = true
+	if _nav_agent != null:
+		_nav_agent.target_position = target_pos
 
 
 ## 朝向某点（简单 horizontal flip + last_dir 记录，立即生效不依赖 velocity）
