@@ -45,8 +45,10 @@ var _waypoint_queue: Array[Vector2] = []
 # 当前正在前往的路径点（用直接距离判断到达，不依赖 is_navigation_finished）
 var _current_wp_target: Vector2 = Vector2.ZERO
 
+## NavigationAgent2D（动态创建）
+var _nav_agent: NavigationAgent2D = null
 
-func _setup_nav_agent() -> void:
+@onready var sprite: AnimatedSprite2D = %AnimatedSprite2D
 @onready var name_label: Label = %NameLabel
 @onready var thought_label: Label = %ThoughtLabel
 @onready var delta_label: Label = %DeltaLabel
