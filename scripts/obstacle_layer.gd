@@ -3,19 +3,17 @@ class_name ObstacleLayer
 extends TileMapLayer
 ## 障碍图层 — 画了 tile 的格子自动生成碰撞体。
 ##
-## 用法：
-## 1. 在 main.tscn 加一个 TileMapLayer 节点，把这个脚本挂上
-## 2. 在编辑器里随便画 tile（湖、岩石、围墙等），都成阻挡
-## 3. 运行游戏即生效，玩家/NPC 走不进去
+## collision_y_frac / collision_h_frac 控制碰撞区在 tile 内的位置：
+##   湖泊类（lack）推荐：y_frac=0, h_frac=1.0，完整 tile
+##   石头类（rock）推荐：y_frac=0.3, h_frac=0.7，偏下贴脚面
 ##
-## collision_y_frac / collision_h_frac 控制碰撞体在 tile 内的位置和高度：
-##   默认只用 tile 下半段（y_frac=0.5, h_frac=0.5），贴合俯视视角的"脚面"。
-##   设为 0 / 1.0 则是完整 tile（湖泊类障碍推荐）。
+## merge_cells=true  → 合并相邻格为大矩形（湖泊/大面积障碍推荐）
+## merge_cells=false → 每 tile 单独碰撞体（石头/不规则形状推荐）
 
-## 碰撞体顶部距 tile 顶部的偏移比例（0=tile顶, 0.5=tile中间, 1=tile底部）
 @export_range(0.0, 1.0, 0.05) var collision_y_frac: float = 0.5
-## 碰撞体高度占 tile 高度的比例（0.5=半格高，1.0=整格高）
 @export_range(0.1, 1.0, 0.05) var collision_h_frac: float = 0.5
+## 关闭合并：每格单独碰撞体，形状更精确（石头层推荐设 false）
+@export var merge_cells: bool = true
 
 
 func _ready() -> void:
@@ -39,7 +37,13 @@ func _build_collision() -> void:
 	if cells.is_empty():
 		return
 
-	var rects := _merge_cells_to_rects(cells)
+	# merge_cells=false → 每格单独碰撞体（精确模式）
+	var rects: Array[Rect2i] = []
+	if merge_cells:
+		rects = _merge_cells_to_rects(cells)
+	else:
+		for c: Vector2i in cells:
+			rects.append(Rect2i(c.x, c.y, 1, 1))
 
 	for rect in rects:
 		var body := StaticBody2D.new()
