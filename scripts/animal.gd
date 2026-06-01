@@ -94,10 +94,21 @@ func _setup_nav_agent() -> void:
 	_nav_agent.path_desired_distance = 8.0
 	_nav_agent.target_desired_distance = arrive_distance
 	_nav_agent.avoidance_enabled = true
-	_nav_agent.radius = 18.0
-	_nav_agent.neighbor_distance = 80.0
+	_nav_agent.radius = 20.0
+	_nav_agent.neighbor_distance = 100.0
+	_nav_agent.max_neighbors = 8
 	_nav_agent.max_speed = move_speed
+	# 用 velocity_computed 接收避让修正后的速度
+	_nav_agent.velocity_computed.connect(_on_velocity_computed)
 	add_child(_nav_agent)
+
+
+## avoidance 修正速度回调（只在需要移动时触发）
+func _on_velocity_computed(safe_velocity: Vector2) -> void:
+	if _state in [State.TRAVELING, State.WANDERING] and not is_busy():
+		velocity = safe_velocity
+		if safe_velocity.length() > 2.0:
+			move_and_slide()
 
 
 func _physics_process(delta: float) -> void:
@@ -146,8 +157,8 @@ func _physics_process(delta: float) -> void:
 				var next: Vector2 = _nav_agent.get_next_path_position()
 				var dir: Vector2 = next - global_position
 				if dir.length() > 2.0:
-					velocity = dir.normalized() * eff_speed
-					move_and_slide()
+					# 期望速度交给 avoidance，回调 _on_velocity_computed 里实际 move
+					_nav_agent.velocity = dir.normalized() * eff_speed
 				else:
 					velocity = Vector2.ZERO
 				# 沿途随机暂停
@@ -185,7 +196,6 @@ func _physics_process(delta: float) -> void:
 		State.WANDERING:
 			_wander_timer += delta
 			var dist_to_wander := global_position.distance_to(_wander_target)
-			# 到达 OR 超时放弃（目标在障碍内时的死锁保护）
 			if dist_to_wander < arrive_distance or _wander_timer >= WANDER_TIMEOUT:
 				_state = State.IDLE
 				_idle_timer = randf_range(1.0, 3.0)
@@ -194,8 +204,7 @@ func _physics_process(delta: float) -> void:
 				var next: Vector2 = _nav_agent.get_next_path_position()
 				var dir := next - global_position
 				if dir.length() > 2.0:
-					velocity = dir.normalized() * eff_speed * 0.65
-					move_and_slide()
+					_nav_agent.velocity = dir.normalized() * eff_speed * 0.65
 				else:
 					velocity = Vector2.ZERO
 

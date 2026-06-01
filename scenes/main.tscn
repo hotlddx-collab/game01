@@ -187,9 +187,9 @@ scale = Vector2(2.2067645, 0.6463979)
 shape = SubResource("RectangleShape2D_eb6dy")
 
 [node name="HomeCui" parent="Buildings" unique_id=1205032705 instance=ExtResource("7_building")]
-z_index = 131
+z_index = 53
 z_as_relative = false
-position = Vector2(-103, 190)
+position = Vector2(270, 530)
 building_id = "home_cui"
 display_name = "小翠的草药屋"
 sprite_texture = ExtResource("12_houses")
@@ -197,7 +197,7 @@ sprite_region = Rect2(416, 0, 48, 48)
 entry_offset = Vector2(0, 24)
 
 [node name="HomeLan" parent="Buildings" unique_id=1205032706 instance=ExtResource("7_building")]
-z_index = 159
+z_index = 175
 z_as_relative = false
 position = Vector2(729, 676)
 building_id = "home_lan"
@@ -326,7 +326,6 @@ label_settings = SubResource("LabelSettings_hint")
 
 [node name="DialogUI" parent="." unique_id=1120618652 instance=ExtResource("4_dialog")]
 unique_name_in_owner = true
-visible = false
 
 [node name="InventoryUI" parent="." unique_id=1663462374 instance=ExtResource("9_inventory")]
 
