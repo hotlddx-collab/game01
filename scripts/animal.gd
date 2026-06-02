@@ -139,7 +139,8 @@ func _physics_process(delta: float) -> void:
 
 		# ── 行进中 ──
 		State.TRAVELING:
-			var dist_to_wp := global_position.distance_to(_current_wp_target)
+			var to_wp: Vector2 = _current_wp_target - global_position
+			var dist_to_wp := to_wp.length()
 			if dist_to_wp < arrive_distance:
 				# 到达当前路径点
 				if _waypoint_queue.is_empty():
@@ -148,13 +149,9 @@ func _physics_process(delta: float) -> void:
 				else:
 					_advance_waypoint()
 			else:
-				var next: Vector2 = _nav_agent.get_next_path_position()
-				var dir: Vector2 = next - global_position
-				if dir.length() > 2.0:
-					velocity = dir.normalized() * eff_speed
-					move_and_slide()
-				else:
-					velocity = Vector2.ZERO
+				# 直接朝路径点走（PathNetwork 已保证走在路上）
+				velocity = to_wp.normalized() * eff_speed
+				move_and_slide()
 				# 沿途随机暂停
 				if randf() < _mv_pause * delta:
 					_state = State.PAUSING
@@ -189,18 +186,16 @@ func _physics_process(delta: float) -> void:
 		# ── 闲逛 ──
 		State.WANDERING:
 			_wander_timer += delta
-			var dist_to_wander := global_position.distance_to(_wander_target)
+			var to_wander: Vector2 = _wander_target - global_position
+			var dist_to_wander := to_wander.length()
 			if dist_to_wander < arrive_distance or _wander_timer >= WANDER_TIMEOUT:
 				_state = State.IDLE
 				_idle_timer = randf_range(1.0, 3.0)
 				velocity = Vector2.ZERO
 			else:
-				var next: Vector2 = _nav_agent.get_next_path_position()
-				var dir := next - global_position
-				if dir.length() > 2.0:
-					_nav_agent.velocity = dir.normalized() * eff_speed * 0.65
-				else:
-					velocity = Vector2.ZERO
+				# 直接朝闲逛目标走（物理碰撞处理障碍）
+				velocity = to_wander.normalized() * eff_speed * 0.65
+				move_and_slide()
 
 	_update_animation()
 
