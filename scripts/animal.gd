@@ -342,11 +342,12 @@ func _update_target_by_time() -> void:
 	if loc != _target_location:
 		_target_location = loc
 		var base_pos: Vector2 = LocationDB.get_pos(loc)
-		var final_pos: Vector2 = base_pos + _location_offset(loc)
+		# 不再加 _location_offset - 目标直接是路网入口点（建筑门口在路上）
+		# 多 NPC 同地点的散开靠 WANDERING 自然产生
 		_current_intent = picked.get("intent", "")
 		if thought_label:
 			thought_label.text = _current_intent
-		_plan_route_to(final_pos)
+		_plan_route_to(base_pos)
 
 
 func _location_offset(loc_id: String) -> Vector2:

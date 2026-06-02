@@ -83,6 +83,6 @@
     "speed_factor": 1.0,
     "restless": 0.35,
     "pause_chance": 0.05,
-    "wander_radius": 40
+    "wander_radius": 18
   }
 }
