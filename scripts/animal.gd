@@ -94,21 +94,15 @@ func _setup_nav_agent() -> void:
 	_nav_agent.path_desired_distance = 8.0
 	_nav_agent.target_desired_distance = arrive_distance
 	_nav_agent.avoidance_enabled = true
-	_nav_agent.radius = 20.0
-	_nav_agent.neighbor_distance = 100.0
+	_nav_agent.radius = 18.0
+	_nav_agent.neighbor_distance = 80.0
 	_nav_agent.max_neighbors = 8
 	_nav_agent.max_speed = move_speed
-	# 用 velocity_computed 接收避让修正后的速度
-	_nav_agent.velocity_computed.connect(_on_velocity_computed)
 	add_child(_nav_agent)
 
 
-## avoidance 修正速度回调（只在需要移动时触发）
-func _on_velocity_computed(safe_velocity: Vector2) -> void:
-	if _state in [State.TRAVELING, State.WANDERING] and not is_busy():
-		velocity = safe_velocity
-		if safe_velocity.length() > 2.0:
-			move_and_slide()
+func _on_velocity_computed(_sv: Vector2) -> void:
+	pass  # 不用此回调，直接在 _physics_process 里 move_and_slide
 
 
 func _physics_process(delta: float) -> void:
@@ -157,8 +151,8 @@ func _physics_process(delta: float) -> void:
 				var next: Vector2 = _nav_agent.get_next_path_position()
 				var dir: Vector2 = next - global_position
 				if dir.length() > 2.0:
-					# 期望速度交给 avoidance，回调 _on_velocity_computed 里实际 move
-					_nav_agent.velocity = dir.normalized() * eff_speed
+					velocity = dir.normalized() * eff_speed
+					move_and_slide()
 				else:
 					velocity = Vector2.ZERO
 				# 沿途随机暂停
@@ -327,7 +321,13 @@ func _on_tick(_time_str: String, _total_minutes: int) -> void:
 
 ## NavRegion 烘焙后通知所有 NPC 刷新路径
 func _refresh_nav_target() -> void:
-	if _target_pos != Vector2.ZERO:
+	if _target_pos == Vector2.ZERO:
+		return
+	# 已在目标附近 → 直接进 IDLE，不重新走一圈
+	if global_position.distance_to(_target_pos) < arrive_distance * 4.0:
+		_state = State.IDLE
+		_idle_timer = randf_range(0.5, 1.5)
+	else:
 		_plan_route_to(_target_pos, false)
 
 
