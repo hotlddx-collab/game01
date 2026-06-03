@@ -118,6 +118,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 - 游戏时间：{game_time}
 - 你正在：{location}
 - 当前在做：{intent}
+{location_block}
 
 {player_profile_block}
 {affection_block}
@@ -250,6 +251,23 @@ class Agent:
             lines.append(f"- ({e.game_time or '...'}){actor}{loc}：{e.description[:60]}")
         return "\n【你最近耳闻的镇上动静】\n" + "\n".join(lines)
 
+    def _build_location_block(self, context: Dict[str, Any]) -> str:
+        """注入地点描述 + 附近还有谁，让对话有"地图感知"。"""
+        loc_id = context.get("location", "")
+        parts = []
+        # 地点氛围描述
+        from . import personas as _p
+        desc = _p.get_location_description(loc_id)
+        if desc:
+            parts.append(f"【这个地方】{desc}")
+        # 附近其他 NPC（由客户端在 context 里塞 nearby_npcs 列表）
+        nearby = context.get("nearby_npcs", [])
+        if isinstance(nearby, list) and nearby:
+            names = "、".join(str(n) for n in nearby if n)
+            if names:
+                parts.append(f"【此刻附近还有】{names}")
+        return ("\n" + "\n".join(parts)) if parts else ""
+
     def _build_affection_block(self) -> str:
         v = self.affection.get(self.animal_id)
         lvl = level_of(v)
@@ -337,6 +355,7 @@ class Agent:
             relevant_memories_block=self._build_relevant_memories_block(query),
             reflections_block=self._build_reflections_block(game_day),
             world_events_block=self._build_world_events_block(),
+            location_block=self._build_location_block(context),
         )
 
     def _build_recent_history(self) -> List[Dict[str, str]]:

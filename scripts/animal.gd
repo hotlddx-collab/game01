@@ -380,7 +380,24 @@ func get_current_context() -> Dictionary:
 		"location":       _target_location,
 		"location_label": LocationDB.get_label(_target_location) if _target_location else "",
 		"intent":         _current_intent,
+		"nearby_npcs":    _scan_nearby_npc_names(120.0),
 	}
+
+
+## 扫描周围范围内其他 NPC 的名字（供 prompt 注入"附近还有谁"）
+func _scan_nearby_npc_names(radius: float) -> Array:
+	var names: Array = []
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n == self:
+			continue
+		if not is_instance_valid(n):
+			continue
+		if n.global_position.distance_to(global_position) > radius:
+			continue
+		var nm: String = n.animal_name if "animal_name" in n else ""
+		if nm != "":
+			names.append(nm)
+	return names
 
 
 # ──── 忙碌状态 ────────────────────────────────
