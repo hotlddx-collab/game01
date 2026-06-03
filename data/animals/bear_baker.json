@@ -18,34 +18,54 @@
   ],
   "schedule": [
     {
-      "time": "06:00",
+      "time": "04:30",
       "location": "home_bear",
-      "intent": "起床伸懒腰，让身上的青苔晒晒太阳"
+      "intent": "起床揉面，唠叨着说早起的鸟儿有面包"
     },
     {
-      "time": "07:00",
+      "time": "06:00",
       "location": "bakery",
-      "intent": "去面包店揉面，慢悠悠地烤面包"
+      "intent": "烤第一炉，店里飘着小麦香"
+    },
+    {
+      "time": "09:00",
+      "location": "bakery",
+      "intent": "招呼早客，跟来买面包的人聊两句"
     },
     {
       "time": "12:00",
-      "location": "plaza",
-      "intent": "广场吃午饭，看天上云慢慢飘"
+      "location": "home_bear",
+      "intent": "回家吃午饭，小睡一会"
     },
     {
-      "time": "13:00",
+      "time": "13:30",
       "location": "bakery",
-      "intent": "下午继续做面包，给邻居准备明天的早餐"
+      "intent": "烤下午茶面包"
+    },
+    {
+      "time": "16:00",
+      "location": "bakery",
+      "intent": "招呼下午来的客人"
     },
     {
       "time": "18:00",
       "location": "plaza",
-      "intent": "去广场散步消食"
+      "intent": "收工，去广场跟邻居唠嗑"
     },
     {
-      "time": "20:00",
+      "time": "19:30",
       "location": "home_bear",
-      "intent": "回家休息，给自己浇点水"
+      "intent": "回家做晚饭"
+    },
+    {
+      "time": "21:00",
+      "location": "plaza",
+      "intent": "饭后散步乘凉"
+    },
+    {
+      "time": "22:30",
+      "location": "home_bear",
+      "intent": "睡觉"
     }
   ],
   "signature_gift": "cookie",
@@ -74,5 +94,52 @@
     "restless": 0.5,
     "pause_chance": 0.08,
     "wander_radius": 22
-  }
+  },
+  "schedule_weekend": [
+    {
+      "time": "05:30",
+      "location": "home_bear",
+      "intent": "难得睡晚一点"
+    },
+    {
+      "time": "07:00",
+      "location": "bakery",
+      "intent": "开店但慢悠悠的"
+    },
+    {
+      "time": "10:00",
+      "location": "forest_edge",
+      "intent": "周末去森林边走走透气"
+    },
+    {
+      "time": "12:00",
+      "location": "home_bear",
+      "intent": "午饭"
+    },
+    {
+      "time": "14:00",
+      "location": "plaza",
+      "intent": "跟邻居下棋"
+    },
+    {
+      "time": "17:00",
+      "location": "bakery",
+      "intent": "简单收个尾"
+    },
+    {
+      "time": "18:30",
+      "location": "home_bear",
+      "intent": "早早休息"
+    },
+    {
+      "time": "20:00",
+      "location": "plaza",
+      "intent": "晚饭后散步"
+    },
+    {
+      "time": "22:00",
+      "location": "home_bear",
+      "intent": "睡觉"
+    }
+  ]
 }

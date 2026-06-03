@@ -18,6 +18,7 @@ var catchphrase: String = ""
 var sprite_file: String = ""
 
 var _schedule: Array = []
+var _schedule_weekend: Array = []  # 周末 schedule（game_day % 7 in [5,6]）
 var _current_intent: String = "..."
 var _target_location: String = ""
 var _target_pos: Vector2 = Vector2.ZERO
@@ -261,7 +262,8 @@ func _load_persona() -> void:
 	speech_style= data.get("speech_style", "")
 	catchphrase = data.get("catchphrase", "")
 	sprite_file = data.get("sprite_file", "")
-	_schedule   = data.get("schedule", [])
+	_schedule         = data.get("schedule", [])
+	_schedule_weekend = data.get("schedule_weekend", [])
 
 	# 读取个性参数
 	var mv: Dictionary = data.get("movement", {})
@@ -328,11 +330,18 @@ func _refresh_nav_target() -> void:
 
 ## 根据当前时间决定目标
 func _update_target_by_time() -> void:
-	if _schedule.is_empty():
+	# 工作日 / 周末选择对应 schedule（game_day % 7 in [5,6] = 周末）
+	var active_schedule: Array = _schedule
+	if not _schedule_weekend.is_empty() and has_node("/root/WorldClock"):
+		var day: int = WorldClock.get_day()
+		if (day % 7) in [5, 6]:
+			active_schedule = _schedule_weekend
+
+	if active_schedule.is_empty():
 		return
 	var now_min: int = WorldClock.get_total_minutes() % (24 * 60)
-	var picked: Dictionary = _schedule[0]
-	for entry in _schedule:
+	var picked: Dictionary = active_schedule[0]
+	for entry in active_schedule:
 		var entry_min: int = _time_str_to_minutes(entry.get("time", "00:00"))
 		if entry_min <= now_min:
 			picked = entry

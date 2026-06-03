@@ -19,34 +19,64 @@
   ],
   "schedule": [
     {
-      "time": "06:00",
-      "location": "plaza",
-      "intent": "晨露刚下，去广场采新鲜的露水当药引"
+      "time": "05:30",
+      "location": "home_cui",
+      "intent": "起床整理药柜"
     },
     {
-      "time": "08:00",
-      "location": "bakery",
-      "intent": "去面包店取苔老板留的苔藓面包"
+      "time": "06:30",
+      "location": "forest_edge",
+      "intent": "去森林边采新鲜草药"
+    },
+    {
+      "time": "08:30",
+      "location": "home_cui",
+      "intent": "处理采来的草药"
     },
     {
       "time": "10:00",
       "location": "plaza",
-      "intent": "在广场晒草药，顺便给路过的怪物看看气色"
+      "intent": "去广场摆草药茶摊位"
     },
     {
-      "time": "14:00",
+      "time": "12:00",
       "location": "home_cui",
-      "intent": "回自己的草药小屋休息"
+      "intent": "午饭"
+    },
+    {
+      "time": "13:00",
+      "location": "home_cui",
+      "intent": "配药给客人"
+    },
+    {
+      "time": "15:00",
+      "location": "plaza",
+      "intent": "下午摆摊"
     },
     {
       "time": "17:00",
+      "location": "home_bear",
+      "intent": "给苔老板送薄荷叶"
+    },
+    {
+      "time": "18:00",
+      "location": "home_cui",
+      "intent": "晚饭"
+    },
+    {
+      "time": "19:30",
       "location": "plaza",
-      "intent": "黄昏在广场采露水，听虫鸣"
+      "intent": "散步看星星"
     },
     {
       "time": "21:00",
-      "location": "plaza",
-      "intent": "在广场过夜，盖一片大叶子睡觉"
+      "location": "home_cui",
+      "intent": "整理一天笔记"
+    },
+    {
+      "time": "23:00",
+      "location": "home_cui",
+      "intent": "睡觉"
     }
   ],
   "gift_prefs": {
@@ -75,5 +105,52 @@
     "restless": 0.6,
     "pause_chance": 0.08,
     "wander_radius": 25
-  }
+  },
+  "schedule_weekend": [
+    {
+      "time": "06:00",
+      "location": "home_cui",
+      "intent": "起床"
+    },
+    {
+      "time": "07:30",
+      "location": "forest_edge",
+      "intent": "周末去森林深处采珍稀草药"
+    },
+    {
+      "time": "11:00",
+      "location": "river",
+      "intent": "河边洗草药"
+    },
+    {
+      "time": "13:00",
+      "location": "home_cui",
+      "intent": "午饭"
+    },
+    {
+      "time": "14:30",
+      "location": "home_cui",
+      "intent": "周末研究新药方"
+    },
+    {
+      "time": "17:00",
+      "location": "plaza",
+      "intent": "去广场跟邻居聊"
+    },
+    {
+      "time": "19:00",
+      "location": "home_cui",
+      "intent": "晚饭"
+    },
+    {
+      "time": "21:00",
+      "location": "hilltop",
+      "intent": "难得登高看月亮"
+    },
+    {
+      "time": "23:00",
+      "location": "home_cui",
+      "intent": "睡觉"
+    }
+  ]
 }

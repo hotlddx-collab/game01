@@ -18,44 +18,59 @@
   ],
   "schedule": [
     {
-      "time": "05:00",
+      "time": "04:00",
       "location": "hilltop",
-      "intent": "天还没亮就已经坐在高处看日出"
+      "intent": "凌晨看星辰移位"
     },
     {
-      "time": "09:00",
+      "time": "06:00",
+      "location": "hilltop",
+      "intent": "看日出"
+    },
+    {
+      "time": "08:30",
       "location": "plaza",
-      "intent": "广场边缘站着，看居民们的一举一动"
+      "intent": "站广场边角看居民"
     },
     {
-      "time": "11:00",
+      "time": "10:00",
       "location": "forest_edge",
-      "intent": "在森林边缘独自待一会儿"
+      "intent": "在森林边静坐"
     },
     {
-      "time": "13:00",
-      "location": "plaza",
-      "intent": "和老咸待在一起，两人都不说话但也不走"
-    },
-    {
-      "time": "15:00",
+      "time": "12:00",
       "location": "hilltop",
-      "intent": "回高处，俯视整个村子"
+      "intent": "中午回高处"
     },
     {
-      "time": "18:00",
+      "time": "14:00",
       "location": "plaza",
-      "intent": "傍晚人最多时出现在广场，偶尔开口说一句"
+      "intent": "又来广场，不说话"
     },
     {
-      "time": "21:00",
+      "time": "15:30",
+      "location": "plaza",
+      "intent": "跟老咸并肩坐着"
+    },
+    {
+      "time": "17:00",
+      "location": "hilltop",
+      "intent": "看夕阳"
+    },
+    {
+      "time": "19:00",
+      "location": "plaza",
+      "intent": "晚上偶尔出现"
+    },
+    {
+      "time": "20:30",
       "location": "home_mystic",
-      "intent": "深夜回到自己的居所，独坐发光"
+      "intent": "回居所发光"
     },
     {
       "time": "23:00",
       "location": "hilltop",
-      "intent": "夜里发光最明显，独自在高处直到天亮"
+      "intent": "半夜独自在高处直到天亮"
     }
   ],
   "gift_prefs": {
@@ -84,5 +99,37 @@
     "restless": 0.35,
     "pause_chance": 0.05,
     "wander_radius": 18
-  }
+  },
+  "schedule_weekend": [
+    {
+      "time": "05:00",
+      "location": "hilltop",
+      "intent": "周末天没亮就在高处"
+    },
+    {
+      "time": "09:00",
+      "location": "forest_edge",
+      "intent": "长时间在森林里"
+    },
+    {
+      "time": "13:00",
+      "location": "home_mystic",
+      "intent": "居所静坐"
+    },
+    {
+      "time": "16:00",
+      "location": "hilltop",
+      "intent": "高处冥想"
+    },
+    {
+      "time": "19:00",
+      "location": "plaza",
+      "intent": "比平时多出现一会"
+    },
+    {
+      "time": "22:00",
+      "location": "hilltop",
+      "intent": "又回高处"
+    }
+  ]
 }
