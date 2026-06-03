@@ -269,646 +269,578 @@ script = ExtResource("15_spawner")
 
 [node name="ItemSpawnPoints" type="Node2D" parent="." unique_id=210065410]
 
-[node name="SP_flower_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065408]
-position = Vector2(593, -231)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065409]
-position = Vector2(357, 648)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065410]
-position = Vector2(385, 172)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065411]
-position = Vector2(843, -65)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065412]
-position = Vector2(1030, -49)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065413]
-position = Vector2(837, -193)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065414]
-position = Vector2(1174, 691)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065415]
-position = Vector2(1053, 676)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065416]
-position = Vector2(1231, 580)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065417]
-position = Vector2(506, 648)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065418]
-position = Vector2(1092, 487)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065419]
-position = Vector2(1105, -185)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_flower_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065420]
-position = Vector2(881, -235)
-script = ExtResource("16_spawnpt")
-
-[node name="SP_mint_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065421]
-position = Vector2(1040, -210)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065422]
-position = Vector2(803, -109)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065423]
-position = Vector2(995, -8)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065424]
-position = Vector2(476, 602)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065425]
-position = Vector2(344, 128)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065426]
-position = Vector2(383, 592)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065427]
-position = Vector2(440, 124)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_mint_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065428]
-position = Vector2(866, 148)
-script = ExtResource("16_spawnpt")
-item_id = "mint"
-
-[node name="SP_berry_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065429]
-position = Vector2(340, 204)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065430]
-position = Vector2(299, 241)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065431]
-position = Vector2(408, 235)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065432]
-position = Vector2(790, 194)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065433]
-position = Vector2(903, 285)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065434]
-position = Vector2(416, 660)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065435]
-position = Vector2(-179, 239)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065436]
-position = Vector2(-185, 279)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_berry_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065437]
-position = Vector2(1061, 571)
-script = ExtResource("16_spawnpt")
-item_id = "berry"
-
-[node name="SP_mushroom_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065438]
-position = Vector2(833, 180)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065439]
-position = Vector2(866, 224)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065440]
-position = Vector2(823, 225)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065441]
-position = Vector2(1118, 539)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065442]
-position = Vector2(1164, 628)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065443]
-position = Vector2(915, -146)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065444]
-position = Vector2(996, -144)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065445]
-position = Vector2(954, -92)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_mushroom_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065446]
-position = Vector2(910, -91)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_acorn_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065447]
-position = Vector2(-83, 361)
+[node name="SP_acorn_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100000]
+position = Vector2(-83.0, 361.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065448]
-position = Vector2(80, 400)
+[node name="SP_acorn_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100001]
+position = Vector2(80.0, 400.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065449]
-position = Vector2(-5, 355)
+[node name="SP_acorn_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100002]
+position = Vector2(-5.0, 355.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065450]
-position = Vector2(-154, 544)
+[node name="SP_acorn_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100003]
+position = Vector2(-154.0, 544.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065451]
-position = Vector2(777, 591)
+[node name="SP_acorn_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100004]
+position = Vector2(777.0, 591.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065452]
-position = Vector2(820, 631)
+[node name="SP_acorn_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100005]
+position = Vector2(820.0, 631.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_acorn_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065453]
-position = Vector2(655, -55)
+[node name="SP_acorn_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100006]
+position = Vector2(655.0, -55.0)
 script = ExtResource("16_spawnpt")
 item_id = "acorn"
-
-[node name="SP_herb_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065454]
-position = Vector2(384, 117)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065455]
-position = Vector2(-157, 293)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065456]
-position = Vector2(434, 590)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065457]
-position = Vector2(570, -270)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065458]
-position = Vector2(894, -22)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065459]
-position = Vector2(611, -275)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065460]
-position = Vector2(1139, 484)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_herb_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065461]
-position = Vector2(642, -235)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_branch_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065462]
-position = Vector2(-7, 160)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_branch_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065463]
-position = Vector2(-209, 357)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_branch_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065464]
-position = Vector2(-226, 613)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_branch_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065465]
-position = Vector2(574, 108)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_branch_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065466]
-position = Vector2(1028, 449)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_branch_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065467]
-position = Vector2(1022, 340)
-script = ExtResource("16_spawnpt")
-item_id = "branch"
-
-[node name="SP_feather_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065468]
-position = Vector2(420, 397)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065469]
-position = Vector2(495, 279)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065470]
-position = Vector2(10, 486)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065471]
-position = Vector2(701, -207)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065472]
-position = Vector2(-283, -275)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065473]
-position = Vector2(-274, 321)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065474]
-position = Vector2(1242, -251)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065475]
-position = Vector2(-234, 734)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_feather_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065476]
-position = Vector2(958, 707)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_fish_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065477]
-position = Vector2(58, 122)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065478]
-position = Vector2(194, 93)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065479]
-position = Vector2(-113, -260)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065480]
-position = Vector2(324, -239)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065481]
-position = Vector2(350, 60)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065482]
-position = Vector2(394, 62)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065483]
-position = Vector2(101, 110)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_fish_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065484]
-position = Vector2(-153, 116)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_shell_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065485]
-position = Vector2(-197, 104)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_shell_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065486]
-position = Vector2(-223, 62)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_shell_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065487]
-position = Vector2(477, 36)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_shell_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065488]
-position = Vector2(247, 83)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_shell_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065489]
-position = Vector2(524, -18)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_shell_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065490]
-position = Vector2(-251, -3)
-script = ExtResource("16_spawnpt")
-item_id = "shell"
-
-[node name="SP_pearl_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065491]
-position = Vector2(150, 100)
-script = ExtResource("16_spawnpt")
-item_id = "pearl"
-
-[node name="SP_pearl_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065492]
-position = Vector2(300, 80)
-script = ExtResource("16_spawnpt")
-item_id = "pearl"
-
-[node name="SP_pearl_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065493]
-position = Vector2(436, 37)
-script = ExtResource("16_spawnpt")
-item_id = "pearl"
-
-[node name="SP_pearl_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065494]
-position = Vector2(261, -271)
-script = ExtResource("16_spawnpt")
-item_id = "pearl"
-
-[node name="SP_rock_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065495]
-position = Vector2(65, 347)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_rock_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065496]
-position = Vector2(267, 512)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_rock_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065497]
-position = Vector2(218, 417)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_rock_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065498]
-position = Vector2(839, 270)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_rock_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065499]
-position = Vector2(858, 616)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_rock_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065500]
-position = Vector2(1226, 386)
-script = ExtResource("16_spawnpt")
-item_id = "rock"
-
-[node name="SP_dewdrop_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065501]
-position = Vector2(319, 383)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065502]
-position = Vector2(738, 118)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065503]
-position = Vector2(1020, 649)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065504]
-position = Vector2(1051, 160)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065505]
-position = Vector2(641, 199)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065506]
-position = Vector2(467, 493)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065507]
-position = Vector2(678, 716)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_dewdrop_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065508]
-position = Vector2(864, 491)
-script = ExtResource("16_spawnpt")
-item_id = "dewdrop"
-
-[node name="SP_bark_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065509]
-position = Vector2(-38, 271)
-script = ExtResource("16_spawnpt")
-item_id = "bark"
-
-[node name="SP_bark_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065510]
-position = Vector2(142, 276)
-script = ExtResource("16_spawnpt")
-item_id = "bark"
-
-[node name="SP_bark_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065511]
-position = Vector2(1241, 299)
-script = ExtResource("16_spawnpt")
-item_id = "bark"
-
-[node name="SP_bark_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065512]
-position = Vector2(649, 97)
-script = ExtResource("16_spawnpt")
-item_id = "bark"
-
-[node name="SP_resin_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065513]
-position = Vector2(59, 198)
-script = ExtResource("16_spawnpt")
-item_id = "resin"
-
-[node name="SP_resin_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065514]
-position = Vector2(-26, 662)
-script = ExtResource("16_spawnpt")
-item_id = "resin"
-
-[node name="SP_resin_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065515]
-position = Vector2(1198, 157)
-script = ExtResource("16_spawnpt")
-item_id = "resin"
-
-[node name="SP_resin_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065516]
-position = Vector2(956, 378)
-script = ExtResource("16_spawnpt")
-item_id = "resin"
-
-[node name="SP_moonstone_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065517]
-position = Vector2(590, -138)
-script = ExtResource("16_spawnpt")
-item_id = "moonstone"
-
-[node name="SP_moonstone_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065518]
-position = Vector2(-278, 175)
-script = ExtResource("16_spawnpt")
-item_id = "moonstone"
-
-[node name="SP_moonstone_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=410065519]
-position = Vector2(600, 27)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_mushroom_legacy_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065409]
-position = Vector2(1151, 573)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_bread_legacy_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065410]
-position = Vector2(496, 454)
-script = ExtResource("16_spawnpt")
-item_id = "bread"
-
-[node name="SP_fish_legacy_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065411]
-position = Vector2(501, -154)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_feather_legacy_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065412]
-position = Vector2(481, 387)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_mushroom_legacy_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065413]
-position = Vector2(1101, 623)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_herb_legacy_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065414]
-position = Vector2(305, 170)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_fish_legacy_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065415]
-position = Vector2(598, 171)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_bread_legacy_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065416]
-position = Vector2(339, 464)
-script = ExtResource("16_spawnpt")
-item_id = "bread"
-
-[node name="SP_fish_legacy_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065417]
-position = Vector2(644, 144)
-script = ExtResource("16_spawnpt")
-item_id = "fish"
-
-[node name="SP_ancient_book_legacy_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065418]
-position = Vector2(1245, -165)
+[node name="SP_ancient_book_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100007]
+position = Vector2(1245.0, -165.0)
 script = ExtResource("16_spawnpt")
 item_id = "ancient_book"
-
-[node name="SP_crystal_legacy_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065419]
-position = Vector2(-4, 579)
+[node name="SP_ancient_book_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100008]
+position = Vector2(1267.3, -241.0)
+script = ExtResource("16_spawnpt")
+item_id = "ancient_book"
+[node name="SP_ancient_book_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100009]
+position = Vector2(1209.0, -209.3)
+script = ExtResource("16_spawnpt")
+item_id = "ancient_book"
+[node name="SP_bark_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100010]
+position = Vector2(-38.0, 271.0)
+script = ExtResource("16_spawnpt")
+item_id = "bark"
+[node name="SP_bark_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100011]
+position = Vector2(142.0, 276.0)
+script = ExtResource("16_spawnpt")
+item_id = "bark"
+[node name="SP_bark_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100012]
+position = Vector2(1241.0, 299.0)
+script = ExtResource("16_spawnpt")
+item_id = "bark"
+[node name="SP_bark_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100013]
+position = Vector2(649.0, 97.0)
+script = ExtResource("16_spawnpt")
+item_id = "bark"
+[node name="SP_bark_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100014]
+position = Vector2(10.9, 302.7)
+script = ExtResource("16_spawnpt")
+item_id = "bark"
+[node name="SP_berry_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100015]
+position = Vector2(340.0, 204.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100016]
+position = Vector2(299.0, 241.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100017]
+position = Vector2(408.0, 235.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100018]
+position = Vector2(790.0, 194.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100019]
+position = Vector2(903.0, 285.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100020]
+position = Vector2(416.0, 660.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100021]
+position = Vector2(-179.0, 239.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100022]
+position = Vector2(-185.0, 279.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_berry_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100023]
+position = Vector2(1061.0, 571.0)
+script = ExtResource("16_spawnpt")
+item_id = "berry"
+[node name="SP_branch_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100024]
+position = Vector2(-7.0, 160.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_branch_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100025]
+position = Vector2(-209.0, 357.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_branch_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100026]
+position = Vector2(-226.0, 613.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_branch_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100027]
+position = Vector2(574.0, 108.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_branch_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100028]
+position = Vector2(1028.0, 449.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_branch_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100029]
+position = Vector2(1022.0, 340.0)
+script = ExtResource("16_spawnpt")
+item_id = "branch"
+[node name="SP_bread_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100030]
+position = Vector2(496.0, 454.0)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+[node name="SP_bread_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100031]
+position = Vector2(339.0, 464.0)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+[node name="SP_bread_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100032]
+position = Vector2(533.8, 482.3)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+[node name="SP_bread_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100033]
+position = Vector2(401.7, 397.9)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+[node name="SP_bread_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100034]
+position = Vector2(483.5, 378.8)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+[node name="SP_crystal_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100035]
+position = Vector2(-4.0, 579.0)
 script = ExtResource("16_spawnpt")
 item_id = "crystal"
-
-[node name="SP_feather_legacy_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065420]
-position = Vector2(736, 388)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_herb_legacy_13" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065421]
-position = Vector2(481, 158)
-script = ExtResource("16_spawnpt")
-item_id = "herb"
-
-[node name="SP_mushroom_legacy_14" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065422]
-position = Vector2(899, 213)
-script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_feather_legacy_15" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065423]
-position = Vector2(540, 460)
-script = ExtResource("16_spawnpt")
-item_id = "feather"
-
-[node name="SP_crystal_legacy_16" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065424]
-position = Vector2(875, 383)
+[node name="SP_crystal_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100036]
+position = Vector2(875.0, 383.0)
 script = ExtResource("16_spawnpt")
 item_id = "crystal"
-
-[node name="SP_mint_legacy_17" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065425]
-position = Vector2(1106, -79)
+[node name="SP_crystal_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100037]
+position = Vector2(-49.0, 579.9)
 script = ExtResource("16_spawnpt")
-item_id = "mint"
-[node name="SP_mushroom_legacy_18" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065426]
-position = Vector2(150, 540)
+item_id = "crystal"
+[node name="SP_crystal_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100038]
+position = Vector2(799.2, 334.8)
 script = ExtResource("16_spawnpt")
-item_id = "mushroom"
-
-[node name="SP_fish_legacy_19" type="Marker2D" parent="ItemSpawnPoints" unique_id=510065427]
-position = Vector2(820, 600)
+item_id = "crystal"
+[node name="SP_dewdrop_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100039]
+position = Vector2(319.0, 383.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100040]
+position = Vector2(738.0, 118.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100041]
+position = Vector2(1020.0, 649.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100042]
+position = Vector2(1051.0, 160.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100043]
+position = Vector2(641.0, 199.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100044]
+position = Vector2(467.0, 493.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100045]
+position = Vector2(678.0, 716.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_dewdrop_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100046]
+position = Vector2(864.0, 491.0)
+script = ExtResource("16_spawnpt")
+item_id = "dewdrop"
+[node name="SP_feather_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100047]
+position = Vector2(420.0, 397.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100048]
+position = Vector2(495.0, 279.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100049]
+position = Vector2(10.0, 486.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100050]
+position = Vector2(701.0, -207.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100051]
+position = Vector2(-283.0, -275.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100052]
+position = Vector2(-274.0, 321.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100053]
+position = Vector2(1242.0, -251.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100054]
+position = Vector2(-234.0, 734.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100055]
+position = Vector2(958.0, 707.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100056]
+position = Vector2(481.0, 387.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100057]
+position = Vector2(736.0, 388.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_feather_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100058]
+position = Vector2(540.0, 460.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+[node name="SP_fish_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100059]
+position = Vector2(58.0, 122.0)
 script = ExtResource("16_spawnpt")
 item_id = "fish"
+[node name="SP_fish_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100060]
+position = Vector2(194.0, 93.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100061]
+position = Vector2(-113.0, -260.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100062]
+position = Vector2(324.0, -239.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100063]
+position = Vector2(350.0, 60.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100064]
+position = Vector2(394.0, 62.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100065]
+position = Vector2(101.0, 110.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100066]
+position = Vector2(-153.0, 116.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100067]
+position = Vector2(501.0, -154.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100068]
+position = Vector2(598.0, 171.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100069]
+position = Vector2(644.0, 144.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_fish_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100070]
+position = Vector2(820.0, 600.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+[node name="SP_flower_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100071]
+position = Vector2(593.0, -231.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100072]
+position = Vector2(357.0, 648.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100073]
+position = Vector2(385.0, 172.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100074]
+position = Vector2(843.0, -65.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100075]
+position = Vector2(1030.0, -49.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100076]
+position = Vector2(837.0, -193.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100077]
+position = Vector2(1174.0, 691.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100078]
+position = Vector2(1053.0, 676.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100079]
+position = Vector2(1231.0, 580.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100080]
+position = Vector2(506.0, 648.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100081]
+position = Vector2(1092.0, 487.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100082]
+position = Vector2(1105.0, -185.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_flower_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100083]
+position = Vector2(881.0, -235.0)
+script = ExtResource("16_spawnpt")
+item_id = "flower"
+[node name="SP_herb_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100084]
+position = Vector2(384.0, 117.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100085]
+position = Vector2(-157.0, 293.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100086]
+position = Vector2(434.0, 590.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100087]
+position = Vector2(570.0, -270.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100088]
+position = Vector2(894.0, -22.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100089]
+position = Vector2(611.0, -275.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100090]
+position = Vector2(1139.0, 484.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100091]
+position = Vector2(642.0, -235.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100092]
+position = Vector2(600.0, 27.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100093]
+position = Vector2(305.0, 170.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_herb_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100094]
+position = Vector2(481.0, 158.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+[node name="SP_mint_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100095]
+position = Vector2(1040.0, -210.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100096]
+position = Vector2(803.0, -109.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100097]
+position = Vector2(995.0, -8.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100098]
+position = Vector2(476.0, 602.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100099]
+position = Vector2(344.0, 128.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100100]
+position = Vector2(383.0, 592.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100101]
+position = Vector2(440.0, 124.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100102]
+position = Vector2(866.0, 148.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_mint_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100103]
+position = Vector2(1106.0, -79.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+[node name="SP_moonstone_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100104]
+position = Vector2(590.0, -138.0)
+script = ExtResource("16_spawnpt")
+item_id = "moonstone"
+[node name="SP_moonstone_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100105]
+position = Vector2(-278.0, 175.0)
+script = ExtResource("16_spawnpt")
+item_id = "moonstone"
+[node name="SP_moonstone_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100106]
+position = Vector2(614.0, -130.8)
+script = ExtResource("16_spawnpt")
+item_id = "moonstone"
+[node name="SP_moonstone_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100107]
+position = Vector2(-322.7, 189.3)
+script = ExtResource("16_spawnpt")
+item_id = "moonstone"
+[node name="SP_mushroom_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100108]
+position = Vector2(833.0, 180.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100109]
+position = Vector2(866.0, 224.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100110]
+position = Vector2(823.0, 225.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100111]
+position = Vector2(1118.0, 539.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100112]
+position = Vector2(1164.0, 628.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100113]
+position = Vector2(915.0, -146.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100114]
+position = Vector2(996.0, -144.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100115]
+position = Vector2(954.0, -92.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100116]
+position = Vector2(910.0, -91.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100117]
+position = Vector2(1151.0, 573.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100118]
+position = Vector2(1101.0, 623.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100119]
+position = Vector2(899.0, 213.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_mushroom_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100120]
+position = Vector2(150.0, 540.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+[node name="SP_pearl_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100121]
+position = Vector2(150.0, 100.0)
+script = ExtResource("16_spawnpt")
+item_id = "pearl"
+[node name="SP_pearl_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100122]
+position = Vector2(300.0, 80.0)
+script = ExtResource("16_spawnpt")
+item_id = "pearl"
+[node name="SP_pearl_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100123]
+position = Vector2(436.0, 37.0)
+script = ExtResource("16_spawnpt")
+item_id = "pearl"
+[node name="SP_pearl_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100124]
+position = Vector2(261.0, -271.0)
+script = ExtResource("16_spawnpt")
+item_id = "pearl"
+[node name="SP_pearl_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100125]
+position = Vector2(124.4, 44.9)
+script = ExtResource("16_spawnpt")
+item_id = "pearl"
+[node name="SP_resin_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100126]
+position = Vector2(59.0, 198.0)
+script = ExtResource("16_spawnpt")
+item_id = "resin"
+[node name="SP_resin_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100127]
+position = Vector2(-26.0, 662.0)
+script = ExtResource("16_spawnpt")
+item_id = "resin"
+[node name="SP_resin_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100128]
+position = Vector2(1198.0, 157.0)
+script = ExtResource("16_spawnpt")
+item_id = "resin"
+[node name="SP_resin_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100129]
+position = Vector2(956.0, 378.0)
+script = ExtResource("16_spawnpt")
+item_id = "resin"
+[node name="SP_resin_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100130]
+position = Vector2(108.5, 119.0)
+script = ExtResource("16_spawnpt")
+item_id = "resin"
+[node name="SP_rock_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100131]
+position = Vector2(65.0, 347.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_rock_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100132]
+position = Vector2(267.0, 512.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_rock_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100133]
+position = Vector2(218.0, 417.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_rock_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100134]
+position = Vector2(839.0, 270.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_rock_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100135]
+position = Vector2(858.0, 616.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_rock_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100136]
+position = Vector2(1226.0, 386.0)
+script = ExtResource("16_spawnpt")
+item_id = "rock"
+[node name="SP_shell_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100137]
+position = Vector2(-197.0, 104.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
+[node name="SP_shell_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100138]
+position = Vector2(-223.0, 62.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
+[node name="SP_shell_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100139]
+position = Vector2(477.0, 36.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
+[node name="SP_shell_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100140]
+position = Vector2(247.0, 83.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
+[node name="SP_shell_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100141]
+position = Vector2(524.0, -18.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
+[node name="SP_shell_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=510100142]
+position = Vector2(-251.0, -3.0)
+script = ExtResource("16_spawnpt")
+item_id = "shell"
 
 [node name="HintLayer" type="CanvasLayer" parent="." unique_id=393384615]
 layer = 4
