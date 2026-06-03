@@ -234,8 +234,6 @@ position = Vector2(729.5, 691.99994)
 scale = Vector2(2.2067645, 0.6463979)
 shape = SubResource("RectangleShape2D_eb6dy")
 
-# ── 从 Pickups 迁移过来的生成点 ──
-
 [node name="Player" parent="." unique_id=1060277267 instance=ExtResource("2_player")]
 unique_name_in_owner = true
 position = Vector2(600, 350)
@@ -270,25 +268,9 @@ persona_file = "res://data/animals/mystic_xuan.json"
 position = Vector2(150, 540)
 item_id = "mushroom"
 
-
-
-
-
-
-
 [node name="P10" parent="Pickups" unique_id=824482843 instance=ExtResource("8_pickup")]
 position = Vector2(820, 600)
 item_id = "fish"
-
-
-
-
-
-
-
-
-
-
 
 [node name="ItemSpawner" type="Node" parent="." unique_id=210065409]
 script = ExtResource("15_spawner")
@@ -848,109 +830,90 @@ position = Vector2(120.0, 180.0)
 script = ExtResource("16_spawnpt")
 item_id = "herb"
 
-
 [node name="SP_mushroom_legacy_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000001]
 position = Vector2(230.0, 360.0)
 script = ExtResource("16_spawnpt")
 item_id = "mushroom"
-
 
 [node name="SP_bread_legacy_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000002]
 position = Vector2(330.0, 650.0)
 script = ExtResource("16_spawnpt")
 item_id = "bread"
 
-
 [node name="SP_fish_legacy_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000003]
 position = Vector2(460.0, 640.0)
 script = ExtResource("16_spawnpt")
 item_id = "fish"
-
 
 [node name="SP_feather_legacy_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000004]
 position = Vector2(450.0, 190.0)
 script = ExtResource("16_spawnpt")
 item_id = "feather"
 
-
 [node name="SP_mushroom_legacy_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000005]
 position = Vector2(700.0, 160.0)
 script = ExtResource("16_spawnpt")
 item_id = "mushroom"
-
 
 [node name="SP_herb_legacy_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000006]
 position = Vector2(370.0, 310.0)
 script = ExtResource("16_spawnpt")
 item_id = "herb"
 
-
 [node name="SP_fish_legacy_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000007]
 position = Vector2(590.0, 620.0)
 script = ExtResource("16_spawnpt")
 item_id = "fish"
-
 
 [node name="SP_bread_legacy_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000008]
 position = Vector2(950.0, 650.0)
 script = ExtResource("16_spawnpt")
 item_id = "bread"
 
-
 [node name="SP_fish_legacy_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000009]
 position = Vector2(1140.0, 580.0)
 script = ExtResource("16_spawnpt")
 item_id = "fish"
-
 
 [node name="SP_ancient_book_legacy_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000010]
 position = Vector2(1150.0, 160.0)
 script = ExtResource("16_spawnpt")
 item_id = "ancient_book"
 
-
 [node name="SP_crystal_legacy_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000011]
 position = Vector2(1060.0, 360.0)
 script = ExtResource("16_spawnpt")
 item_id = "crystal"
-
 
 [node name="SP_feather_legacy_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000012]
 position = Vector2(900.0, 160.0)
 script = ExtResource("16_spawnpt")
 item_id = "feather"
 
-
 [node name="SP_herb_legacy_13" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000013]
 position = Vector2(730.0, 430.0)
 script = ExtResource("16_spawnpt")
 item_id = "herb"
-
 
 [node name="SP_mushroom_legacy_14" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000014]
 position = Vector2(220.0, 150.0)
 script = ExtResource("16_spawnpt")
 item_id = "mushroom"
 
-
 [node name="SP_feather_legacy_15" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000015]
 position = Vector2(540.0, 460.0)
 script = ExtResource("16_spawnpt")
 item_id = "feather"
-
 
 [node name="SP_crystal_legacy_16" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000016]
 position = Vector2(860.0, 460.0)
 script = ExtResource("16_spawnpt")
 item_id = "crystal"
 
-
 [node name="SP_mint_legacy_17" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000017]
 position = Vector2(1050.0, 250.0)
 script = ExtResource("16_spawnpt")
 item_id = "mint"
-
-
 
 [node name="HintLayer" type="CanvasLayer" parent="." unique_id=393384615]
 layer = 4
