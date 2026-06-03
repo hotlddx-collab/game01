@@ -25,9 +25,12 @@ LEVEL_ORDER = {"hate": 0, "cold": 1, "neutral": 2, "warm": 3, "like": 4, "love":
 
 
 class QuestStore:
-    """每个任务的状态记录（单玩家场景，无 player_id 字段）。"""
+    """每个任务的状态记录（单玩家场景，无 player_id 字段）。
 
-    SCHEMA_VERSION = 2  # v2: 新 3 类型语义（collect/relay/deliver）
+    progress 字段：collect 类任务用来记录"已通过送礼累计交付的数量"。
+    """
+
+    SCHEMA_VERSION = 3  # v2: 新 3 类型语义；v3: 增加 progress 字段
 
     def __init__(self, db_path: str | Path):
         self.db_path = str(db_path)
@@ -44,14 +47,16 @@ class QuestStore:
                     state TEXT NOT NULL,
                     schema_version INTEGER NOT NULL DEFAULT 1,
                     accepted_at INTEGER NOT NULL,
-                    completed_at INTEGER
+                    completed_at INTEGER,
+                    progress INTEGER NOT NULL DEFAULT 0
                 )
             """)
-            # 升级旧表：补 schema_version 列
             cur = c.execute("PRAGMA table_info(quests_state)")
             cols = {row[1] for row in cur.fetchall()}
             if "schema_version" not in cols:
                 c.execute("ALTER TABLE quests_state ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1")
+            if "progress" not in cols:
+                c.execute("ALTER TABLE quests_state ADD COLUMN progress INTEGER NOT NULL DEFAULT 0")
             # 旧 schema 任务全部废弃（语义已变）
             c.execute(
                 "UPDATE quests_state SET state='abandoned' WHERE schema_version < ? AND state='active'",
@@ -67,8 +72,27 @@ class QuestStore:
             row = cur.fetchone()
             return row[0] if row else None
 
+    def get_progress(self, quest_id: str) -> int:
+        with self._conn() as c:
+            cur = c.execute(
+                "SELECT progress FROM quests_state WHERE quest_id = ?",
+                (quest_id,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
+    def add_progress(self, quest_id: str, delta: int) -> int:
+        """累加 progress，返回新值。"""
+        with self._conn() as c:
+            c.execute(
+                "UPDATE quests_state SET progress = progress + ? WHERE quest_id = ?",
+                (int(delta), quest_id),
+            )
+            cur = c.execute("SELECT progress FROM quests_state WHERE quest_id = ?", (quest_id,))
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
     def get_active_for_giver(self, giver_id: str, defs: Dict) -> Optional[str]:
-        """该 NPC 作为委托方有 active 任务吗？返回 quest_id。"""
         with self._conn() as c:
             cur = c.execute("SELECT quest_id FROM quests_state WHERE state = 'active'")
             for (qid,) in cur.fetchall():
@@ -77,8 +101,6 @@ class QuestStore:
         return None
 
     def get_active_with_target(self, target_id: str, defs: Dict) -> Optional[str]:
-        """有没有一个 active 任务，target_npc 是这个 NPC？返回 quest_id。
-        用于 relay/deliver 类任务在玩家找到 target 时识别。"""
         with self._conn() as c:
             cur = c.execute("SELECT quest_id FROM quests_state WHERE state = 'active'")
             for (qid,) in cur.fetchall():
@@ -90,8 +112,8 @@ class QuestStore:
     def mark_active(self, quest_id: str) -> None:
         with self._conn() as c:
             c.execute(
-                "INSERT OR REPLACE INTO quests_state(quest_id, state, schema_version, accepted_at, completed_at) "
-                "VALUES(?, 'active', ?, ?, NULL)",
+                "INSERT OR REPLACE INTO quests_state(quest_id, state, schema_version, accepted_at, completed_at, progress) "
+                "VALUES(?, 'active', ?, ?, NULL, 0)",
                 (quest_id, self.SCHEMA_VERSION, int(time.time())),
             )
 
@@ -151,7 +173,10 @@ class QuestEngine:
         self, quest_id: str, inventory: Dict[str, int]
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """委托方角度：collect 类任务在 giver 处检查完成。
-        返回 (是否完成, consume 信息 {item_id, count} 或 None)"""
+        判定：progress + 当前背包数量 ≥ required → 完成
+        consume 信息只反映"从背包扣多少"（progress 部分礼物已在送礼时被扣过）。
+        返回 (是否完成, consume 信息 {item_id, count} 或 None)
+        """
         q = self.get(quest_id)
         if q is None:
             return False, None
@@ -159,9 +184,14 @@ class QuestEngine:
             return False, None
         req = q.get("requires", {})
         item_id = req.get("item_id", "")
-        count = int(req.get("count", 1))
-        if inventory.get(item_id, 0) >= count:
-            return True, {"item_id": item_id, "count": count}
+        needed = int(req.get("count", 1))
+        progress = self.store.get_progress(quest_id)
+        in_bag = int(inventory.get(item_id, 0))
+        if progress + in_bag >= needed:
+            # 还差几个从背包扣
+            from_bag = max(0, needed - progress)
+            consume = {"item_id": item_id, "count": from_bag} if from_bag > 0 else None
+            return True, consume
         return False, None
 
     def try_complete_as_target(

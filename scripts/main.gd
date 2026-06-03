@@ -148,7 +148,7 @@ func _on_npc_gift(animal_id: String, item_id: String, _item_name: String, messag
 		dialog_ui.show_npc_gift_note(message)
 
 
-func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String) -> void:
+func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String, collect_item: String, required: int) -> void:
 	# 服务端派发任务：deliver 类附带物品
 	if give_item != "" and give_count > 0:
 		PlayerInventory.add_item(give_item, give_count)
@@ -158,6 +158,10 @@ func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kin
 		lines.append("📜 [b]新任务：%s[/b]" % title)
 		lines.append(desc)
 		match kind:
+			"collect":
+				if collect_item != "" and required > 0:
+					var nm := ItemDB.get_item_name(collect_item)
+					lines.append("📦 收集 [b]%s × %d[/b]，凑齐后用 🎁 送给我或拿在背包里跟我聊" % [nm, required])
 			"deliver":
 				if give_item != "":
 					var nm := ItemDB.get_item_name(give_item)
@@ -169,18 +173,18 @@ func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kin
 					lines.append("💬 要传的话：[i]%s[/i]" % message_summary)
 				if target_npc != "":
 					lines.append("👉 找 [b]%s[/b] 说出这句话的大致意思" % _npc_label(target_npc))
-			"collect":
-				lines.append("👉 凑齐物品后再来找我")
 		dialog_ui.show_npc_gift_note("\n".join(lines))
 	# HUD 更新
 	if quest_hud and quest_hud.has_method("set_quest"):
-		quest_hud.set_quest(qid, title, desc, kind, target_npc, message_summary)
+		quest_hud.set_quest(qid, title, desc, kind, target_npc, message_summary, collect_item, required, 0)
 
 
-func _on_quest_progress(_aid: String, qid: String, title: String, desc: String) -> void:
-	# NPC 回应时附带的进度提示（暂存到 HUD，对话框不打扰）
+func _on_quest_progress(_aid: String, qid: String, title: String, desc: String, progress: int, required: int) -> void:
+	# NPC 回应时附带的进度提示
 	if quest_hud and quest_hud.has_method("set_quest"):
-		quest_hud.set_quest(qid, title, desc, "", "", "")
+		quest_hud.set_quest(qid, title, desc, "collect", "", "", "", required, progress)
+	if dialog_ui.is_open() and required > 0:
+		dialog_ui.show_npc_gift_note("📜 [b]%s[/b]\n进度：%d / %d" % [title, progress, required])
 
 
 func _on_quest_completed(animal_id: String, _qid: String, title: String, _kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int) -> void:

@@ -646,10 +646,15 @@ class Agent:
                     self._finalize_quest(giver_qid, consume, result)
                     return
                 # 未完成 → 进度提示
+                req = q.get("requires", {})
+                progress = self.quest_engine.store.get_progress(giver_qid)
+                in_bag = int(inv.get(req.get("item_id", ""), 0))
                 result["quest_progress"] = {
                     "quest_id": giver_qid,
                     "title": q.get("title", ""),
                     "desc": q.get("desc", ""),
+                    "progress": progress + in_bag,
+                    "required": int(req.get("count", 1)),
                 }
             else:
                 # relay/deliver 已派发但 target 未完成 → 给提示
@@ -674,6 +679,10 @@ class Agent:
                     "kind": quest.get("kind", ""),
                 }
                 req = quest.get("requires", {})
+                # collect 类附带数量信息，供客户端 HUD 显示 0/N
+                if quest.get("kind") == "collect":
+                    offer["item_id"] = req.get("item_id", "")
+                    offer["required"] = int(req.get("count", 1))
                 # deliver 类：服务端把物品立即交给玩家
                 if quest.get("kind") == "deliver":
                     offer["give_item"] = req.get("item_id", "")
@@ -954,7 +963,38 @@ class Agent:
         npc_gift = self._check_love_gift(aff)
         if npc_gift:
             result["npc_gift"] = npc_gift
+        # 任务推进：玩家送的物品恰好是当前 collect 任务要求的 → progress +1
+        self._advance_collect_by_gift(item_id, result)
         return result
+
+    def _advance_collect_by_gift(self, item_id: str, result: Dict[str, Any]) -> None:
+        """玩家用 🎁 送礼路径推进 collect 任务进度。
+        gift 路径下物品已在客户端被扣，progress 满即完成（不再二次扣）。"""
+        if self.quest_engine is None:
+            return
+        defs = self.quest_engine.defs
+        qid = self.quest_engine.store.get_active_for_giver(self.animal_id, defs)
+        if not qid:
+            return
+        q = defs[qid]
+        if q.get("kind") != "collect":
+            return
+        req = q.get("requires", {})
+        if req.get("item_id") != item_id:
+            return
+        new_progress = self.quest_engine.store.add_progress(qid, 1)
+        needed = int(req.get("count", 1))
+        if new_progress >= needed:
+            # gift 路径：客户端已扣物品，consume=None
+            self._finalize_quest(qid, None, result)
+        else:
+            result["quest_progress"] = {
+                "quest_id": qid,
+                "title": q.get("title", ""),
+                "desc": q.get("desc", ""),
+                "progress": new_progress,
+                "required": needed,
+            }
 
     async def run_daily_reflection(
         self,

@@ -14,13 +14,20 @@ func _ready() -> void:
 	panel.visible = false
 
 
-func set_quest(qid: String, title: String, desc: String, kind: String, target_npc: String, message_summary: String) -> void:
+func set_quest(qid: String, title: String, desc: String, kind: String, target_npc: String, message_summary: String, collect_item: String = "", required: int = 0, progress: int = 0) -> void:
 	_current_qid = qid
-	title_label.text = "📜 [b]%s[/b]" % title
+	var title_text := "📜 [b]%s[/b]" % title
+	if kind == "collect" and required > 0:
+		title_text += "  [color=#7a5c3a](%d/%d)[/color]" % [progress, required]
+	title_label.text = title_text
 	var detail_lines: Array[String] = []
 	if desc != "":
 		detail_lines.append("[color=#5a4a3a]%s[/color]" % desc)
 	match kind:
+		"collect":
+			if collect_item != "":
+				var nm := ItemDB.get_item_name(collect_item)
+				detail_lines.append("→ 收集 [b]%s[/b]，回去找委托人" % nm)
 		"deliver":
 			if target_npc != "":
 				detail_lines.append("→ 把物品送到 [b]%s[/b]" % _label_for(target_npc))
