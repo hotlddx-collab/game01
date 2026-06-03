@@ -49,9 +49,13 @@ affection_store = AffectionStore()
 gift_store = GiftStore()
 reflection_store = ReflectionStore()
 intent_store = IntentStore()
+from milestones import MilestoneStore
+from db import DB_PATH
+milestone_store = MilestoneStore(DB_PATH)
 manager = AgentManager(
     personas, llm, memory_store, profile_store, world_store,
     affection_store, gift_store, reflection_store,
+    milestone_store=milestone_store,
 )
 log.info("加载 personas: %s", manager.all_ids())
 
@@ -152,6 +156,8 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         payload["gift"] = result["gift"]
     if "npc_gift" in result:
         payload["npc_gift"] = result["npc_gift"]
+    if "milestone" in result:
+        payload["milestone"] = result["milestone"]
 
     # 对话驱动意图：NPC 答应去找某人 → 写 intent_store + 回包通知客户端
     intent_data = result.get("intent")

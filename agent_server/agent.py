@@ -152,6 +152,7 @@ class Agent:
         affection: AffectionStore,
         gifts: GiftStore,
         reflection_store: ReflectionStore,
+        milestone_store: Optional["MilestoneStore"] = None,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -162,6 +163,7 @@ class Agent:
         self.affection = affection
         self.gifts = gifts
         self.reflection_store = reflection_store
+        self.milestone_store = milestone_store
         self.max_history_turns = max_history_turns
         # AgentManager 初始化完成后设置，供 intent 提示用
         self.npc_name_map: Dict[str, str] = {}  # {display_name: animal_id}
@@ -589,12 +591,47 @@ class Agent:
                     self.animal_id, intent_data.get("target_id"), intent_data.get("summary"),
                 )
 
-        # 8. 好感升到 love → 触发 NPC 签名礼物
-        npc_gift = self._check_love_gift(aff)
-        if npc_gift:
-            result["npc_gift"] = npc_gift
+        # 7b. 检查里程碑事件（好感等级跃迁）
+        self._check_milestone(aff, result)
+
+        # 8. 好感升到 love → 触发 NPC 签名礼物（兜底，里程碑覆盖优先）
+        if "milestone" not in result:
+            npc_gift = self._check_love_gift(aff)
+            if npc_gift:
+                result["npc_gift"] = npc_gift
 
         return result
+
+    def _check_milestone(self, aff: Dict[str, Any], result: Dict[str, Any]) -> None:
+        """好感等级跃迁触发里程碑：覆盖 LLM 回复 + 赠予物品。"""
+        if self.milestone_store is None:
+            return
+        prev_level = aff.get("prev_level", "")
+        new_level = aff.get("level", "")
+        if not prev_level or not new_level or prev_level == new_level:
+            return
+        from milestones import maybe_trigger
+        ms = maybe_trigger(self.milestone_store, self.animal_id, prev_level, new_level)
+        if ms is None:
+            return
+        # 覆盖 LLM 回复
+        result["text"] = ms.get("dialog", result.get("text", ""))
+        result["milestone"] = {
+            "transition": f"{prev_level}→{new_level}",
+            "intent": ms.get("intent", ""),
+        }
+        # 里程碑赠礼
+        gift_id = ms.get("gift")
+        if gift_id and items_module.get(gift_id):
+            item = items_module.get(gift_id)
+            result["npc_gift"] = {
+                "item_id": gift_id,
+                "item_name": item.name,
+                "message": f"（{self.name}郑重地把「{item.name}」交到你手里。）",
+                "is_milestone": True,
+            }
+        log.info("[milestone] %s %s→%s 触发", self.animal_id, prev_level, new_level)
+
 
     def _handle_gift_request(
         self,
@@ -874,12 +911,14 @@ class AgentManager:
         affection: AffectionStore,
         gifts: GiftStore,
         reflection_store: ReflectionStore,
+        milestone_store: Optional["MilestoneStore"] = None,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "12"))
         self._agents: Dict[str, Agent] = {
             aid: Agent(
                 p, llm, memory, profile, world, affection, gifts,
-                reflection_store, max_history_turns=max_turns,
+                reflection_store, milestone_store=milestone_store,
+                max_history_turns=max_turns,
             )
             for aid, p in personas.items()
         }

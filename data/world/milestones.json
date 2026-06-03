@@ -1,0 +1,107 @@
+{
+  "_comment": "NPC 里程碑事件 - 好感度跨越关键等级时触发的特殊对话/物品赠予。每个组合一次性触发，由后端记录在 player_profile.milestones_unlocked。",
+  "_format": "milestones[npc_id][prev_level→new_level] = {dialog: str, gift: item_id|null, intent: str}",
+
+  "bear_baker": {
+    "neutral→warm": {
+      "dialog": "其实……我真名不叫'苔老板'。我老师傅给我起这名号是因为我做的面包总像石头一样硬。后来才慢慢练出真本事。",
+      "gift": null,
+      "intent": "第一次跟玩家说真心话"
+    },
+    "warm→like": {
+      "dialog": "你帮了不少忙。这是我每天烤的最好那一炉留的，给你。",
+      "gift": "bread",
+      "intent": "送出每日精挑细选的面包"
+    },
+    "like→love": {
+      "dialog": "我做面包的秘方……愿意教你一手。下次咱俩一起揉面，怎么样？",
+      "gift": "scroll_blank",
+      "intent": "分享面包秘方（写在卷轴上）"
+    }
+  },
+  "fox_postman": {
+    "neutral→warm": {
+      "dialog": "我天天送信，但其实我自己——从没收过一封信。",
+      "gift": null,
+      "intent": "袒露自己从未收信的小遗憾"
+    },
+    "warm→like": {
+      "dialog": "今天有封信，写给我的。'谢谢你，焰仔。'……是你写的吧？我留着了。",
+      "gift": "feather",
+      "intent": "回赠一根特殊羽毛笔"
+    },
+    "like→love": {
+      "dialog": "这是我母亲留下的——她也是邮差，让我把它交给我最信任的人。给你。",
+      "gift": "compass",
+      "intent": "传家罗盘"
+    }
+  },
+  "herbalist_cui": {
+    "neutral→warm": {
+      "dialog": "森林里的草，每一种都有它的性子。慢慢就知道了。",
+      "gift": null,
+      "intent": "邀请玩家一起认草药"
+    },
+    "warm→like": {
+      "dialog": "你最近脸色不错。我配了点定神茶，给你。",
+      "gift": "herb",
+      "intent": "送出珍稀草药"
+    },
+    "like→love": {
+      "dialog": "我配了瓶心药水，但不是给病人——给我心里念着的人。你拿着。",
+      "gift": "heart_pot",
+      "intent": "心药水"
+    }
+  },
+  "traveler_lan": {
+    "neutral→warm": {
+      "dialog": "我去过的地方……比这村子加起来还多十倍。但这里有种说不出的安静。",
+      "gift": null,
+      "intent": "回忆远方"
+    },
+    "warm→like": {
+      "dialog": "我有张地图，标了些只有我知道的地方。你拿着，万一要找我。",
+      "gift": "scroll_blank",
+      "intent": "分享自制地图"
+    },
+    "like→love": {
+      "dialog": "这是我母亲的护身符。我从小带到大。你也戴着吧。",
+      "gift": "gem_green",
+      "intent": "护身符传递"
+    }
+  },
+  "pirate_lao": {
+    "neutral→warm": {
+      "dialog": "哈哈，年轻人爱听海上故事？给我一壶茶就讲。",
+      "gift": null,
+      "intent": "答应讲海上往事"
+    },
+    "warm→like": {
+      "dialog": "我那艘'风暴鸽'号最后一次出海，留下了这枚铜片。给你做个纪念。",
+      "gift": "bar_copper",
+      "intent": "船上的铜片"
+    },
+    "like→love": {
+      "dialog": "我藏了张老海图……上面圈着我没敢回去的地方。给你保管。",
+      "gift": "treasure_small",
+      "intent": "未完的航海"
+    }
+  },
+  "mystic_xuan": {
+    "neutral→warm": {
+      "dialog": "……你愿意听？好。'你将走过一条不该走的路，但终会回来。'",
+      "gift": null,
+      "intent": "送出一句预言"
+    },
+    "warm→like": {
+      "dialog": "夜里我光最亮的时候，见过你的影子。给你。",
+      "gift": "glow_stone",
+      "intent": "萤石"
+    },
+    "like→love": {
+      "dialog": "……我从哪里来，不重要。但'要去哪里'，我想跟你一起想。",
+      "gift": "crystal",
+      "intent": "罕见的告白"
+    }
+  }
+}
