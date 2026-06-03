@@ -39,8 +39,14 @@ var _pause_timer:   float = 0.0   # PAUSING 倒计时
 var _settle_timer:  float = 0.0   # SETTLING 倒计时
 var _idle_timer:    float = 0.0   # IDLE 距离下次闲逛的倒计时
 var _wander_target: Vector2 = Vector2.ZERO
-var _wander_timer: float = 0.0   # 闲逛超时（防目标在障碍内死锁）
+var _wander_timer: float = 0.0
 const WANDER_TIMEOUT: float = 4.0
+
+# 卡死检测（NPC 撞墙不前进时跳过当前路径点）
+var _stuck_timer: float = 0.0
+var _last_progress_pos: Vector2 = Vector2.ZERO
+const STUCK_TIMEOUT: float = 2.0
+const STUCK_DIST: float = 4.0
 
 # 路网路径队列（PathNetwork.find_path 的结果）
 var _waypoint_queue: Array[Vector2] = []
@@ -144,15 +150,38 @@ func _physics_process(delta: float) -> void:
 			var dist_to_wp := to_wp.length()
 			if dist_to_wp < arrive_distance:
 				# 到达当前路径点
+				_stuck_timer = 0.0
 				if _waypoint_queue.is_empty():
 					_state = State.SETTLING
 					_settle_timer = randf_range(0.8, 1.8)
 				else:
 					_advance_waypoint()
 			else:
-				# 直接朝路径点走（PathNetwork 已保证走在路上）
-				velocity = to_wp.normalized() * eff_speed
-				move_and_slide()
+				# 优先用 NavAgent 寻路（绕过建筑/障碍）
+				var next: Vector2 = _nav_agent.get_next_path_position()
+				var dir: Vector2 = next - global_position
+				# NavAgent 没有有效路径时（返回值就是当前位置）→ 直接朝目标走
+				if dir.length() < 2.0:
+					dir = to_wp
+				if dir.length() > 2.0:
+					velocity = dir.normalized() * eff_speed
+					move_and_slide()
+				else:
+					velocity = Vector2.ZERO
+
+				# 卡死检测：2 秒没移动 STUCK_DIST 像素 → 跳过当前路径点
+				_stuck_timer += delta
+				if global_position.distance_to(_last_progress_pos) > STUCK_DIST:
+					_last_progress_pos = global_position
+					_stuck_timer = 0.0
+				elif _stuck_timer >= STUCK_TIMEOUT:
+					_stuck_timer = 0.0
+					if _waypoint_queue.is_empty():
+						_state = State.SETTLING
+						_settle_timer = 1.0
+					else:
+						_advance_waypoint()
+
 				# 沿途随机暂停
 				if randf() < _mv_pause * delta:
 					_state = State.PAUSING
@@ -194,9 +223,16 @@ func _physics_process(delta: float) -> void:
 				_idle_timer = randf_range(1.0, 3.0)
 				velocity = Vector2.ZERO
 			else:
-				# 直接朝闲逛目标走（物理碰撞处理障碍）
-				velocity = to_wander.normalized() * eff_speed * 0.65
-				move_and_slide()
+				# 优先 NavAgent 路径（避开建筑），返回当前位置时降级直线
+				var next: Vector2 = _nav_agent.get_next_path_position()
+				var dir: Vector2 = next - global_position
+				if dir.length() < 2.0:
+					dir = to_wander
+				if dir.length() > 2.0:
+					velocity = dir.normalized() * eff_speed * 0.65
+					move_and_slide()
+				else:
+					velocity = Vector2.ZERO
 
 	_update_animation()
 
