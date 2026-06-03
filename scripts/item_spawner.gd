@@ -94,7 +94,7 @@ func _try_spawn(item_id: String) -> void:
 			free_points.append(p)
 	if free_points.is_empty(): return
 
-	var spawn_point: ItemSpawnPoint = free_points[randi() % free_points.size()]
+	var spawn_point = free_points[randi() % free_points.size()]
 	var pickup: ItemPickup = PICKUP_SCENE.instantiate()
 	pickup.item_id = item_id
 	pickup.global_position = spawn_point.global_position
