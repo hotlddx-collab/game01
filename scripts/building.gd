@@ -128,6 +128,31 @@ func _update_visual() -> void:
 
 	_update_entry_point()
 	_update_z_index(visual_size)
+	_update_collision(visual_size)
+
+
+## 自动给建筑加碰撞体，避免 NPC 穿过建筑后闲逛到背面
+func _update_collision(visual_size: Vector2) -> void:
+	# show_area_visual=false（如广场）不要碰撞
+	if not show_area_visual:
+		return
+	if visual_size.x <= 0 or visual_size.y <= 0:
+		return
+	# 已有碰撞体则跳过（用户手动放置过的不要重复加）
+	for child in get_children():
+		if child is StaticBody2D and child.name == "AutoCollision":
+			return
+
+	var body := StaticBody2D.new()
+	body.name = "AutoCollision"
+	add_child(body)
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	# 只挡建筑下半部分（脚面），让 NPC 能从上方"经过"建筑顶部视觉
+	rect.size = Vector2(visual_size.x * 0.9, visual_size.y * 0.6)
+	shape.shape = rect
+	shape.position = Vector2(0, visual_size.y * 0.2)  # 偏下放置
+	body.add_child(shape)
 
 
 func _update_z_index(visual_size: Vector2) -> void:

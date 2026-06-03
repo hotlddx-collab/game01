@@ -256,8 +256,8 @@ class Agent:
         loc_id = context.get("location", "")
         parts = []
         # 地点氛围描述
-        from . import personas as _p
-        desc = _p.get_location_description(loc_id)
+        from personas import get_location_description
+        desc = get_location_description(loc_id)
         if desc:
             parts.append(f"【这个地方】{desc}")
         # 附近其他 NPC（由客户端在 context 里塞 nearby_npcs 列表）
