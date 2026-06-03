@@ -1,106 +1,103 @@
 extends Node
-## 物品生成器 - Anchor 模式
+## 物品生成器 - 扫描场景中的 ItemSpawnPoint 节点
 ##
-## 每个 spawner 有一组离散位置，从未被占用的点中随机选一个生成。
-## 拾取后该位置释放，下次 respawn 时可能再被选中。
+## 工作原理：
+##   1. 启动时扫描 group "item_spawn_point" 的所有节点
+##   2. 按 item_id 分组，每组就是一个生成器
+##   3. 每组维持「同 item_id 同时存在不超过点位总数的 60%」
+##   4. 物品被拾取后，从该组其他空闲点位中随机选一个再生
 ##
-## 配置: data/world/spawners.json
-## 用法: 在 main.tscn 加 ItemSpawner 节点，挂此脚本
+## 编辑器里 ItemSpawnPoint 节点显示彩色圆圈+物品名，可拖动调整位置。
 
-const SPAWNERS_FILE: String = "res://data/world/spawners.json"
 const PICKUP_SCENE: PackedScene = preload("res://scenes/entities/item_pickup.tscn")
-const ANCHOR_OCCUPY_RADIUS: float = 24.0  # 该 anchor 多近内有 pickup 视为已占用
+const ANCHOR_OCCUPY_RADIUS: float = 24.0  # 已生成的物品占用判定半径
+const RESPAWN_INTERVAL_MIN: float = 18.0
+const RESPAWN_INTERVAL_MAX: float = 45.0
+const MAX_ALIVE_RATIO: float = 0.6  # 同时存在的比例（点位数 × 此比例）
 
-var _spawners: Array = []           # 配置数组（直接来自 JSON）
-var _alive: Array = []              # _alive[i] = Array[ItemPickup]
-var _next_spawn_at: Array = []      # _next_spawn_at[i] = unix 秒时间戳
+var _groups: Dictionary = {}  # item_id → Array[ItemSpawnPoint]
+var _alive: Dictionary  = {}  # item_id → Array[ItemPickup]
+var _next_at: Dictionary = {} # item_id → next spawn unix time
 var _pickups_parent: Node = null
 
 
 func _ready() -> void:
-	_load_config()
 	# 等场景就绪
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_pickups_parent = get_tree().get_root().get_node_or_null("Main/Pickups")
 	if _pickups_parent == null:
 		_pickups_parent = get_parent()
-	# 启动种子（每个 spawner 立即生 max_alive 个）
-	for i in range(_spawners.size()):
-		var sp = _spawners[i]
-		var max_a: int = int(sp.get("max_alive", 1))
-		for _j in range(max_a):
-			_try_spawn(i)
+
+	_scan_spawn_points()
+	# 启动种子（每组先放一半）
+	for item_id in _groups:
+		var pts: Array = _groups[item_id]
+		var max_a: int = max(1, int(pts.size() * MAX_ALIVE_RATIO))
+		for _i in range(max_a):
+			_try_spawn(item_id)
 	# 周期检查
 	var t := Timer.new()
-	t.wait_time = 2.5
+	t.wait_time = 2.0
 	t.timeout.connect(_tick)
 	add_child(t)
 	t.start()
-	print("[ItemSpawner] 启动，%d 个生成器" % _spawners.size())
+	print("[ItemSpawner] 启动，%d 种物品，共 %d 个生成点" % [
+		_groups.size(),
+		_groups.values().reduce(func(acc, arr): return acc + arr.size(), 0)
+	])
 
 
-func _load_config() -> void:
-	if not FileAccess.file_exists(SPAWNERS_FILE):
-		push_warning("ItemSpawner: 找不到 " + SPAWNERS_FILE)
-		return
-	var f := FileAccess.open(SPAWNERS_FILE, FileAccess.READ)
-	if f == null: return
-	var data = JSON.parse_string(f.get_as_text())
-	f.close()
-	if data == null or not data.has("spawners"):
-		return
-	_spawners = data["spawners"]
-	for _i in range(_spawners.size()):
-		_alive.append([])
-		_next_spawn_at.append(0.0)
+func _scan_spawn_points() -> void:
+	_groups.clear()
+	for node in get_tree().get_nodes_in_group("item_spawn_point"):
+		var iid: String = node.item_id if "item_id" in node else ""
+		if iid == "": continue
+		if not _groups.has(iid):
+			_groups[iid] = []
+			_alive[iid] = []
+			_next_at[iid] = 0.0
+		_groups[iid].append(node)
 
 
 func _tick() -> void:
 	var now: float = Time.get_ticks_msec() / 1000.0
-	for i in range(_spawners.size()):
+	for item_id in _groups:
 		# 清理已 free 的 pickup
-		_alive[i] = _alive[i].filter(func(n): return is_instance_valid(n))
-		var sp = _spawners[i]
-		var max_a: int = int(sp.get("max_alive", 1))
-		if _alive[i].size() >= max_a:
+		_alive[item_id] = _alive[item_id].filter(func(n): return is_instance_valid(n))
+		var pts: Array = _groups[item_id]
+		var max_a: int = max(1, int(pts.size() * MAX_ALIVE_RATIO))
+		if _alive[item_id].size() >= max_a:
 			continue
-		if now < float(_next_spawn_at[i]):
+		if now < float(_next_at[item_id]):
 			continue
-		_try_spawn(i)
-		_next_spawn_at[i] = now + float(sp.get("respawn_after_seconds", 30.0))
+		_try_spawn(item_id)
+		_next_at[item_id] = now + randf_range(RESPAWN_INTERVAL_MIN, RESPAWN_INTERVAL_MAX)
 
 
-## 在该 spawner 找一个未被占用的 anchor 生成一个 pickup
-func _try_spawn(i: int) -> void:
-	var sp = _spawners[i]
-	var anchors: Array = sp.get("anchors", [])
-	if anchors.is_empty(): return
+## 在该 item_id 的某个未占用 spawn point 位置生成一个物品
+func _try_spawn(item_id: String) -> void:
+	var pts: Array = _groups.get(item_id, [])
+	if pts.is_empty(): return
 
-	# 找未被占用的 anchor（当前 alive pickup 距离 < ANCHOR_OCCUPY_RADIUS 视为占用）
-	var occupied_indices: Dictionary = {}
-	for pickup in _alive[i]:
-		if not is_instance_valid(pickup): continue
-		for ai in range(anchors.size()):
-			var a: Array = anchors[ai]
-			if a.size() < 2: continue
-			var pos := Vector2(float(a[0]), float(a[1]))
-			if pickup.global_position.distance_to(pos) < ANCHOR_OCCUPY_RADIUS:
-				occupied_indices[ai] = true
+	# 找空闲点位（其位置 ANCHOR_OCCUPY_RADIUS 内无 alive pickup）
+	var free_points: Array = []
+	for p in pts:
+		if not is_instance_valid(p): continue
+		var occupied := false
+		for pickup in _alive[item_id]:
+			if not is_instance_valid(pickup): continue
+			if pickup.global_position.distance_to(p.global_position) < ANCHOR_OCCUPY_RADIUS:
+				occupied = true
 				break
-	# 从未占用的 anchor 中随机选一个
-	var free_idx: Array = []
-	for ai in range(anchors.size()):
-		if not occupied_indices.has(ai):
-			free_idx.append(ai)
-	if free_idx.is_empty(): return
-	var pick_ai: int = free_idx[randi() % free_idx.size()]
-	var anchor: Array = anchors[pick_ai]
-	if anchor.size() < 2: return
+		if not occupied:
+			free_points.append(p)
+	if free_points.is_empty(): return
 
+	var spawn_point: ItemSpawnPoint = free_points[randi() % free_points.size()]
 	var pickup: ItemPickup = PICKUP_SCENE.instantiate()
-	pickup.item_id = String(sp.get("item_id", "flower"))
-	pickup.position = Vector2(float(anchor[0]), float(anchor[1]))
+	pickup.item_id = item_id
+	pickup.global_position = spawn_point.global_position
 	if _pickups_parent != null:
 		_pickups_parent.add_child(pickup)
-		_alive[i].append(pickup)
+		_alive[item_id].append(pickup)
