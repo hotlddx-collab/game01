@@ -52,10 +52,14 @@ intent_store = IntentStore()
 from milestones import MilestoneStore
 from db import DB_PATH
 milestone_store = MilestoneStore(DB_PATH)
+from quests import QuestStore, QuestEngine
+quest_store = QuestStore(DB_PATH)
+quest_engine = QuestEngine(quest_store)
 manager = AgentManager(
     personas, llm, memory_store, profile_store, world_store,
     affection_store, gift_store, reflection_store,
     milestone_store=milestone_store,
+    quest_engine=quest_engine,
 )
 log.info("加载 personas: %s", manager.all_ids())
 
@@ -158,6 +162,9 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         payload["npc_gift"] = result["npc_gift"]
     if "milestone" in result:
         payload["milestone"] = result["milestone"]
+    for k in ("quest_offer", "quest_progress", "quest_completed"):
+        if k in result:
+            payload[k] = result[k]
 
     # 对话驱动意图：NPC 答应去找某人 → 写 intent_store + 回包通知客户端
     intent_data = result.get("intent")

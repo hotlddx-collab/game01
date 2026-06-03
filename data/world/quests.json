@@ -1,0 +1,131 @@
+{
+  "_comment": "NPC 任务库 - 玩家可领取的具体委托。每个 NPC 有 2-4 个任务，按好感度等级解锁。",
+  "_format": "tasks[task_id] = { npc_id, title, desc, kind, requires, reward, min_affection_level, repeatable }",
+  "_kinds": "collect(玩家拿到物品交付) | deliver(去某地点找某NPC说话) | visit(去某地点访问)",
+
+  "bear_baker_collect_herb": {
+    "npc_id": "bear_baker",
+    "title": "面包配方需要薄荷",
+    "desc": "苔老板：'我新研究的薄荷面包还差几片新鲜薄荷，能去森林边帮我采 3 片回来吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "herb", "count": 3 },
+    "reward": { "item_id": "bread", "count": 2, "affection": 5 },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "bear_baker_collect_fish": {
+    "npc_id": "bear_baker",
+    "title": "面包配鱼汤",
+    "desc": "苔老板：'有客人想要面包配鱼汤，能去河边钓 1 条鱼来吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "fish", "count": 1 },
+    "reward": { "item_id": "bread", "count": 3, "affection": 6 },
+    "min_affection_level": "warm",
+    "repeatable": true
+  },
+
+  "fox_postman_deliver_lao": {
+    "npc_id": "fox_postman",
+    "title": "替我送封信给老咸",
+    "desc": "焰仔：'我今天忙不过来，能帮我把这封信送给老咸吗？跟他打个招呼就行。'",
+    "kind": "deliver",
+    "requires": { "target_npc": "pirate_lao" },
+    "reward": { "item_id": "feather", "count": 2, "affection": 4 },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "fox_postman_collect_branch": {
+    "npc_id": "fox_postman",
+    "title": "邮局门口要修了",
+    "desc": "焰仔：'邮局门口的木栏松了，能去森林边捡 5 根树枝回来吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "branch", "count": 5 },
+    "reward": { "item_id": "letter", "count": 1, "affection": 5 },
+    "min_affection_level": "warm",
+    "repeatable": true
+  },
+
+  "herbalist_cui_collect_flower": {
+    "npc_id": "herbalist_cui",
+    "title": "需要野花做药",
+    "desc": "小翠：'今天配安神药需要 4 朵野花，能帮我去采来吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "flower", "count": 4 },
+    "reward": { "item_id": "herb", "count": 2, "affection": 5 },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "herbalist_cui_visit_river": {
+    "npc_id": "herbalist_cui",
+    "title": "去河边帮我看看",
+    "desc": "小翠：'听说河边长出了一种新草，你去河边看一眼回来告诉我？'",
+    "kind": "visit",
+    "requires": { "location": "river" },
+    "reward": { "item_id": "heart_pot", "count": 1, "affection": 6 },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+
+  "traveler_lan_collect_acorn": {
+    "npc_id": "traveler_lan",
+    "title": "旅途零食",
+    "desc": "小蓝：'下次出门想带点橡果当零嘴，能帮我捡 6 颗橡果吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "acorn", "count": 6 },
+    "reward": { "item_id": "compass", "count": 1, "affection": 4 },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "traveler_lan_visit_hilltop": {
+    "npc_id": "traveler_lan",
+    "title": "上去看看远方",
+    "desc": "小蓝：'你登过山顶吗？没有的话去一趟，回来给我说说看到了什么。'",
+    "kind": "visit",
+    "requires": { "location": "hilltop" },
+    "reward": { "item_id": "map_piece", "count": 1, "affection": 5 },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+
+  "pirate_lao_collect_rock": {
+    "npc_id": "pirate_lao",
+    "title": "好像看到块奇怪的石头",
+    "desc": "老咸：'我河边看到块奇形怪状的石头，能去捡 2 块回来给我看看吗？'",
+    "kind": "collect",
+    "requires": { "item_id": "rock", "count": 2 },
+    "reward": { "item_id": "compass", "count": 1, "affection": 4 },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "pirate_lao_deliver_xuan": {
+    "npc_id": "pirate_lao",
+    "title": "替我跟煊赫说一声",
+    "desc": "老咸：'我今天懒得动，能去煊赫那里跟他说一声「老咸傍晚要在河边」？'",
+    "kind": "deliver",
+    "requires": { "target_npc": "mystic_xuan" },
+    "reward": { "item_id": "treasure_small", "count": 1, "affection": 5 },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+
+  "mystic_xuan_collect_crystal": {
+    "npc_id": "mystic_xuan",
+    "title": "……需要水晶",
+    "desc": "煊赫：'……我需要水晶，1 块就够。'",
+    "kind": "collect",
+    "requires": { "item_id": "crystal", "count": 1 },
+    "reward": { "item_id": "glow_stone", "count": 1, "affection": 6 },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "mystic_xuan_visit_forest": {
+    "npc_id": "mystic_xuan",
+    "title": "去森林边走一趟",
+    "desc": "煊赫：'……森林边今天有变化。你去看一下。'",
+    "kind": "visit",
+    "requires": { "location": "forest_edge" },
+    "reward": { "item_id": "ancient_book", "count": 1, "affection": 5 },
+    "min_affection_level": "neutral",
+    "repeatable": false
+  }
+}

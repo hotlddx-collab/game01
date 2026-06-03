@@ -153,6 +153,7 @@ class Agent:
         gifts: GiftStore,
         reflection_store: ReflectionStore,
         milestone_store: Optional["MilestoneStore"] = None,
+        quest_engine: Optional["QuestEngine"] = None,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -164,6 +165,7 @@ class Agent:
         self.gifts = gifts
         self.reflection_store = reflection_store
         self.milestone_store = milestone_store
+        self.quest_engine = quest_engine
         self.max_history_turns = max_history_turns
         # AgentManager 初始化完成后设置，供 intent 提示用
         self.npc_name_map: Dict[str, str] = {}  # {display_name: animal_id}
@@ -594,13 +596,69 @@ class Agent:
         # 7b. 检查里程碑事件（好感等级跃迁）
         self._check_milestone(aff, result)
 
+        # 7c. 检查任务（完成 → 奖励，无任务 → 偶尔派发新任务）
+        self._check_quest(context, aff, result)
+
         # 8. 好感升到 love → 触发 NPC 签名礼物（兜底，里程碑覆盖优先）
-        if "milestone" not in result:
+        if "milestone" not in result and "quest_completed" not in result:
             npc_gift = self._check_love_gift(aff)
             if npc_gift:
                 result["npc_gift"] = npc_gift
 
         return result
+
+    def _check_quest(self, context: Dict[str, Any], aff: Dict[str, Any], result: Dict[str, Any]) -> None:
+        """任务检查：有 active 任务 → 检测完成；否则有概率派新任务。"""
+        if self.quest_engine is None:
+            return
+        defs = self.quest_engine.defs
+        active_qid = self.quest_engine.store.get_active_for_npc(self.animal_id, defs)
+
+        if active_qid:
+            # 玩家发的 context 里包含背包 / 访问历史 / 谈话历史
+            inv = context.get("inventory", {}) or {}
+            visited = context.get("visited_locations", []) or []
+            talked = context.get("talked_to_npcs", []) or []
+            if self.quest_engine.check_completion(active_qid, inv, visited, talked):
+                quest = defs[active_qid]
+                reward = quest.get("reward", {})
+                # 给奖励
+                aff_bonus = int(reward.get("affection", 0))
+                if aff_bonus:
+                    self.affection.adjust(self.animal_id, aff_bonus)
+                self.quest_engine.store.mark_completed(active_qid)
+                result["quest_completed"] = {
+                    "quest_id": active_qid,
+                    "title": quest.get("title", ""),
+                    "reward_item": reward.get("item_id", ""),
+                    "reward_count": int(reward.get("count", 1)),
+                    "affection_bonus": aff_bonus,
+                }
+                log.info("[quest] 完成 %s 由 %s", active_qid, self.animal_id)
+            else:
+                # 进度提示
+                quest = defs[active_qid]
+                result["quest_progress"] = {
+                    "quest_id": active_qid,
+                    "title": quest.get("title", ""),
+                    "desc": quest.get("desc", ""),
+                }
+            return
+
+        # 无 active 任务 → 30% 概率派新任务
+        import random as _rnd
+        if _rnd.random() < 0.30:
+            qid = self.quest_engine.eligible_quest_for(self.animal_id, aff.get("level", "neutral"))
+            if qid:
+                self.quest_engine.store.mark_active(qid)
+                quest = defs[qid]
+                result["quest_offer"] = {
+                    "quest_id": qid,
+                    "title": quest.get("title", ""),
+                    "desc": quest.get("desc", ""),
+                }
+                log.info("[quest] %s 派发任务 %s", self.animal_id, qid)
+
 
     def _check_milestone(self, aff: Dict[str, Any], result: Dict[str, Any]) -> None:
         """好感等级跃迁触发里程碑：覆盖 LLM 回复 + 赠予物品。"""
@@ -912,12 +970,14 @@ class AgentManager:
         gifts: GiftStore,
         reflection_store: ReflectionStore,
         milestone_store: Optional["MilestoneStore"] = None,
+        quest_engine: Optional["QuestEngine"] = None,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "12"))
         self._agents: Dict[str, Agent] = {
             aid: Agent(
                 p, llm, memory, profile, world, affection, gifts,
                 reflection_store, milestone_store=milestone_store,
+                quest_engine=quest_engine,
                 max_history_turns=max_turns,
             )
             for aid, p in personas.items()

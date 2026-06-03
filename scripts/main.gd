@@ -32,6 +32,8 @@ func _ready() -> void:
 	AgentClient.error_received.connect(_on_error_received)
 	AgentClient.npc_intent_received.connect(_on_npc_intent)
 	AgentClient.npc_gift_received.connect(_on_npc_gift)
+	AgentClient.quest_offer_received.connect(_on_quest_offer)
+	AgentClient.quest_completed_received.connect(_on_quest_completed)
 
 
 func _process(_delta: float) -> void:
@@ -78,6 +80,9 @@ func _on_player_interact(target: Node) -> void:
 		return
 
 	dialog_ui.set_status("正在思考...")
+	_track_talked_to(animal.animal_id)
+	# 玩家也访问到了 NPC 当前所在地点
+	_track_visit(animal.get_target_location())
 	AgentClient.request_greet(animal.animal_id, _build_context(animal))
 
 
@@ -141,6 +146,27 @@ func _on_npc_gift(animal_id: String, item_id: String, _item_name: String, messag
 		dialog_ui.show_npc_gift_note(message)
 
 
+func _on_quest_offer(_aid: String, _qid: String, title: String, desc: String) -> void:
+	if dialog_ui.is_open():
+		dialog_ui.show_npc_gift_note("📜 新任务\n%s\n%s" % [title, desc])
+
+
+func _on_quest_completed(animal_id: String, _qid: String, title: String, reward_item: String, reward_count: int) -> void:
+	if reward_item != "" and reward_count > 0:
+		PlayerInventory.add_item(reward_item, reward_count)
+	if dialog_ui.is_open():
+		var item_name := ItemDB.get_item_name(reward_item) if reward_item else ""
+		var msg := "✅ 任务完成：%s" % title
+		if item_name:
+			msg += "\n获得 %s × %d" % [item_name, reward_count]
+		dialog_ui.show_npc_gift_note(msg)
+	# 让该 NPC 头顶冒星星
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n is Animal and n.animal_id == animal_id and n.has_method("show_emote"):
+			n.show_emote("🎉", 2.0, 0.0)
+			break
+
+
 func _on_affection_changed(animal_id: String, value: int, level: String, delta: int) -> void:
 	# 找到对应 animal 节点把好感度状态推过去（emote + 飘字）。
 	# 不强制依赖 _current_animal，遍历群组兼容多种触发场景（如未来世界事件）。
@@ -188,12 +214,51 @@ func _find_animal(animal_id: String) -> Animal:
 
 # ---------- 上下文构造 ----------
 
+## 任务追踪：玩家访问过的地点 + 聊过的 NPC（最多保留最近 8 项）
+var _visited_locations: Array[String] = []
+var _talked_to_npcs:    Array[String] = []
+
+
 func _build_context(animal: Animal) -> Dictionary:
 	var loc_id: String = animal.get_target_location()
+	# 附近其他 NPC 名字（用于"附近还有谁"prompt 注入）
+	var nearby: Array = []
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n == animal: continue
+		if not is_instance_valid(n): continue
+		if n.global_position.distance_to(animal.global_position) > 120.0: continue
+		var nm: String = n.animal_name if "animal_name" in n else ""
+		if nm != "": nearby.append(nm)
+	# 玩家背包（任务系统用）
+	var inv: Dictionary = PlayerInventory.get_all() if has_node("/root/PlayerInventory") else {}
 	return {
 		"time": WorldClock.format_time(),
 		"game_day": WorldClock.get_day(),
 		"location": loc_id,
 		"location_label": LocationDB.get_label(loc_id),
 		"intent": animal.get_current_intent(),
+		"nearby_npcs": nearby,
+		"inventory": inv,
+		"visited_locations": _visited_locations.duplicate(),
+		"talked_to_npcs": _talked_to_npcs.duplicate(),
 	}
+
+
+## 玩家访问/聊天历史追踪（任务完成判定用）
+func _track_visit(loc_id: String) -> void:
+	if loc_id == "" or loc_id in _visited_locations:
+		return
+	_visited_locations.append(loc_id)
+	if _visited_locations.size() > 12:
+		_visited_locations.pop_front()
+
+
+func _track_talked_to(animal_id: String) -> void:
+	if animal_id == "":
+		return
+	# 移到最后（最近）
+	_talked_to_npcs.erase(animal_id)
+	_talked_to_npcs.append(animal_id)
+	if _talked_to_npcs.size() > 12:
+		_talked_to_npcs.pop_front()
+
