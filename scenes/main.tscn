@@ -14,6 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://dbbi6nq1kixdc" path="res://assets/tilesets/TilesetHouse.png" id="12_houses"]
 [ext_resource type="Script" uid="uid://48ju5a35rm3y" path="res://scripts/obstacle_layer.gd" id="13_obstacle"]
 [ext_resource type="Script" uid="uid://cnavregion001" path="res://scripts/nav_region.gd" id="14_nav"]
+[ext_resource type="Script" uid="uid://hql332b7ffrj" path="res://scripts/item_spawner.gd" id="15_spawner"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_eb6dy"]
 size = Vector2(27.642277, 31.714153)
@@ -261,6 +262,9 @@ position = Vector2(1145, 425)
 persona_file = "res://data/animals/mystic_xuan.json"
 
 [node name="Pickups" type="Node2D" parent="." unique_id=1055352670]
+
+[node name="ItemSpawner" type="Node" parent="." unique_id=8800000001]
+script = ExtResource("15_spawner")
 
 [node name="P01" parent="Pickups" unique_id=1636086624 instance=ExtResource("8_pickup")]
 position = Vector2(120, 180)

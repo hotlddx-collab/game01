@@ -285,6 +285,47 @@ const ITEMS := {
 		"icon": "res://res/ninja_adventure/Items/Potion/Medipack.png",
 		"base_value": 7,
 	},
+	"shell": {
+		"name": "贝壳",
+		"desc": "湖边捡的螺旋形贝壳，里面像有海声",
+		"icon": "res://res/ninja_adventure/Items/Food/Calamari.png",
+	},
+	"berry": {
+		"name": "浆果",
+		"desc": "草丛里采的酸甜浆果",
+		"icon": "res://res/ninja_adventure/Items/Food/Seed3.png",
+	},
+	"mint": {
+		"name": "薄荷叶",
+		"desc": "新鲜薄荷叶，清香扑鼻",
+		"icon": "res://res/ninja_adventure/Items/Food/TeaLeaf.png",
+	},
+	"dewdrop": {
+		"name": "露珠",
+		"desc": "清晨叶上凝成的圆润露水珠",
+		"icon": "res://res/ninja_adventure/Items/Resource/Water.png",
+	},
+	"pearl": {
+		"name": "珍珠",
+		"desc": "湖底罕见的圆润珍珠",
+		"icon": "res://res/ninja_adventure/Items/Treasure/SilverCoin.png",
+	},
+	"resin": {
+		"name": "树脂",
+		"desc": "古树滴下的琥珀色树脂",
+		"icon": "res://res/ninja_adventure/Items/Resource/BarGold.png",
+	},
+	"moonstone": {
+		"name": "月光石",
+		"desc": "夜里会发出淡淡冷光的石头",
+		"icon": "res://res/ninja_adventure/Items/Resource/BarSilver.png",
+	},
+	"bark": {
+		"name": "树皮",
+		"desc": "从古树上自然脱落的一片树皮",
+		"icon": "res://res/ninja_adventure/Items/Resource/BarIron.png",
+	},
+
 }
 
 

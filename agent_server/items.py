@@ -81,6 +81,16 @@ _ITEMS: Dict[str, ItemDef] = {
     "water_pot":    ItemDef("water_pot",    "水壶",     "装满清水的小陶壶",                              1),
     "heart_pot":    ItemDef("heart_pot",    "红心瓶",   "装着红色液体的小瓶，据说能治愈心情",            3),
     "medi_pack":    ItemDef("medi_pack",    "药包",     "急救用的小药包，有点擦伤可以贴一下",            2),
+
+    # ── 新增（生态/神秘森林氛围）──
+    "shell":        ItemDef("shell",        "贝壳",     "湖边捡的螺旋形贝壳，里面像有海声",              2),
+    "berry":        ItemDef("berry",        "浆果",     "草丛里采的酸甜浆果",                            1),
+    "mint":         ItemDef("mint",         "薄荷叶",   "新鲜薄荷叶，清香扑鼻",                          2),
+    "dewdrop":      ItemDef("dewdrop",      "露珠",     "清晨叶上凝成的圆润露水珠，闪闪的",              4),
+    "pearl":        ItemDef("pearl",        "珍珠",     "湖底罕见的圆润珍珠",                           10),
+    "resin":        ItemDef("resin",        "树脂",     "古树滴下的琥珀色树脂，温润有光",                15),
+    "moonstone":    ItemDef("moonstone",    "月光石",   "夜里会发出淡淡冷光的石头",                       8),
+    "bark":         ItemDef("bark",         "树皮",     "从古树上自然脱落的一片树皮",                     4),
 }
 
 

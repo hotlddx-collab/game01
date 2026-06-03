@@ -625,4 +625,3 @@ func show_emote(icon: String, duration: float = 1.8, min_interval: float = 1.5) 
 		if emote_label:
 			emote_label.visible = false
 	)
-

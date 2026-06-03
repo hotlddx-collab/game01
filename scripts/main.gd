@@ -261,4 +261,3 @@ func _track_talked_to(animal_id: String) -> void:
 	_talked_to_npcs.append(animal_id)
 	if _talked_to_npcs.size() > 12:
 		_talked_to_npcs.pop_front()
-

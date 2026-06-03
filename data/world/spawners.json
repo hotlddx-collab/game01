@@ -1,0 +1,123 @@
+{
+  "_comment": "物品生成 anchor 点。每个 spawner 有一组离散位置，每次随机选一个未被占用的点出生。所有坐标为像素世界坐标。",
+  "_format": "spawners[i] = { id, item_id, anchors: [[x,y],...], max_alive, respawn_after_seconds }",
+
+  "spawners": [
+    {
+      "id": "flowers_grass",
+      "item_id": "flower",
+      "anchors": [[160,420],[280,400],[420,420],[560,440],[700,420],[860,420],[1020,420],[180,300],[300,260],[440,250],[600,260],[760,250],[920,260]],
+      "max_alive": 4,
+      "respawn_after_seconds": 25
+    },
+    {
+      "id": "mint_grass",
+      "item_id": "mint",
+      "anchors": [[200,440],[400,440],[640,440],[820,440],[260,200],[480,200],[680,200],[860,200]],
+      "max_alive": 3,
+      "respawn_after_seconds": 35
+    },
+    {
+      "id": "berry_grass",
+      "item_id": "berry",
+      "anchors": [[140,260],[340,300],[540,260],[760,300],[940,260],[180,460],[420,470],[640,470],[920,470]],
+      "max_alive": 3,
+      "respawn_after_seconds": 30
+    },
+    {
+      "id": "mushroom_grass",
+      "item_id": "mushroom",
+      "anchors": [[120,500],[320,500],[520,500],[760,500],[1000,500],[140,180],[400,160],[700,170],[960,180]],
+      "max_alive": 3,
+      "respawn_after_seconds": 40
+    },
+    {
+      "id": "acorn_forest_edge",
+      "item_id": "acorn",
+      "anchors": [[60,300],[80,400],[60,200],[40,500],[1180,300],[1200,400],[1170,200]],
+      "max_alive": 3,
+      "respawn_after_seconds": 30
+    },
+    {
+      "id": "herb_forest_edge",
+      "item_id": "herb",
+      "anchors": [[80,250],[60,350],[100,450],[40,150],[1190,250],[1210,350],[1180,450],[1220,150]],
+      "max_alive": 4,
+      "respawn_after_seconds": 30
+    },
+    {
+      "id": "branch_forest_edge",
+      "item_id": "branch",
+      "anchors": [[50,200],[40,400],[80,500],[1200,200],[1190,400],[1180,500]],
+      "max_alive": 2,
+      "respawn_after_seconds": 50
+    },
+    {
+      "id": "feather_grass",
+      "item_id": "feather",
+      "anchors": [[200,160],[450,180],[700,150],[950,170],[1150,250],[200,520],[450,540],[700,530],[950,520]],
+      "max_alive": 3,
+      "respawn_after_seconds": 45
+    },
+    {
+      "id": "fish_river",
+      "item_id": "fish",
+      "_note": "湖区坐标 — 用户画的湖大概在 x=-300~500, y=-200~250 之间，根据实际位置调整",
+      "anchors": [[100,100],[200,80],[300,150],[150,30],[350,60],[280,200],[400,180],[50,180]],
+      "max_alive": 3,
+      "respawn_after_seconds": 30
+    },
+    {
+      "id": "shell_river",
+      "item_id": "shell",
+      "anchors": [[80,200],[200,250],[420,150],[450,220],[100,150],[350,250]],
+      "max_alive": 2,
+      "respawn_after_seconds": 60
+    },
+    {
+      "id": "pearl_river",
+      "item_id": "pearl",
+      "_note": "稀有",
+      "anchors": [[150,100],[300,80],[400,150],[200,200]],
+      "max_alive": 1,
+      "respawn_after_seconds": 180
+    },
+    {
+      "id": "rock_path",
+      "item_id": "rock",
+      "anchors": [[140,360],[320,360],[510,360],[720,360],[920,360],[1080,360]],
+      "max_alive": 3,
+      "respawn_after_seconds": 35
+    },
+    {
+      "id": "dewdrop_morning",
+      "item_id": "dewdrop",
+      "anchors": [[180,180],[450,180],[700,180],[950,180],[180,470],[450,470],[700,470],[950,470]],
+      "max_alive": 2,
+      "respawn_after_seconds": 80
+    },
+    {
+      "id": "bark_forest_edge",
+      "item_id": "bark",
+      "anchors": [[60,250],[40,450],[1200,250],[1180,450]],
+      "max_alive": 2,
+      "respawn_after_seconds": 60
+    },
+    {
+      "id": "resin_rare",
+      "item_id": "resin",
+      "_note": "稀有，森林深处",
+      "anchors": [[40,180],[40,520],[1220,180],[1220,520]],
+      "max_alive": 1,
+      "respawn_after_seconds": 240
+    },
+    {
+      "id": "moonstone_rare",
+      "item_id": "moonstone",
+      "_note": "夜间神秘物品（暂不限时段）",
+      "anchors": [[1100,180],[60,520],[1180,250]],
+      "max_alive": 1,
+      "respawn_after_seconds": 240
+    }
+  ]
+}
