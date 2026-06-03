@@ -234,6 +234,98 @@ position = Vector2(729.5, 691.99994)
 scale = Vector2(2.2067645, 0.6463979)
 shape = SubResource("RectangleShape2D_eb6dy")
 
+# ── 从 Pickups 迁移过来的生成点 ──
+[node name="SP_herb_legacy_0" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000000]
+position = Vector2(120.0, 180.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+
+[node name="SP_mushroom_legacy_1" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000001]
+position = Vector2(230.0, 360.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+
+[node name="SP_bread_legacy_2" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000002]
+position = Vector2(330.0, 650.0)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+
+[node name="SP_fish_legacy_3" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000003]
+position = Vector2(460.0, 640.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+
+[node name="SP_feather_legacy_4" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000004]
+position = Vector2(450.0, 190.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+
+[node name="SP_mushroom_legacy_5" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000005]
+position = Vector2(700.0, 160.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+
+[node name="SP_herb_legacy_6" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000006]
+position = Vector2(370.0, 310.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+
+[node name="SP_fish_legacy_7" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000007]
+position = Vector2(590.0, 620.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+
+[node name="SP_bread_legacy_8" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000008]
+position = Vector2(950.0, 650.0)
+script = ExtResource("16_spawnpt")
+item_id = "bread"
+
+[node name="SP_fish_legacy_9" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000009]
+position = Vector2(1140.0, 580.0)
+script = ExtResource("16_spawnpt")
+item_id = "fish"
+
+[node name="SP_ancient_book_legacy_10" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000010]
+position = Vector2(1150.0, 160.0)
+script = ExtResource("16_spawnpt")
+item_id = "ancient_book"
+
+[node name="SP_crystal_legacy_11" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000011]
+position = Vector2(1060.0, 360.0)
+script = ExtResource("16_spawnpt")
+item_id = "crystal"
+
+[node name="SP_feather_legacy_12" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000012]
+position = Vector2(900.0, 160.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+
+[node name="SP_herb_legacy_13" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000013]
+position = Vector2(730.0, 430.0)
+script = ExtResource("16_spawnpt")
+item_id = "herb"
+
+[node name="SP_mushroom_legacy_14" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000014]
+position = Vector2(220.0, 150.0)
+script = ExtResource("16_spawnpt")
+item_id = "mushroom"
+
+[node name="SP_feather_legacy_15" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000015]
+position = Vector2(540.0, 460.0)
+script = ExtResource("16_spawnpt")
+item_id = "feather"
+
+[node name="SP_crystal_legacy_16" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000016]
+position = Vector2(860.0, 460.0)
+script = ExtResource("16_spawnpt")
+item_id = "crystal"
+
+[node name="SP_mint_legacy_17" type="Marker2D" parent="ItemSpawnPoints" unique_id=9100000017]
+position = Vector2(1050.0, 250.0)
+script = ExtResource("16_spawnpt")
+item_id = "mint"
+
+
 [node name="Player" parent="." unique_id=1060277267 instance=ExtResource("2_player")]
 unique_name_in_owner = true
 position = Vector2(600, 350)
@@ -264,82 +356,29 @@ persona_file = "res://data/animals/mystic_xuan.json"
 
 [node name="Pickups" type="Node2D" parent="." unique_id=1055352670]
 
-[node name="P01" parent="Pickups" unique_id=1636086624 instance=ExtResource("8_pickup")]
-position = Vector2(120, 180)
-item_id = "herb"
-
-[node name="P02" parent="Pickups" unique_id=1337145950 instance=ExtResource("8_pickup")]
-position = Vector2(230, 360)
-
 [node name="P03" parent="Pickups" unique_id=219154042 instance=ExtResource("8_pickup")]
 position = Vector2(150, 540)
 item_id = "mushroom"
 
-[node name="P04" parent="Pickups" unique_id=2120746846 instance=ExtResource("8_pickup")]
-position = Vector2(330, 650)
-item_id = "bread"
 
-[node name="P05" parent="Pickups" unique_id=444966956 instance=ExtResource("8_pickup")]
-position = Vector2(460, 640)
-item_id = "fish"
 
-[node name="P06" parent="Pickups" unique_id=925793429 instance=ExtResource("8_pickup")]
-position = Vector2(450, 190)
-item_id = "feather"
 
-[node name="P07" parent="Pickups" unique_id=1615174773 instance=ExtResource("8_pickup")]
-position = Vector2(700, 160)
-item_id = "mushroom"
 
-[node name="P08" parent="Pickups" unique_id=54291773 instance=ExtResource("8_pickup")]
-position = Vector2(370, 310)
-item_id = "herb"
 
-[node name="P09" parent="Pickups" unique_id=872534960 instance=ExtResource("8_pickup")]
-position = Vector2(590, 620)
 
 [node name="P10" parent="Pickups" unique_id=824482843 instance=ExtResource("8_pickup")]
 position = Vector2(820, 600)
 item_id = "fish"
 
-[node name="P11" parent="Pickups" unique_id=763014130 instance=ExtResource("8_pickup")]
-position = Vector2(950, 650)
-item_id = "bread"
 
-[node name="P12" parent="Pickups" unique_id=1270201150 instance=ExtResource("8_pickup")]
-position = Vector2(1140, 580)
-item_id = "fish"
 
-[node name="P13" parent="Pickups" unique_id=1327535225 instance=ExtResource("8_pickup")]
-position = Vector2(1150, 160)
-item_id = "ancient_book"
 
-[node name="P14" parent="Pickups" unique_id=510741511 instance=ExtResource("8_pickup")]
-position = Vector2(1060, 360)
-item_id = "crystal"
 
-[node name="P15" parent="Pickups" unique_id=787168938 instance=ExtResource("8_pickup")]
-position = Vector2(900, 160)
-item_id = "feather"
 
-[node name="P16" parent="Pickups" unique_id=186096528 instance=ExtResource("8_pickup")]
-position = Vector2(730, 430)
-item_id = "herb"
 
-[node name="P17" parent="Pickups" unique_id=1545676393 instance=ExtResource("8_pickup")]
-position = Vector2(220, 150)
-item_id = "mushroom"
 
-[node name="P18" parent="Pickups" unique_id=1971980936 instance=ExtResource("8_pickup")]
-position = Vector2(540, 460)
-item_id = "feather"
 
-[node name="P19" parent="Pickups" unique_id=1251838335 instance=ExtResource("8_pickup")]
-position = Vector2(860, 460)
-item_id = "crystal"
 
-[node name="P20" parent="Pickups" unique_id=1686302149 instance=ExtResource("8_pickup")]
-position = Vector2(1050, 250)
 
 [node name="ItemSpawner" type="Node" parent="." unique_id=210065409]
 script = ExtResource("15_spawner")
