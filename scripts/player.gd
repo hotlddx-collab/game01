@@ -67,6 +67,19 @@ func _update_hover_target() -> void:
 	_hover_target = target
 	if _hover_target and _hover_target.has_method("set_interact_hint"):
 		_hover_target.set_interact_hint(true)
+	# 玩家靠近 NPC 时，NPC 根据好感度做反应
+	if _hover_target and _hover_target.has_method("show_emote") and _hover_target.has_method("get_affection_level"):
+		var lvl: String = _hover_target.get_affection_level()
+		var emote := ""
+		match lvl:
+			"love":    emote = "❤️"
+			"like":    emote = "😊"
+			"warm":    emote = "🙂"
+			"cold":    emote = "😒"
+			"hate":    emote = "😠"
+			_:         emote = ""  # neutral 不显示
+		if emote != "":
+			_hover_target.show_emote(emote, 1.5, 8.0)  # 8秒内不重复
 
 
 func _unhandled_input(event: InputEvent) -> void:

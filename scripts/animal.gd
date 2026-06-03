@@ -1,6 +1,8 @@
 extends CharacterBody2D
 class_name Animal
 ## 怪物 NPC
+
+signal affection_level_changed(prev_level: String, new_level: String)
 ##
 ## 加载 persona JSON（性格 + 日程 + sprite），按 WorldClock 时间走向目标地点。
 ## P1 行为规则：路网寻路 / 错峰出发 / 到达闲逛 / 沿途停顿 / 个性速度差异。
@@ -62,6 +64,7 @@ var _nav_agent: NavigationAgent2D = null
 @onready var thought_label: Label = %ThoughtLabel
 @onready var delta_label: Label = %DeltaLabel
 @onready var interact_hint: Label = %InteractHint
+@onready var emote_label: Label = %EmoteLabel
 
 const NAME_COLORS := {
 	"hate":    Color(1.0, 0.35, 0.35),
@@ -74,6 +77,8 @@ const NAME_COLORS := {
 var _affection_value: int = 0
 var _affection_level: String = "neutral"
 var _delta_tween: Tween = null
+var _emote_tween: Tween = null
+var _last_emote_time: float = 0.0  # 防 emote 刷屏
 var _speaker_pop_tween: Tween = null
 
 enum BusyState { FREE, TALKING_PLAYER, TALKING_NPC }
@@ -536,11 +541,24 @@ func set_interact_hint(active: bool) -> void:
 # ──── 好感度 ─────────────────────────────────
 
 func update_affection(value: int, level: String, delta: int) -> void:
+	var prev_level := _affection_level
 	_affection_value = value
 	_affection_level = level
 	_apply_name_color(level)
 	if delta != 0:
 		_show_delta(delta)
+		# 礼物 / 互动后的反应 emote
+		if delta >= 5:
+			show_emote("❤️", 2.0, 0.0)
+		elif delta > 0:
+			show_emote("😊", 1.5, 0.0)
+		elif delta <= -5:
+			show_emote("💔", 2.0, 0.0)
+		else:
+			show_emote("😞", 1.5, 0.0)
+	# 等级跃迁 → 里程碑事件（下一步实现）
+	if prev_level != level:
+		affection_level_changed.emit(prev_level, level)
 
 func get_affection()       -> int:    return _affection_value
 func get_affection_level() -> String: return _affection_level
@@ -569,3 +587,42 @@ func _show_delta(delta: int) -> void:
 			delta_label.visible = false
 			delta_label.modulate.a = 1.0
 	)
+
+
+# ──── 头顶 Emote 气泡 ────────────────────────
+
+## 显示头顶 emote（emoji），自动淡出
+## icon: "❗" "❓" "😊" "😠" "🎁" "💭" "💤" 等
+## duration: 显示时长（秒），默认 1.8s
+## min_interval: 距上次 emote 的最小间隔，避免刷屏
+func show_emote(icon: String, duration: float = 1.8, min_interval: float = 1.5) -> void:
+	if emote_label == null or icon == "":
+		return
+	# 防刷屏
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _last_emote_time < min_interval:
+		return
+	_last_emote_time = now
+
+	emote_label.text = icon
+	emote_label.modulate = Color(1, 1, 1, 0.0)
+	emote_label.visible = true
+	# 起始位置略低，向上飘
+	emote_label.position = Vector2(-16, -68)
+
+	if _emote_tween and _emote_tween.is_valid():
+		_emote_tween.kill()
+	_emote_tween = create_tween()
+	# 弹出（淡入 + 上飘 6px + 微缩放）
+	_emote_tween.set_parallel(true)
+	_emote_tween.tween_property(emote_label, "modulate:a", 1.0, 0.15)
+	_emote_tween.tween_property(emote_label, "position:y", -78.0, 0.25)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# 等 duration 后淡出
+	_emote_tween.chain().tween_property(emote_label, "modulate:a", 0.0, 0.4)\
+		.set_delay(duration)
+	_emote_tween.chain().tween_callback(func():
+		if emote_label:
+			emote_label.visible = false
+	)
+
