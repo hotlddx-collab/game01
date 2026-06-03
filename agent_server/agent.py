@@ -597,7 +597,7 @@ class Agent:
         self._check_milestone(aff, result)
 
         # 7c. 检查任务（完成 → 奖励，无任务 → 偶尔派发新任务）
-        self._check_quest(context, aff, result)
+        self._check_quest(context, aff, result, user_text=user_text)
 
         # 8. 好感升到 love → 触发 NPC 签名礼物（兜底，里程碑覆盖优先）
         if "milestone" not in result and "quest_completed" not in result:
@@ -607,57 +607,111 @@ class Agent:
 
         return result
 
-    def _check_quest(self, context: Dict[str, Any], aff: Dict[str, Any], result: Dict[str, Any]) -> None:
-        """任务检查：有 active 任务 → 检测完成；否则有概率派新任务。"""
+    def _check_quest(
+        self,
+        context: Dict[str, Any],
+        aff: Dict[str, Any],
+        result: Dict[str, Any],
+        user_text: str = "",
+    ) -> None:
+        """任务检查（仅在 chat 路径调用）。
+        判定优先级：
+          1) 我是某 active relay/deliver 任务的 target_npc → 检查完成
+          2) 我是某 active collect 任务的委托人 → 检查背包
+          3) 我作为委托人没有 active 任务 → 30% 概率派新任务
+        派发与完成不会同回合发生（派完即返回）。
+        """
         if self.quest_engine is None:
             return
         defs = self.quest_engine.defs
-        active_qid = self.quest_engine.store.get_active_for_npc(self.animal_id, defs)
+        inv: Dict[str, int] = context.get("inventory", {}) or {}
 
-        if active_qid:
-            # 玩家发的 context 里包含背包 / 访问历史 / 谈话历史
-            inv = context.get("inventory", {}) or {}
-            visited = context.get("visited_locations", []) or []
-            talked = context.get("talked_to_npcs", []) or []
-            if self.quest_engine.check_completion(active_qid, inv, visited, talked):
-                quest = defs[active_qid]
-                reward = quest.get("reward", {})
-                # 给奖励
-                aff_bonus = int(reward.get("affection", 0))
-                if aff_bonus:
-                    self.affection.adjust(self.animal_id, aff_bonus)
-                self.quest_engine.store.mark_completed(active_qid)
-                result["quest_completed"] = {
-                    "quest_id": active_qid,
-                    "title": quest.get("title", ""),
-                    "reward_item": reward.get("item_id", ""),
-                    "reward_count": int(reward.get("count", 1)),
-                    "affection_bonus": aff_bonus,
-                }
-                log.info("[quest] 完成 %s 由 %s", active_qid, self.animal_id)
-            else:
-                # 进度提示
-                quest = defs[active_qid]
+        # 1) 我是 relay / deliver 的 target
+        target_qid = self.quest_engine.store.get_active_with_target(self.animal_id, defs)
+        if target_qid:
+            done, consume = self.quest_engine.try_complete_as_target(target_qid, user_text, inv)
+            if done:
+                self._finalize_quest(target_qid, consume, result)
+                return
+            # 未完成 → 静默（不打扰玩家），下次再检查
+            return
+
+        # 2) 我是 collect 委托人
+        giver_qid = self.quest_engine.store.get_active_for_giver(self.animal_id, defs)
+        if giver_qid:
+            q = defs[giver_qid]
+            if q.get("kind") == "collect":
+                done, consume = self.quest_engine.try_complete_as_giver(giver_qid, inv)
+                if done:
+                    self._finalize_quest(giver_qid, consume, result)
+                    return
+                # 未完成 → 进度提示
                 result["quest_progress"] = {
-                    "quest_id": active_qid,
-                    "title": quest.get("title", ""),
-                    "desc": quest.get("desc", ""),
+                    "quest_id": giver_qid,
+                    "title": q.get("title", ""),
+                    "desc": q.get("desc", ""),
+                }
+            else:
+                # relay/deliver 已派发但 target 未完成 → 给提示
+                result["quest_progress"] = {
+                    "quest_id": giver_qid,
+                    "title": q.get("title", ""),
+                    "desc": q.get("desc", ""),
                 }
             return
 
-        # 无 active 任务 → 30% 概率派新任务
+        # 3) 没有 active 任务 → 30% 概率派新任务
         import random as _rnd
         if _rnd.random() < 0.30:
-            qid = self.quest_engine.eligible_quest_for(self.animal_id, aff.get("level", "neutral"))
+            qid = self.quest_engine.eligible_quest_for_offer(self.animal_id, aff.get("level", "neutral"))
             if qid:
                 self.quest_engine.store.mark_active(qid)
                 quest = defs[qid]
-                result["quest_offer"] = {
+                offer: Dict[str, Any] = {
                     "quest_id": qid,
                     "title": quest.get("title", ""),
                     "desc": quest.get("desc", ""),
+                    "kind": quest.get("kind", ""),
                 }
-                log.info("[quest] %s 派发任务 %s", self.animal_id, qid)
+                req = quest.get("requires", {})
+                # deliver 类：服务端把物品立即交给玩家
+                if quest.get("kind") == "deliver":
+                    offer["give_item"] = req.get("item_id", "")
+                    offer["give_count"] = int(req.get("count", 1))
+                    offer["target_npc"] = req.get("target_npc", "")
+                elif quest.get("kind") == "relay":
+                    offer["target_npc"] = req.get("target_npc", "")
+                    offer["message_summary"] = req.get("message_summary", "")
+                result["quest_offer"] = offer
+                log.info("[quest] %s 派发任务 %s (kind=%s)", self.animal_id, qid, quest.get("kind"))
+
+    def _finalize_quest(
+        self,
+        quest_id: str,
+        consume: Optional[Dict[str, Any]],
+        result: Dict[str, Any],
+    ) -> None:
+        """统一处理任务完成：标记 + 计奖励 + 注入 quest_completed payload。"""
+        defs = self.quest_engine.defs
+        quest = defs.get(quest_id, {})
+        reward = quest.get("reward", {}) or {}
+        aff_bonus = int(reward.get("affection", 0))
+        if aff_bonus:
+            self.affection.adjust(self.animal_id, aff_bonus)
+        self.quest_engine.store.mark_completed(quest_id)
+        payload: Dict[str, Any] = {
+            "quest_id": quest_id,
+            "title": quest.get("title", ""),
+            "kind": quest.get("kind", ""),
+            "reward_item": reward.get("item_id", ""),
+            "reward_count": int(reward.get("count", 1)),
+            "affection_bonus": aff_bonus,
+        }
+        if consume:
+            payload["consume_item"] = consume.get("item_id", "")
+            payload["consume_count"] = int(consume.get("count", 1))
+        result["quest_completed"] = payload
+        log.info("[quest] 完成 %s 由 %s", quest_id, self.animal_id)
 
 
     def _check_milestone(self, aff: Dict[str, Any], result: Dict[str, Any]) -> None:

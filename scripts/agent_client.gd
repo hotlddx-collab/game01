@@ -13,8 +13,9 @@ signal chat_intent_made(animal_id: String, target_name: String, summary: String)
 signal npc_gift_received(animal_id: String, item_id: String, item_name: String, message: String)
 signal affection_changed(animal_id: String, value: int, level: String, delta: int)
 signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
-signal quest_offer_received(animal_id: String, quest_id: String, title: String, desc: String)
-signal quest_completed_received(animal_id: String, quest_id: String, title: String, reward_item: String, reward_count: int)
+signal quest_offer_received(animal_id: String, quest_id: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String)
+signal quest_completed_received(animal_id: String, quest_id: String, title: String, kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int)
+signal quest_progress_received(animal_id: String, quest_id: String, title: String, desc: String)
 signal error_received(message: String)
 
 @export var host: String = "127.0.0.1"
@@ -210,24 +211,40 @@ func _handle_packet(text: String) -> void:
 					String(npc_gift.get("item_name", "")),
 					String(npc_gift.get("message", "")),
 				)
-			# 任务相关推送
-			var qo = data.get("quest_offer", null)
-			if typeof(qo) == TYPE_DICTIONARY and qo.has("quest_id"):
-				quest_offer_received.emit(
-					aid,
-					String(qo.get("quest_id", "")),
-					String(qo.get("title", "")),
-					String(qo.get("desc", "")),
-				)
-			var qc = data.get("quest_completed", null)
-			if typeof(qc) == TYPE_DICTIONARY and qc.has("quest_id"):
-				quest_completed_received.emit(
-					aid,
-					String(qc.get("quest_id", "")),
-					String(qc.get("title", "")),
-					String(qc.get("reward_item", "")),
-					int(qc.get("reward_count", 1)),
-				)
+				# 任务相关推送
+				var qo = data.get("quest_offer", null)
+				if typeof(qo) == TYPE_DICTIONARY and qo.has("quest_id"):
+					quest_offer_received.emit(
+						aid,
+						String(qo.get("quest_id", "")),
+						String(qo.get("title", "")),
+						String(qo.get("desc", "")),
+						String(qo.get("kind", "")),
+						String(qo.get("give_item", "")),
+						int(qo.get("give_count", 0)),
+						String(qo.get("target_npc", "")),
+						String(qo.get("message_summary", "")),
+					)
+				var qp = data.get("quest_progress", null)
+				if typeof(qp) == TYPE_DICTIONARY and qp.has("quest_id"):
+					quest_progress_received.emit(
+						aid,
+						String(qp.get("quest_id", "")),
+						String(qp.get("title", "")),
+						String(qp.get("desc", "")),
+					)
+				var qc = data.get("quest_completed", null)
+				if typeof(qc) == TYPE_DICTIONARY and qc.has("quest_id"):
+					quest_completed_received.emit(
+						aid,
+						String(qc.get("quest_id", "")),
+						String(qc.get("title", "")),
+						String(qc.get("kind", "")),
+						String(qc.get("reward_item", "")),
+						int(qc.get("reward_count", 1)),
+						String(qc.get("consume_item", "")),
+						int(qc.get("consume_count", 0)),
+					)
 		"npc_chat_reply":
 			npc_chat_received.emit(
 				data.get("speaker_id", ""),

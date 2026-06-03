@@ -11,6 +11,7 @@ extends Node2D
 
 @onready var player: CharacterBody2D = %Player
 @onready var dialog_ui: CanvasLayer = %DialogUI
+@onready var quest_hud: CanvasLayer = get_node_or_null("%QuestHUD")
 
 var _current_animal: Animal = null
 
@@ -33,6 +34,7 @@ func _ready() -> void:
 	AgentClient.npc_intent_received.connect(_on_npc_intent)
 	AgentClient.npc_gift_received.connect(_on_npc_gift)
 	AgentClient.quest_offer_received.connect(_on_quest_offer)
+	AgentClient.quest_progress_received.connect(_on_quest_progress)
 	AgentClient.quest_completed_received.connect(_on_quest_completed)
 
 
@@ -146,25 +148,72 @@ func _on_npc_gift(animal_id: String, item_id: String, _item_name: String, messag
 		dialog_ui.show_npc_gift_note(message)
 
 
-func _on_quest_offer(_aid: String, _qid: String, title: String, desc: String) -> void:
+func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String) -> void:
+	# 服务端派发任务：deliver 类附带物品
+	if give_item != "" and give_count > 0:
+		PlayerInventory.add_item(give_item, give_count)
+	# 在对话框显示醒目接单
 	if dialog_ui.is_open():
-		dialog_ui.show_npc_gift_note("📜 新任务\n%s\n%s" % [title, desc])
+		var lines: Array[String] = []
+		lines.append("📜 [b]新任务：%s[/b]" % title)
+		lines.append(desc)
+		match kind:
+			"deliver":
+				if give_item != "":
+					var nm := ItemDB.get_item_name(give_item)
+					lines.append("📦 你收到：%s × %d" % [nm, give_count])
+				if target_npc != "":
+					lines.append("👉 把它送给 [b]%s[/b]" % _npc_label(target_npc))
+			"relay":
+				if message_summary != "":
+					lines.append("💬 要传的话：[i]%s[/i]" % message_summary)
+				if target_npc != "":
+					lines.append("👉 找 [b]%s[/b] 说出这句话的大致意思" % _npc_label(target_npc))
+			"collect":
+				lines.append("👉 凑齐物品后再来找我")
+		dialog_ui.show_npc_gift_note("\n".join(lines))
+	# HUD 更新
+	if quest_hud and quest_hud.has_method("set_quest"):
+		quest_hud.set_quest(qid, title, desc, kind, target_npc, message_summary)
 
 
-func _on_quest_completed(animal_id: String, _qid: String, title: String, reward_item: String, reward_count: int) -> void:
+func _on_quest_progress(_aid: String, qid: String, title: String, desc: String) -> void:
+	# NPC 回应时附带的进度提示（暂存到 HUD，对话框不打扰）
+	if quest_hud and quest_hud.has_method("set_quest"):
+		quest_hud.set_quest(qid, title, desc, "", "", "")
+
+
+func _on_quest_completed(animal_id: String, _qid: String, title: String, _kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int) -> void:
+	# 先扣再加，避免顺序导致背包异常
+	if consume_item != "" and consume_count > 0:
+		PlayerInventory.remove_item(consume_item, consume_count)
 	if reward_item != "" and reward_count > 0:
 		PlayerInventory.add_item(reward_item, reward_count)
 	if dialog_ui.is_open():
-		var item_name := ItemDB.get_item_name(reward_item) if reward_item else ""
-		var msg := "✅ 任务完成：%s" % title
-		if item_name:
-			msg += "\n获得 %s × %d" % [item_name, reward_count]
-		dialog_ui.show_npc_gift_note(msg)
-	# 让该 NPC 头顶冒星星
+		var lines: Array[String] = []
+		lines.append("✅ [b]任务完成：%s[/b]" % title)
+		if consume_item != "":
+			var nm := ItemDB.get_item_name(consume_item)
+			lines.append("交付：%s × %d" % [nm, consume_count])
+		if reward_item != "":
+			var rnm := ItemDB.get_item_name(reward_item)
+			lines.append("奖励：%s × %d" % [rnm, reward_count])
+		dialog_ui.show_npc_gift_note("\n".join(lines))
+	# HUD 清空
+	if quest_hud and quest_hud.has_method("clear_quest"):
+		quest_hud.clear_quest()
+	# 让对应 NPC 头顶冒星星
 	for n in get_tree().get_nodes_in_group("npc"):
 		if n is Animal and n.animal_id == animal_id and n.has_method("show_emote"):
 			n.show_emote("🎉", 2.0, 0.0)
 			break
+
+
+func _npc_label(animal_id: String) -> String:
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n is Animal and n.animal_id == animal_id:
+			return n.animal_name
+	return animal_id
 
 
 func _on_affection_changed(animal_id: String, value: int, level: String, delta: int) -> void:
