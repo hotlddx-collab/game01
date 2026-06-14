@@ -573,7 +573,14 @@ func _show_delta(delta: int) -> void:
 	if delta_label == null:
 		return
 	var icon: String = "❤️" if delta > 0 else "💔"
-	delta_label.text = icon.repeat(absi(delta))
+	# 心数按档位封顶（最多 3 颗），只显示心图标，不带数字
+	var mag: int = absi(delta)
+	var hearts: int = 1
+	if mag >= 15:
+		hearts = 3
+	elif mag >= 8:
+		hearts = 2
+	delta_label.text = icon.repeat(hearts)
 	delta_label.modulate = Color(1, 1, 1, 1)
 	delta_label.visible = true
 	delta_label.position = Vector2(-60, -100)

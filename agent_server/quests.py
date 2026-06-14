@@ -16,7 +16,7 @@ import random
 import sqlite3
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Callable
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 QUESTS_FILE = PROJECT_ROOT / "data" / "world" / "quests.json"
@@ -131,6 +131,8 @@ class QuestEngine:
     def __init__(self, store: QuestStore):
         self.store = store
         self._defs: Dict[str, Dict] = {}
+        # 可选：判断某 NPC 是否当期竞选对手（对手不派任务，避免承诺加不上选票）
+        self.is_opponent = None  # type: Optional[Callable[[str], bool]]
         self._load()
 
     def _load(self) -> None:
@@ -148,7 +150,17 @@ class QuestEngine:
         return self._defs.get(quest_id)
 
     def eligible_quest_for_offer(self, giver_id: str, affection_level: str) -> Optional[str]:
-        """返回该 NPC 可派发的一个任务 ID（玩家好感度足够 + 未完成 + 不在进行中）。"""
+        """返回该 NPC 可派发的一个任务 ID（玩家好感度足够 + 未完成 + 不在进行中）。
+
+        当期竞选对手不派任务：对手不是投票人，给它完成的承诺无法转化为选票，
+        会让玩家"做了任务却不涨竞选分"，体验割裂。
+        """
+        if self.is_opponent is not None:
+            try:
+                if self.is_opponent(giver_id):
+                    return None
+            except Exception:
+                pass
         player_lvl = LEVEL_ORDER.get(affection_level, 0)
         candidates: List[str] = []
         for qid, q in self._defs.items():
@@ -208,7 +220,12 @@ class QuestEngine:
             if not keywords:
                 return False, None
             t = (user_text or "").lower()
-            if all(kw.lower() in t for kw in keywords):
+            hits = sum(1 for kw in keywords if kw.lower() in t)
+            # 命中多数关键词即视为「传达了大致意思」（不要求逐字复述）。
+            # 阈值 = ceil(总数 × 0.6)，且至少 1 个；3 个关键词 → 命中 2 个即可。
+            import math
+            threshold = max(1, math.ceil(len(keywords) * 0.6))
+            if hits >= threshold:
                 return True, None  # relay 不消耗背包道具
             return False, None
         if kind == "deliver":

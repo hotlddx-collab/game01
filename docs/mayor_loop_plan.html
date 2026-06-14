@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>怪物森林 · 镇长循环 实施计划</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  html { font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  body { color: #222; line-height: 1.6; font-size: 10.8pt; }
+  h1 { font-size: 22pt; color: #1a1a1a; border-bottom: 3px solid #2c5282; padding-bottom: 8px; margin-bottom: 4px; }
+  h1 + .subtitle { color: #666; font-size: 10.5pt; margin-bottom: 24px; }
+  h2 { font-size: 14.5pt; color: #2c5282; margin-top: 26px; border-left: 4px solid #2c5282; padding-left: 10px; page-break-after: avoid; }
+  h3 { font-size: 12pt; color: #1a365d; margin-top: 14px; page-break-after: avoid; }
+  p { margin: 6px 0; text-align: justify; }
+  ul, ol { margin: 4px 0 10px 22px; }
+  li { margin: 2px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
+  th, td { border: 1px solid #cbd5e0; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #edf2f7; font-weight: 600; }
+  .highlight { background: #fff8dc; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+  .small { font-size: 9.5pt; color: #666; }
+  .page-break { page-break-before: always; }
+
+  .milestone {
+    border: 1px solid #cbd5e0; border-radius: 6px;
+    margin: 14px 0; overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .milestone-head {
+    background: linear-gradient(90deg, #2c5282 0%, #4299e1 100%);
+    color: white; padding: 9px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .milestone-head .name { font-weight: 600; font-size: 12pt; }
+  .milestone-head .meta { font-size: 9.5pt; opacity: 0.9; }
+  .milestone-body { padding: 10px 16px; background: #f7fafc; }
+  .milestone-body p { margin: 4px 0; font-size: 10.2pt; }
+  .check { color: #38a169; font-weight: 600; }
+
+  .day {
+    border-left: 3px solid #2c5282; background: #f7fafc;
+    padding: 8px 14px; margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .day .header {
+    display: flex; justify-content: space-between;
+    font-weight: 600; color: #1a365d; margin-bottom: 4px; font-size: 10.8pt;
+  }
+  .day .header .tag {
+    font-weight: 400; font-size: 9pt; color: white;
+    background: #4299e1; padding: 1px 8px; border-radius: 10px;
+  }
+  .day .header .tag.M2 { background: #38a169; }
+  .day .header .tag.M3 { background: #d69e2e; }
+  .day .header .tag.M4 { background: #805ad5; }
+  .day .header .tag.M5 { background: #e53e3e; }
+  .day ul { margin: 4px 0 4px 18px; font-size: 10pt; }
+  .day .deliver { font-size: 9.5pt; color: #2f855a; margin-top: 4px; }
+
+  .risk-row { background: #fffaf0; }
+  .risk-h { background: #fef5e7 !important; }
+
+  .dep-diagram {
+    background: #1a202c; color: #f7fafc;
+    padding: 14px; margin: 12px 0;
+    font-family: "Menlo", monospace; font-size: 9.5pt;
+    line-height: 1.55; white-space: pre; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>怪物森林 · 镇长循环 实施计划</h1>
+<div class="subtitle">配套设计稿 v1.1 &nbsp;·&nbsp; 2026-06-04 &nbsp;·&nbsp; 14 工作日 &nbsp;·&nbsp; 评审稿</div>
+
+<h2>一、总览</h2>
+
+<table>
+<tr><th width="22%">项</th><th>数值</th></tr>
+<tr><td>预估工作量</td><td><strong>14 工作日</strong>（约 3 个日历周）</td></tr>
+<tr><td>里程碑数</td><td>5 个（M1 → M5）</td></tr>
+<tr><td>新增后端模块</td><td>3 个（election / opponent_ai / migration）</td></tr>
+<tr><td>新增前端 UI</td><td>4 块（竞选 HUD / 承诺面板 / 辩论 UI / 投票演出 / 权力点 HUD / 名册）</td></tr>
+<tr><td>新增 SQLite 表</td><td>6 张（election_term / election_weight / candidate_state / promises / crises / opponent_actions / residents / migration_log / player_career）</td></tr>
+<tr><td>核心数据文件</td><td>3 个（npc_pool.json / crises.json / debate_questions.json）</td></tr>
+<tr><td>需新增/补全 NPC</td><td>≥ 3 个候选 NPC（搬入用，可用模板 schedule）</td></tr>
+</table>
+
+<h2>二、里程碑路线图</h2>
+
+<div class="milestone">
+  <div class="milestone-head"><span class="name">M1 &nbsp;·&nbsp; 选举骨架可跑</span><span class="meta">D1 → D5 &nbsp;·&nbsp; 5 d</span></div>
+  <div class="milestone-body">
+    <p><strong>目标：</strong>玩家能完整跑 7 天周期 → 触发投票 → 看到结果 → 进入下一任期，骨架闭环。</p>
+    <p><strong>包含任务：</strong>选举后端 / 对手 AI v1 简版 / 竞选 HUD / 投票日演出</p>
+    <p class="check">✓ 验收：游戏能从 D1 跑到 D7，HUD 实时显示声望，D7 投票结果横幅正确，能进 D8 新一轮</p>
+  </div>
+</div>
+
+<div class="milestone">
+  <div class="milestone-head"><span class="name">M2 &nbsp;·&nbsp; 玩家工具链</span><span class="meta">D6 → D8 &nbsp;·&nbsp; 3 d</span></div>
+  <div class="milestone-body">
+    <p><strong>目标：</strong>玩家有"明确该做的事"——接承诺、过辩论日，能对选举结果产生主动影响。</p>
+    <p><strong>包含任务：</strong>承诺池系统（quests 重定位）/ 辩论日 UI &amp; 后端</p>
+    <p class="check">✓ 验收：玩家接 1 个承诺 → 兑现 → 该 NPC weight 涨；过 D6 辩论后 debate_score 显示正确</p>
+  </div>
+</div>
+
+<div class="milestone">
+  <div class="milestone-head"><span class="name">M3 &nbsp;·&nbsp; 任期内容</span><span class="meta">D9 → D10 &nbsp;·&nbsp; 2 d</span></div>
+  <div class="milestone-body">
+    <p><strong>目标：</strong>玩家当选后有具体可玩内容，权力有稀缺性，危机有压力。</p>
+    <p><strong>包含任务：</strong>任期权力点 v1 / 危机事件池（10 模板）</p>
+    <p class="check">✓ 验收：任期内每日给 3 点权力可花；每天有 30% 概率触发危机，能选解决路径</p>
+  </div>
+</div>
+
+<div class="milestone">
+  <div class="milestone-head"><span class="name">M4 &nbsp;·&nbsp; 系统活化</span><span class="meta">D11 → D13 &nbsp;·&nbsp; 3 d</span></div>
+  <div class="milestone-body">
+    <p><strong>目标：</strong>跑 2-3 任期能感受到差异，落选玩家有出路。</p>
+    <p><strong>包含任务：</strong>赛季搬家系统 / 连任难度阶梯+称号 / 落选在野党模式</p>
+    <p class="check">✓ 验收：第 2 任期对手不同；NPC 流动 ≥ 1 次；连任 N=2 时对手 buff 生效；落选能看到丑闻卡 UI</p>
+  </div>
+</div>
+
+<div class="milestone">
+  <div class="milestone-head"><span class="name">M5 &nbsp;·&nbsp; 联调与平衡</span><span class="meta">D14 &nbsp;·&nbsp; 1 d</span></div>
+  <div class="milestone-body">
+    <p><strong>目标：</strong>玩家完整测试 2-3 任期不卡顿，数值校准。</p>
+    <p><strong>包含任务：</strong>调参（投票公式权重 / 危机概率 / 权力点回报 / 称号门槛）/ Bug 修复 / 文案润色</p>
+    <p class="check">✓ 验收：连续跑 21 个游戏日 0 报错，数值平衡（首期对手 vs 玩家差距 &lt; 30%）</p>
+  </div>
+</div>
+
+<h2>三、依赖关系图</h2>
+
+<div class="dep-diagram">         M1 选举骨架
+       ┌────────────────┐
+       │ 后端 → 对手AI  │
+       │  ↓              │
+       │ HUD → 投票演出  │
+       └────────┬────────┘
+                │
+        ┌───────┴──────┐
+        ↓              ↓
+   M2 玩家工具    M3 任期内容
+   (承诺/辩论)    (权力/危机)
+        │              │
+        └──────┬───────┘
+               ↓
+        M4 系统活化
+        (搬家/连任/在野)
+               ↓
+        M5 联调平衡</div>
+
+<p class="small">M2 / M3 在 M1 后可并行启动，但本计划按串行排（单人开发节省上下文切换）。</p>
+
+<h2 class="page-break">四、每日工作清单（D1 → D14）</h2>
+
+<div class="day">
+  <div class="header"><span>D1 · 选举后端基础</span><span class="tag">M1</span></div>
+  <ul>
+    <li>建表：election_term / election_weight / candidate_state（SQLite migration）</li>
+    <li><code>agent_server/election.py</code>：start_term / end_term / get_current_term API</li>
+    <li>weight 公式骨架（先全部用 affection_norm 占位，其他项=0）</li>
+    <li>WebSocket 协议：<code>election_state</code> S→C 推送当前任期/D 数/权重</li>
+  </ul>
+  <div class="deliver">交付：后端能创建任期，能查 weight 表，前端可拉到任期数据</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D2 · weight 完整公式 + 周期推进</span><span class="tag">M1</span></div>
+  <ul>
+    <li>weight 公式 5 个子项全部接通（affection / promise / debate / event / loyalty）</li>
+    <li>每日 22:00 (game-time) 自动重算所有 weight，写 breakdown_json 调试用</li>
+    <li>D7 触发投票结算：每 NPC 投权重最高，累计票数判胜负</li>
+    <li>新任期 cascading：D7 结算 → 立即开新 term</li>
+    <li>单元测试 5 条（边界：平局/全胜/全败/某 NPC busy）</li>
+  </ul>
+  <div class="deliver">交付：完整 7 天周期跑通，胜负数据正确</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D3 · 对手 AI v1 + 赛季换人</span><span class="tag">M1</span></div>
+  <ul>
+    <li><code>agent_server/opponent_ai.py</code>：每日 07:00 生 1 个 visit 动作</li>
+    <li>visit 机械效果：目标 NPC 对对手 base_loyalty +1</li>
+    <li>visit 文本：调用 LLM 基于对手人设生台词，写 opponent_actions 表</li>
+    <li><code>select_opponent(term_id)</code>：首期硬编 bear_baker，第 2 期起按池抽（排除 affection ≥ 50 + 间隔 2 期）</li>
+    <li>对手立场（platform）：每次任期开始 LLM 生 3-5 条立场文本入 candidate_state</li>
+  </ul>
+  <div class="deliver">交付：每天能在控制台看到对手在做啥；第 2 任期换人</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D4 · 竞选 HUD（前端）</span><span class="tag">M1</span></div>
+  <ul>
+    <li><code>scripts/election_hud.gd</code> + <code>scenes/ui/election_hud.tscn</code></li>
+    <li>左上角常驻：候选人头像 + 声望条 + D?/7 倒计时</li>
+    <li>"今日该做的事"提示行（取自 quest/promise/crisis 优先级）</li>
+    <li>WebSocket 信号接 election_state，实时刷新</li>
+    <li>美术：复用 quest_hud 风格，淡蓝主题</li>
+  </ul>
+  <div class="deliver">交付：进游戏看得到 HUD，时间走声望涨</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D5 · 投票日演出 + M1 收尾</span><span class="tag">M1</span></div>
+  <ul>
+    <li>D7 进入"投票日"模式：禁止接承诺，禁止行动</li>
+    <li>投票演出：全屏横幅 + 6 NPC 头像 + 票数累计动画 (3s)</li>
+    <li>结算横幅：当选 / 落选 + 鼓舞性/讽刺性 LLM 生文本</li>
+    <li>D8 进入新任期/在野期，<strong>M1 验收</strong>：跑 2 个完整任期连续</li>
+  </ul>
+  <div class="deliver">交付：M1 ✓ 完整选举骨架可跑</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D6 · 承诺池系统</span><span class="tag M2">M2</span></div>
+  <ul>
+    <li><code>promises</code> 表 + accept/fulfill/break API</li>
+    <li>quest_offer 时改为 promise_offer（接 = 入承诺池，不再随机派发）</li>
+    <li>承诺面板（按 P 键）：列出 5 槽位，颜色标 pending/fulfilled/broken</li>
+    <li>NPC 头顶诉求气泡：affection ≥ neutral 才会冒</li>
+    <li>承诺兑现/破诺机械效果接到 promise_score</li>
+  </ul>
+  <div class="deliver">交付：能接最多 5 条承诺，超出强制取舍</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D7 · 辩论日后端</span><span class="tag M2">M2</span></div>
+  <ul>
+    <li><code>data/world/debate_questions.json</code>：6 NPC × 2-3 问题模板</li>
+    <li>D6 上午抽 3 个 NPC（避开亲近圈）按模板出题</li>
+    <li>4 选项动态生成（保守/激进/讨好/务实四象限），LLM 生具体答法</li>
+    <li>对手反驳：每选项各预生 1 条反驳台词</li>
+    <li>评分逻辑：其余 NPC 按"立场吻合度"打 0-3 分，写 debate_score</li>
+  </ul>
+  <div class="deliver">交付：后端能跑完整辩论流程，控制台能看分数</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D8 · 辩论日前端 UI + M2 收尾</span><span class="tag M2">M2</span></div>
+  <ul>
+    <li>全屏辩论 panel：NPC 提问气泡 + 4 选项按钮 + 对手反驳泡</li>
+    <li>评分实时浮动：每个 NPC 头像下显示 +X/-X 浮字</li>
+    <li>3 题完成 → 总分横幅 → 退出回主世界</li>
+    <li><strong>M2 验收</strong>：玩家接 → 兑现 → 投票，全链路通</li>
+  </ul>
+  <div class="deliver">交付：M2 ✓ 玩家能主动塑造选举结果</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D9 · 任期权力点 v1</span><span class="tag M3">M3</span></div>
+  <ul>
+    <li>当选后 candidate_state.power_points = 3，每日 06:00 重置</li>
+    <li>权力点 HUD（右上角 3 圆点）+ 行动菜单（按 K 键）</li>
+    <li>4 行动：① 指派 NPC 任务 ② 召开议会 ③ 发布公告 ④ 私下协调</li>
+    <li>① 指派任务：列出 NPC 选一个 → 选任务模板（送物品/巡逻/打扫）→ NPC schedule 当日替换</li>
+    <li>② 议会：全员到广场强制中止 schedule，玩家发表演说（自由文本 → LLM 评估各 NPC 反应）</li>
+    <li>滥用保护：同一 NPC 连 2 天被指派 → 第 3 天起对玩家 affection -1（疲劳）</li>
+  </ul>
+  <div class="deliver">交付：当选玩家有 4 种权力可用</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D10 · 危机事件池 + M3 收尾</span><span class="tag M3">M3</span></div>
+  <ul>
+    <li><code>data/world/crises.json</code>：10 个模板（火灾/缺药/醉闹/赤字/失踪/收成不好/邻镇商队来访/...）</li>
+    <li>每日 09:00 按 30% 概率掷骰触发；D6/D7 不触发</li>
+    <li>触发时红色横幅 + 解决路径 2-3 选项</li>
+    <li>解决路径机械化：选项 → reputation_delta + 影响哪个子项 weight</li>
+    <li>LLM 生危机具体描述 + 玩家选项后的结果文本</li>
+    <li><strong>M3 验收</strong>：当选任期内有事可做</li>
+  </ul>
+  <div class="deliver">交付：M3 ✓ 任期内容充实</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D11 · 赛季搬家系统</span><span class="tag M4">M4</span></div>
+  <ul>
+    <li><code>data/world/npc_pool.json</code>：3 个候选 NPC（用模板 schedule，不写完整对白）</li>
+    <li><code>residents</code> + <code>migration_log</code> 表</li>
+    <li>D7 投票结算后：按规则抽搬走者 + 池里抽搬入者（搬入数 = 搬走数）</li>
+    <li>搬走 NPC：active → departed，schedule 停用，从场上移除</li>
+    <li>搬入 NPC：affection 全部初始化为 0，base_loyalty = 0，第 1 期不可任对手</li>
+    <li>搬家公告横幅：D8 早上播</li>
+    <li>NPC 名册（按 N 键）3 Tab：在场 / 历史搬走 / 等待回归</li>
+  </ul>
+  <div class="deliver">交付：第 2 任期镇上人变了</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D12 · 连任难度 + 称号</span><span class="tag M4">M4</span></div>
+  <ul>
+    <li><code>player_career</code> 表：consecutive_terms 计数</li>
+    <li>对手 AI buff 阶梯（任期 N=2 起）：每 N+1 增 1 个动作上限 / 反偷听 / 联合行动</li>
+    <li>危机概率阶梯（30% → 35% → 40% → 45% → 50%）</li>
+    <li>承诺池上限阶梯（5 → 4 → 3）</li>
+    <li>7 个称号定义 + 触发判定 + HUD 显示</li>
+    <li>"民心所向"等成就跑数据库验证（连任 5 = 不倒翁等）</li>
+  </ul>
+  <div class="deliver">交付：连任越久越紧张</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D13 · 落选在野党 + M4 收尾</span><span class="tag M4">M4</span></div>
+  <ul>
+    <li>落选 = is_incumbent=0 + power_points=0</li>
+    <li>"调查"行动：每天可用一次，跟随某 NPC 1 小时收集"丑闻片段"</li>
+    <li><code>scandal_cards</code> 表：丑闻卡（target_npc, content, expire_term）</li>
+    <li>下届 D6 辩论：玩家可消耗丑闻卡 = 直接 -10 对手某 NPC weight</li>
+    <li>在野党面板（按 I 键）：现镇长动态 + 已收集丑闻</li>
+    <li><strong>M4 验收</strong>：跑 3 任期，至少经历 1 次搬家 + 1 次落选反扑</li>
+  </ul>
+  <div class="deliver">交付：M4 ✓ 系统活了</div>
+</div>
+
+<div class="day">
+  <div class="header"><span>D14 · 联调 + 平衡 + 收官</span><span class="tag M5">M5</span></div>
+  <ul>
+    <li>玩家完整跑 21 游戏日（3 任期）记录数据</li>
+    <li>调参：weight 系数（首期目标差距 ≤ 30%）/ 危机频率 / 称号门槛</li>
+    <li>修边界 bug：搬走当对手 / 平局多次 / 同时多个危机 / 权力点 NPC busy</li>
+    <li>文案润色（横幅、辩论提问、危机描述）</li>
+    <li>更新 README + 写 CHANGELOG_mayor_loop.md</li>
+  </ul>
+  <div class="deliver">交付：M5 ✓ 可交付玩</div>
+</div>
+
+<h2 class="page-break">五、风险与对策</h2>
+
+<table>
+<tr class="risk-h"><th width="22%">风险</th><th width="22%">触发场景</th><th width="14%">概率</th><th>对策</th></tr>
+<tr class="risk-row">
+  <td>LLM 调用超时/失败</td>
+  <td>对手台词、辩论反驳、危机文本</td>
+  <td>中</td>
+  <td>所有 LLM 用途都准备 fallback 文本（带 [备用] 标识），不阻塞主流程</td>
+</tr>
+<tr>
+  <td>weight 公式调不平衡</td>
+  <td>首期玩家被秒杀 / 永远赢</td>
+  <td>高</td>
+  <td>D14 留 1 整天调参；公式参数全集中常量；提供 debug 面板看 breakdown</td>
+</tr>
+<tr class="risk-row">
+  <td>D8 辩论 UI 工作量超预估</td>
+  <td>4 选项 + LLM 流式 + 评分动画交互复杂</td>
+  <td>中</td>
+  <td>第一版用纯文本无动画；视觉打磨延后到 M5</td>
+</tr>
+<tr>
+  <td>NPC 搬走破坏现有 schedule/任务依赖</td>
+  <td>承诺 NPC 被搬走 / 对手被搬走</td>
+  <td>中</td>
+  <td>搬走规则：当前对手不能搬；持有 pending 承诺的 NPC 降权（×0.4）</td>
+</tr>
+<tr class="risk-row">
+  <td>新 NPC 立绘缺失</td>
+  <td>npc_pool 配 3 人但没美术资源</td>
+  <td>低</td>
+  <td>用现有 char_X 资源池备用立绘，命名先用占位</td>
+</tr>
+<tr>
+  <td>玩家不知道怎么玩</td>
+  <td>新增机制太多，没有 onboarding</td>
+  <td>高</td>
+  <td>D14 加首次进入新机制时的横幅提示（"这是承诺池，最多 5 条..."）</td>
+</tr>
+<tr class="risk-row">
+  <td>测试覆盖不足</td>
+  <td>边界情形隐藏 bug</td>
+  <td>中</td>
+  <td>每个 M 结束前写 1-2 条自动化测试，沿用 tests/ 目录</td>
+</tr>
+</table>
+
+<h2>六、验收指标（M5 结束时检查）</h2>
+
+<h3>功能验收</h3>
+<ul>
+  <li>✅ 完整跑 3 任期不报错（含至少 1 次落选）</li>
+  <li>✅ 至少有 1 次 NPC 搬家事件</li>
+  <li>✅ 辩论日 4 选项功能完整</li>
+  <li>✅ 任期内能用所有 4 种权力</li>
+  <li>✅ 至少触发 5 种不同危机模板</li>
+  <li>✅ 落选后能搜集到丑闻卡并在下届使用</li>
+  <li>✅ 至少解锁 2 个称号</li>
+</ul>
+
+<h3>体验验收（主观判断）</h3>
+<ul>
+  <li>✅ 游戏 30 分钟后玩家清楚自己的目标</li>
+  <li>✅ 投票日有紧张感（声望差距 &lt; 15% 时有翻盘可能）</li>
+  <li>✅ 第 2 任期能感受到与第 1 任期的差异（对手不同 / NPC 流动）</li>
+  <li>✅ 落选不会让玩家想退出，反而想"我下届一定干掉他"</li>
+</ul>
+
+<h3>数值验收</h3>
+<ul>
+  <li>weight 公式各子项贡献占比合理（affection 35-55%，其他每项 5-25%）</li>
+  <li>新任期开局玩家与对手 weight 差距 ≤ 30%</li>
+  <li>"民心所向"（6/6 全票）连任不超过 1/4 玩家能拿到</li>
+  <li>权力点用法分布均匀（4 行动各占 15-35%）</li>
+</ul>
+
+<h2>七、未来扩展（不在本计划内）</h2>
+
+<ul>
+  <li>NPC 总池扩到 12+，每人完整 schedule + persona</li>
+  <li>跨任期世界事件累积（如"森林神秘失踪悬案"贯穿多届）</li>
+  <li>第二种结局路线（连续 5 届落选 → "森林流浪诗人"）</li>
+  <li>多人/co-op 镇长（一人镇长一人副手）</li>
+  <li>季节系统接入（春夏秋冬影响危机类型）</li>
+</ul>
+
+<p style="margin-top: 28px; padding-top: 12px; border-top: 1px solid #cbd5e0; color: #666; font-size: 10pt; text-align: center;">
+实施计划结束 · 评审通过后开干 D1（选举后端基础）
+</p>
+
+</body>
+</html>

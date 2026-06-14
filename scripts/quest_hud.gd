@@ -16,7 +16,7 @@ func _ready() -> void:
 
 func set_quest(qid: String, title: String, desc: String, kind: String, target_npc: String, message_summary: String, collect_item: String = "", required: int = 0, progress: int = 0) -> void:
 	_current_qid = qid
-	var title_text := "📜 [b]%s[/b]" % title
+	var title_text := "[color=#3a2a18]📜 [b]%s[/b][/color]" % title
 	if kind == "collect" and required > 0:
 		title_text += "  [color=#7a5c3a](%d/%d)[/color]" % [progress, required]
 	title_label.text = title_text
@@ -27,15 +27,15 @@ func set_quest(qid: String, title: String, desc: String, kind: String, target_np
 		"collect":
 			if collect_item != "":
 				var nm := ItemDB.get_item_name(collect_item)
-				detail_lines.append("→ 收集 [b]%s[/b]，回去找委托人" % nm)
+				detail_lines.append("[color=#4a3a28]→ 收集 [b]%s[/b]，回去找委托人[/color]" % nm)
 		"deliver":
 			if target_npc != "":
-				detail_lines.append("→ 把物品送到 [b]%s[/b]" % _label_for(target_npc))
+				detail_lines.append("[color=#4a3a28]→ 把物品送到 [b]%s[/b][/color]" % _label_for(target_npc))
 		"relay":
 			if message_summary != "":
-				detail_lines.append("💬 [i]%s[/i]" % message_summary)
+				detail_lines.append("[color=#6a5236]💬 [i]%s[/i][/color]" % message_summary)
 			if target_npc != "":
-				detail_lines.append("→ 找 [b]%s[/b] 说出来" % _label_for(target_npc))
+				detail_lines.append("[color=#4a3a28]→ 找 [b]%s[/b] 说出来[/color]" % _label_for(target_npc))
 	detail_label.text = "\n".join(detail_lines)
 	panel.visible = true
 

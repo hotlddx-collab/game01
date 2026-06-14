@@ -90,6 +90,82 @@ CREATE TABLE IF NOT EXISTS gift_log (
   updated_at     INTEGER NOT NULL,
   PRIMARY KEY (animal_id, item_id)
 );
+
+-- 镇长选举：任期表
+CREATE TABLE IF NOT EXISTS election_term (
+  term_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  start_day   INTEGER NOT NULL,
+  end_day     INTEGER,                 -- NULL 表示进行中
+  winner_id   TEXT,                    -- 'player' | npc_id（结算后写入）
+  opponent_id TEXT NOT NULL,           -- 当期对手 NPC id
+  result_json TEXT,                    -- 结算快照（票数/breakdown）
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_term_active ON election_term(end_day);
+
+-- 镇长选举：每日 NPC 投票权重快照（每日 22:00 重算后写入）
+CREATE TABLE IF NOT EXISTS election_weight (
+  term_id        INTEGER NOT NULL,
+  game_day       INTEGER NOT NULL,
+  voter_id       TEXT NOT NULL,         -- NPC id
+  candidate_id   TEXT NOT NULL,         -- 'player' | npc_id
+  weight         REAL NOT NULL,
+  breakdown_json TEXT,                   -- 各子项明细，调试用
+  PRIMARY KEY (term_id, game_day, voter_id, candidate_id)
+);
+
+-- 镇长选举：候选人当期状态
+CREATE TABLE IF NOT EXISTS candidate_state (
+  term_id          INTEGER NOT NULL,
+  candidate_id     TEXT NOT NULL,         -- 'player' | npc_id
+  is_incumbent     INTEGER NOT NULL DEFAULT 0,
+  power_points     INTEGER NOT NULL DEFAULT 0,
+  power_points_max INTEGER NOT NULL DEFAULT 3,
+  last_power_day   INTEGER NOT NULL DEFAULT -1,  -- 上次发放权力点的游戏日（跨日重置用）
+  platform_json    TEXT,                  -- LLM 生成的竞选纲领
+  PRIMARY KEY (term_id, candidate_id)
+);
+
+-- 镇长选举：对手每日动作日志
+CREATE TABLE IF NOT EXISTS opponent_actions (
+  action_id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  term_id                INTEGER NOT NULL,
+  game_day               INTEGER NOT NULL,
+  candidate_id           TEXT NOT NULL,         -- 对手 NPC id
+  action_type            TEXT NOT NULL,         -- 'visit'|'smear'|'promise'|'speech'
+  target_npc             TEXT,                  -- 动作的目标 NPC（可空）
+  llm_text               TEXT,                  -- LLM 生成的台词
+  mechanical_effect_json TEXT,                  -- 机械效果（影响哪些子项）
+  created_at             INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_opp_term_day ON opponent_actions(term_id, game_day);
+
+-- 镇长选举：玩家承诺池（复用 quest 作为内容载体）
+CREATE TABLE IF NOT EXISTS promises (
+  promise_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  term_id       INTEGER NOT NULL,
+  candidate_id  TEXT NOT NULL,            -- 'player'（D6 暂只玩家承诺；后续可扩对手）
+  npc_id        TEXT NOT NULL,            -- 承诺受益方
+  quest_id      TEXT NOT NULL,            -- 关联 quests.json 条目
+  status        TEXT NOT NULL DEFAULT 'pending',  -- pending|fulfilled|broken
+  accept_day    INTEGER NOT NULL,
+  deadline_day  INTEGER,                  -- NULL = 任期末截止
+  resolved_day  INTEGER,
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_promise_term ON promises(term_id, status);
+CREATE INDEX IF NOT EXISTS idx_promise_quest ON promises(quest_id);
+
+-- 镇长选举：辩论日（D6）每个 NPC 对候选人立场的打分（接 weight 的 debate 子项）
+CREATE TABLE IF NOT EXISTS debate_scores (
+  term_id    INTEGER NOT NULL,
+  voter_id   TEXT NOT NULL,            -- 旁听/提问 NPC id
+  candidate_id TEXT NOT NULL,          -- 'player' | 对手 npc_id
+  score      REAL NOT NULL,            -- 该 NPC 对该候选人本场辩论的好评分 [-0.5,1.0]
+  detail_json TEXT,                    -- 立场匹配明细
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (term_id, voter_id, candidate_id)
+);
 """
 
 
@@ -98,6 +174,10 @@ def _migrate(conn) -> None:
     cols = {row["name"] for row in conn.execute("PRAGMA table_info(affection)").fetchall()}
     if "last_greet_day" not in cols:
         conn.execute("ALTER TABLE affection ADD COLUMN last_greet_day INTEGER NOT NULL DEFAULT -1")
+    # candidate_state.last_power_day（D9 权力点跨日重置）
+    cs_cols = {row["name"] for row in conn.execute("PRAGMA table_info(candidate_state)").fetchall()}
+    if cs_cols and "last_power_day" not in cs_cols:
+        conn.execute("ALTER TABLE candidate_state ADD COLUMN last_power_day INTEGER NOT NULL DEFAULT -1")
 
 _lock = threading.Lock()
 _initialized = False

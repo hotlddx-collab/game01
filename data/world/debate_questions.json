@@ -1,0 +1,140 @@
+{
+  "_comment": "辩论日题库。每个 NPC 有 2 题；每题 4 个立场象限选项。玩家选象限 → 旁听 NPC 按自己偏好象限打分。",
+  "_stances": ["radical", "conservative", "pleasing", "pragmatic"],
+  "_stance_labels": {
+    "radical": "激进改革",
+    "conservative": "稳健保守",
+    "pleasing": "讨好民生",
+    "pragmatic": "务实理性"
+  },
+  "npc_stance_pref": {
+    "fox_postman": "radical",
+    "bear_baker": "pleasing",
+    "herbalist_cui": "conservative",
+    "pirate_lao": "pragmatic",
+    "mystic_xuan": "pragmatic",
+    "traveler_lan": "pleasing"
+  },
+  "questions": {
+    "fox_postman": [
+      {
+        "q": "邮路总被野草盖住，包裹老是送晚。你当镇长打算怎么治？",
+        "options": {
+          "radical": "全镇道路推倒重修，建一条贯通的石板主路！",
+          "conservative": "维持现状，定期派人除草就够了，别折腾。",
+          "pleasing": "先问问大家最在意哪条路，从呼声最高的修起。",
+          "pragmatic": "先统计哪几段最常堵，优先修那几段，省钱见效快。"
+        }
+      },
+      {
+        "q": "镇上效率太低了！你会逼着大家加快节奏，还是随他们慢悠悠？",
+        "options": {
+          "radical": "当然要改！定规矩、立标准，谁拖后腿谁负责。",
+          "conservative": "森林的节奏本就慢，强求快只会出乱子。",
+          "pleasing": "尊重每个人的步调，开心最重要。",
+          "pragmatic": "关键岗位提速，其余照旧，分清轻重。"
+        }
+      }
+    ],
+    "bear_baker": [
+      {
+        "q": "要是镇上预算紧张，你会先保证大家的口粮，还是先搞建设？",
+        "options": {
+          "radical": "勒紧裤腰带也要搞大建设，长远看才值。",
+          "conservative": "钱要留着应急，不饿肚子、不乱花最稳妥。",
+          "pleasing": "先保证每个人都吃饱，这是头等大事。",
+          "pragmatic": "口粮和建设各分一半，量入为出。"
+        }
+      },
+      {
+        "q": "有居民日子过得紧巴巴，你这镇长会怎么帮他？",
+        "options": {
+          "radical": "改革分配制度，从根上解决贫富差。",
+          "conservative": "邻里互助是老传统，让大家搭把手就好。",
+          "pleasing": "我亲自上门送吃的，谁难都不能不管。",
+          "pragmatic": "先评估他缺什么，缺啥补啥，别撒胡椒面。"
+        }
+      }
+    ],
+    "herbalist_cui": [
+      {
+        "q": "森林边的草药地越来越少，你会怎么平衡开发和保护？",
+        "options": {
+          "radical": "划一大片保护区，禁止任何采摘和开发！",
+          "conservative": "顺其自然，老祖宗怎么做我们就怎么做。",
+          "pleasing": "听采药人的意见，他们说了算。",
+          "pragmatic": "定个采摘上限，留够再生量，可持续才长久。"
+        }
+      },
+      {
+        "q": "镇上想引进外来的新东西，你支持还是谨慎？",
+        "options": {
+          "radical": "全力引进！新东西才能让小镇焕发活力。",
+          "conservative": "外来的未必合适，还是守着熟悉的稳妥。",
+          "pleasing": "大家想要什么就引进什么。",
+          "pragmatic": "先小范围试用，确认无害再推广。"
+        }
+      }
+    ],
+    "pirate_lao": [
+      {
+        "q": "要是有人在镇上闹事，你这镇长是铁腕镇压还是好言相劝？",
+        "options": {
+          "radical": "立规矩、严执行，闹事就得有代价。",
+          "conservative": "睁一只眼闭一只眼，多大点事。",
+          "pleasing": "先安抚情绪，让大家都消消气。",
+          "pragmatic": "先弄清为啥闹，对症处理才不会再犯。"
+        }
+      },
+      {
+        "q": "老水手我见多了空头承诺。你凭啥让我信你能办成事？",
+        "options": {
+          "radical": "我会立刻拿出大动作，让你亲眼看到改变。",
+          "conservative": "我不夸海口，能守住现在就不错了。",
+          "pleasing": "我会一直陪着大家，绝不让谁失望。",
+          "pragmatic": "我只承诺做得到的，做一件兑现一件。"
+        }
+      }
+    ],
+    "mystic_xuan": [
+      {
+        "q": "……当镇长，图什么？",
+        "options": {
+          "radical": "图改变。这片森林该有新的样子。",
+          "conservative": "图守护。让一切如常，便是好的。",
+          "pleasing": "图大家的笑脸。被需要，就够了。",
+          "pragmatic": "图把事办成。位置只是工具，结果才重要。"
+        }
+      },
+      {
+        "q": "……若你的决定，伤了一个人，成全了多数人。你做吗？",
+        "options": {
+          "radical": "做。大局为重，阵痛难免。",
+          "conservative": "不做。不伤人，是底线。",
+          "pleasing": "我会想办法让所有人都不受伤。",
+          "pragmatic": "先算清代价，若利远大于弊，便做。"
+        }
+      }
+    ],
+    "traveler_lan": [
+      {
+        "q": "我走南闯北爱热闹！你当镇长会让小镇更有活力吗？",
+        "options": {
+          "radical": "当然！我要办集市、搞节庆，让小镇沸腾起来！",
+          "conservative": "安安静静也挺好，热闹过头容易出事。",
+          "pleasing": "大家想热闹就热闹，想清静就清静。",
+          "pragmatic": "适度办活动，既有活力又不耽误正事。"
+        }
+      },
+      {
+        "q": "镇上要是起了流言蜚语，你这镇长管不管？",
+        "options": {
+          "radical": "立刻查清源头，公开澄清，绝不姑息。",
+          "conservative": "流言止于智者，不必大动干戈。",
+          "pleasing": "我会挨个安抚，让大家别往心里去。",
+          "pragmatic": "先判断真假，是真就处理，是假就辟谣。"
+        }
+      }
+    ]
+  }
+}

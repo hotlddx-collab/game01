@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>怪物森林 · 镇长循环 设计纲要 v1.1</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  html { font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  body { color: #222; line-height: 1.65; font-size: 11pt; }
+  h1 { font-size: 22pt; color: #1a1a1a; border-bottom: 3px solid #2c5282; padding-bottom: 8px; margin-bottom: 4px; }
+  h1 + .subtitle { color: #666; font-size: 10.5pt; margin-bottom: 28px; }
+  h2 { font-size: 15pt; color: #2c5282; margin-top: 32px; border-left: 4px solid #2c5282; padding-left: 10px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; color: #1a365d; margin-top: 18px; page-break-after: avoid; }
+  p { margin: 8px 0; text-align: justify; }
+  ul, ol { margin: 6px 0 12px 22px; }
+  li { margin: 3px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10.5pt; }
+  th, td { border: 1px solid #cbd5e0; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #edf2f7; font-weight: 600; }
+  blockquote { border-left: 4px solid #cbd5e0; background: #f7fafc; padding: 10px 16px; margin: 12px 0; color: #4a5568; font-style: italic; }
+  .highlight { background: #fff8dc; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
+  .scenario { background: #f0f7ff; border-left: 4px solid #4299e1; padding: 14px 18px; margin: 14px 0; }
+  .scenario p { margin: 6px 0; }
+  .formula { background: #1a202c; color: #f7fafc; padding: 12px 16px; border-radius: 4px; font-family: "Menlo", monospace; font-size: 10pt; line-height: 1.55; margin: 12px 0; white-space: pre; }
+  .pillar { display: flex; gap: 12px; margin: 12px 0; }
+  .pillar-box { flex: 1; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px 14px; background: #f7fafc; }
+  .pillar-box h4 { margin: 0 0 6px 0; color: #2c5282; font-size: 11pt; }
+  .pillar-box p { margin: 0; font-size: 10pt; color: #4a5568; }
+  .diagram { background: #f7fafc; border: 1px dashed #a0aec0; padding: 14px; margin: 14px 0; font-family: "Menlo", monospace; font-size: 10pt; white-space: pre; line-height: 1.5; text-align: center; }
+  .small { font-size: 10pt; color: #666; }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>怪物森林 · 镇长循环</h1>
+<div class="subtitle">设计纲要 v1.1 &nbsp;·&nbsp; 2026-06-04 &nbsp;·&nbsp; 评审稿</div>
+
+<h2>一、解决什么问题</h2>
+
+<p>当前游戏功能丰富（物品/好感度/送礼/任务/反思 / 6 NPC），但缺一个让玩家"持续在意"的目标：</p>
+
+<ul>
+  <li><strong>跟 NPC 聊天</strong> → 体验一次 LLM 智能就够了，三次重复</li>
+  <li><strong>刷好感度</strong> → 触发 milestone 演出后没下游</li>
+  <li><strong>捡物品送礼</strong> → 只为了刷好感度，自闭</li>
+  <li><strong>接任务</strong> → 完成给物品，又喂回送礼循环</li>
+</ul>
+
+<p>核心症结：<span class="highlight">缺少一根串起所有零件的主轴</span>。LLM NPC 只被当作"会说话的物品交换机"，没用在该用的地方。</p>
+
+<h2>二、设计目标 &amp; 反目标</h2>
+
+<table>
+<tr><th width="50%">要做</th><th>不做</th></tr>
+<tr>
+  <td>玩家有清晰长期目标：<strong>当镇长 → 维持权位 → 落选反扑</strong></td>
+  <td>不写线性主线剧情</td>
+</tr>
+<tr>
+  <td>每个零件都接到目标上：affection = 选票，gifts = 拉票，quests = 竞选承诺</td>
+  <td>不靠美术演出撑（仅用现有 UI 风格扩展）</td>
+</tr>
+<tr>
+  <td>循环耐玩，不依赖一次性内容：对手轮换 / 搬家 / 危机随机</td>
+  <td>不引入战斗 / 数值堆叠</td>
+</tr>
+<tr>
+  <td>LLM 用在它擅长的事：动态台词、辩论反驳、立场生成</td>
+  <td>不让 LLM 决定数值（保留确定性）</td>
+</tr>
+</table>
+
+<h2>三、玩家体验想象</h2>
+
+<div class="scenario">
+<p><strong>第 3 天，上午 09:00。</strong>HUD 左上角声望榜：你 32%，对手苔老板 41%。还剩 4 天到投票。</p>
+<p>走进面包店，看见苔老板正跟焰仔讲：<em>"那位旅人前几天给老咸送了酒，结果老咸醉了砸花圃……"</em> —— 这是抹黑。你昨天偷听过老咸说"那花圃我自己撞的"，所以现在手里有<strong>反驳卡</strong>。</p>
+<p>你可以：① 立刻打断澄清（消耗反驳卡，焰仔好感不变）② 不理会（声望 -3）③ 公开揭穿苔老板（高风险，赢了对手 -5，输了自己 -5）。</p>
+<p><strong>下午 14:00。</strong>小翠头顶冒出诉求气泡："草药地缺水了。" 接 = 加进承诺池（你已 4/5 条）；不接她下届会记仇。</p>
+<p><strong>晚上 22:00。</strong>所有 NPC 反思今天发生的事，重新评估明天投谁。你的声望涨到 36%，但苔老板涨到 44% —— 因为他今天在三个 NPC 面前演讲了。</p>
+<p><strong>第 6 天 · 辩论日。</strong>3 个 NPC 轮流提问，4 选项答题，对手 LLM 即时反驳。<strong>第 7 天 · 投票日</strong>，结果实时累计动画。3 票 vs 3 票 → 平局，你赢了你 affection 最高的那个 NPC 的关键一票，<span class="highlight">当选</span>。</p>
+<p><strong>第 8 天 · 新任期 D1。</strong>权力点 +3。你指派焰仔去给老咸送修花圃的工具（消耗 1 点）；议会上发表施政演说（消耗 2 点）。但 D7 投票结算后，<strong>蓝旅搬走了</strong>（他对你 affection 只有 -5），公告横幅显示<em>"蓝旅决定回去继续旅行"</em>。同一天，新居民 <strong>桃桃</strong> 从邻镇搬来面包店附近——她对所有人 affection 都是 0，包括你。</p>
+<p>新一周开始。对手换成<strong>焰仔</strong>了（苔老板上届当过，间隔保护），桃桃成了焰仔和你都想拉拢的中间票……</p>
+</div>
+
+<h2>四、核心循环</h2>
+
+<div class="diagram">[ 竞选期 ]                                  [ 任期 ]
+拜访拉票 → 兑现承诺 → 辩论 → 投票 → 当选演出 → 行使权力 → 处理危机 → 下次竞选
+   ↑                                                                          │
+   └─────── 落选 = 在野党（调查/搜集丑闻）→ 下届反扑 ──────────────────────────┘
+                                                                              │
+   每届任期之间：搬家结算（0-2 走 / 0-2 来，新居民关系空白） ─────────────────┘</div>
+
+<p>节奏：<strong>7 游戏日 = 1 任期</strong>。D1-D5 日常 / D6 辩论 / D7 投票。竞选期和任期共享同一时间轴，UI 切换。</p>
+
+<h2 class="page-break">五、八根支柱（关键机制）</h2>
+
+<div class="pillar">
+  <div class="pillar-box">
+    <h4>1. 投票公式</h4>
+    <p>每 NPC 对每候选人有 0-100 权重，每日 22:00 重算。affection 占 50 分（最重），承诺兑现率 20 分，辩论表现 10 分，近期事件 ±15 分，亲近圈忠诚 5 分。</p>
+  </div>
+  <div class="pillar-box">
+    <h4>2. 对手 AI（赛季轮换）</h4>
+    <p>每届对手不同。从未当过的池子里抽，至少间隔 2 期重出。每日 1-2 个动作：拜访拉拢/散播怀疑/反承诺/演讲。落后激进，领先保守。立场由 LLM 基于其人设生成。</p>
+  </div>
+</div>
+
+<div class="pillar">
+  <div class="pillar-box">
+    <h4>3. 承诺池（取舍）</h4>
+    <p>NPC 头顶诉求气泡。接 = 入承诺池（上限 5 条）。兑现 = 加分；破诺 = 重罚。<strong>玩家被迫挑选</strong>，不能全收。</p>
+  </div>
+  <div class="pillar-box">
+    <h4>4. 任期权力点（有限性）</h4>
+    <p>当选后每日 3 点。可消耗：指派 NPC 任务、召开议会、发布公告、私下协调关系。<strong>不累积</strong>，迫使每日决策。</p>
+  </div>
+</div>
+
+<div class="pillar">
+  <div class="pillar-box">
+    <h4>5. 危机事件池（动态压力）</h4>
+    <p>10-15 个机械模板，30%/日触发。例：面包店火灾 / 草药短缺 / 老咸闹事 / 财政赤字 / 神秘失踪。处理慢/不公 → 民意下滑。LLM 写具体台词。</p>
+  </div>
+  <div class="pillar-box">
+    <h4>6. 搬家系统（赛季新鲜感）</h4>
+    <p>每届结算后：70% 走 1 人 / 20% 走 2 人 / 10% 不变。差人缘者优先走，挚友几乎不走。新居民 affection=0，第 1 季不能任对手。<strong>居民不会失忆，但镇上人在变。</strong></p>
+  </div>
+</div>
+
+<div class="pillar">
+  <div class="pillar-box">
+    <h4>7. 连任阶梯（成就驱动）</h4>
+    <p>任期序号 N 越大，对手越聪明（增加动作/反偷听/联合围剿），危机越频繁，承诺池上限下降。称号：新晋镇长 / 二连霸 / 三朝元老 / 不倒翁 / 镇长传说。</p>
+  </div>
+  <div class="pillar-box">
+    <h4>8. 落选不重开</h4>
+    <p>进入"在野党"模式：可调查现镇长、搜集失误证据、积累丑闻卡。下届辩论可打出，重创对手。affection 永不重置（合现实）。<strong>玩家永远有出路。</strong></p>
+  </div>
+</div>
+
+<h2>六、为什么这样设计 · 逻辑原理</h2>
+
+<table>
+<tr><th width="32%">体验问题</th><th>对应机制</th></tr>
+<tr><td>"和 NPC 聊天没意义"</td><td>affection 直接折算 50% 选票权重，每次对话都在影响选举走向</td></tr>
+<tr><td>"游戏太放松没驱动"</td><td>7 天倒计时 + 对手实时刷分 + 危机随机触发 = 三重压力</td></tr>
+<tr><td>"内容会重复消耗光"</td><td>对手轮换 / 搬家流动 / LLM 生台词 → 每届都不一样</td></tr>
+<tr><td>"养成系统脱离剧情"</td><td>承诺池本身就是养成"我说话算话"的人设；连任阶梯就是养成路径</td></tr>
+<tr><td>"做错事没办法挽回"</td><td>落选不重开，在野党路线给重整旗鼓的空间</td></tr>
+<tr><td>"做对了事没回报"</td><td>权力点 / 称号 / 全 NPC 投票成就 / 民意所向加成</td></tr>
+<tr><td>"剧情写不过来"</td><td>机械骨架确定数值，LLM 只填台词；写一次模板用永远</td></tr>
+</table>
+
+<h2>七、LLM 用在哪</h2>
+
+<p>LLM 是这游戏最贵也最闪光的资产。它<strong>不</strong>该做的事：定数值、写一次性主线、决定胜负规则。它<strong>该</strong>做的事：</p>
+
+<ul>
+  <li><strong>对手每日动作的具体台词</strong>（例："苔老板今天去拜访了焰仔，他说……"）</li>
+  <li><strong>新对手就任时的"竞选纲领"生成</strong>（基于该 NPC 的 important_facts）</li>
+  <li><strong>辩论日的提问 + 反驳</strong>（NPC 提问、对手反驳玩家答案）</li>
+  <li><strong>危机事件的具体描述</strong>（机械触发"面包店火灾"，LLM 写"苔老板的炉子今早冒黑烟，火苗窜上房梁……"）</li>
+  <li><strong>NPC 反思中的政治倾向</strong>（"今天玩家给我送了药，但他承诺的修水管还没做……"）</li>
+  <li><strong>新居民入镇剧情</strong>（基于其人设生成入场介绍）</li>
+</ul>
+
+<p>所有 LLM 输出都被机械系统消化，最终落到数值（weight、affection、event_score）。<span class="highlight">LLM 永远填血肉，机械永远是骨架</span>。</p>
+
+<h2>八、复用现有零件</h2>
+
+<table>
+<tr><th>零件</th><th>旧用途</th><th>新用途</th></tr>
+<tr><td>affection</td><td>私聊好感度</td><td>选票权重 50% 主项</td></tr>
+<tr><td>gifts</td><td>给好感度送礼</td><td>拉票手段（玩家工具箱）</td></tr>
+<tr><td>quests</td><td>随机派发任务</td><td>承诺池入口 + 兑现判定</td></tr>
+<tr><td>milestones</td><td>好感度阶段演出</td><td>任期关键事件演出框架</td></tr>
+<tr><td>reflection</td><td>每日反思</td><td>反思中插入"今日选举想法"，决定明天投票倾向</td></tr>
+<tr><td>world_events</td><td>世界共享 lore</td><td>对手抹黑 / 玩家拉票事件源</td></tr>
+<tr><td>偷听系统</td><td>玩家了解八卦</td><td>解锁反驳卡 / 在野党丑闻卡</td></tr>
+</table>
+
+<p class="small" style="margin-top: 6px;">几乎不增加新概念，主要是<strong>把已有零件重新接线</strong>。</p>
+
+<h2>九、关键决策（已锁）</h2>
+
+<table>
+<tr><th>项</th><th>决策</th></tr>
+<tr><td>选举周期</td><td>7 游戏日</td></tr>
+<tr><td>首期对手</td><td>苔老板（社区元老 vs 新人改革派）；第 2 期起轮换</td></tr>
+<tr><td>跨任期 affection</td><td>不重置（NPC 不会失忆）</td></tr>
+<tr><td>赛季差异化</td><td>靠 NPC 搬家 + 对手轮换 + 立场重生成</td></tr>
+<tr><td>落选处理</td><td>不重开，进在野党模式；连任难度阶梯 + 称号</td></tr>
+<tr><td>任期内主动辞职</td><td>不允许，必须扛完 7 天</td></tr>
+</table>
+
+<h2>十、待用户继续拍板</h2>
+
+<ul>
+  <li>新对手立场是否需要玩家可见？（建议：偷听才能看到，符合"信息差"游戏体验）</li>
+  <li>权力点滥用如何防（例如玩家天天派同一个 NPC 任务）？（建议：被指派次数 → 该 NPC 疲劳 -affection）</li>
+  <li>"民心所向"成就（单届 6/6 全票）是否过苛？是否调整为 5/6？</li>
+  <li>搬家公告是否要演出动画（NPC 走出地图边缘）？还是只用横幅？</li>
+</ul>
+
+<p style="margin-top: 32px; padding-top: 12px; border-top: 1px solid #cbd5e0; color: #666; font-size: 10pt; text-align: center;">
+设计纲要结束 · 评审通过后进入 Task 2 后端实现
+</p>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://bpromise01"]
+
+[ext_resource type="Script" path="res://scripts/promise_panel.gd" id="1_pp"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pp"]
+bg_color = Color(0.12, 0.10, 0.18, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.65, 0.55, 0.85, 0.7)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="PromisePanel" type="CanvasLayer"]
+layer = 6
+script = ExtResource("1_pp")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+visible = false
+color = Color(0, 0, 0, 0.55)
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="Backdrop"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Box" type="PanelContainer" parent="Backdrop/Center"]
+custom_minimum_size = Vector2(620, 440)
+theme_override_styles/panel = SubResource("StyleBoxFlat_pp")
+
+[node name="Margin" type="MarginContainer" parent="Backdrop/Center/Box"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(560, 30)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][b]📜 承诺池 0/5[/b][/center]"
+
+[node name="HelpLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(560, 50)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[color=#bbb]承诺 = 你接下的 NPC 任务。[b]兑现[/b]= 投票时该 NPC 加分；[b]破诺[/b]（任期结束未完成）= 扣分。\n按 [b]Esc[/b] / [b]P[/b] 关闭。[/color]"
+
+[node name="Scroll" type="ScrollContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+custom_minimum_size = Vector2(560, 280)
+size_flags_vertical = 3
+
+[node name="ListVBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin/VBox/Scroll"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="EmptyLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(560, 30)
+visible = false
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][color=#888]还没接任何承诺。跟 NPC 聊天接任务即可。[/color][/center]"

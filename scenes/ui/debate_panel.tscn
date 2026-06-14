@@ -1,0 +1,125 @@
+[gd_scene format=3 uid="uid://bdebate01"]
+
+[ext_resource type="Script" path="res://scripts/debate_panel.gd" id="1_db"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_db"]
+bg_color = Color(0.10, 0.09, 0.16, 0.97)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.7, 0.45, 0.75)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rebut"]
+bg_color = Color(0.20, 0.10, 0.12, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.4, 0.4, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="DebatePanel" type="CanvasLayer"]
+layer = 7
+script = ExtResource("1_db")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+visible = false
+color = Color(0, 0, 0, 0.65)
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="Backdrop"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Box" type="PanelContainer" parent="Backdrop/Center"]
+custom_minimum_size = Vector2(640, 500)
+theme_override_styles/panel = SubResource("StyleBoxFlat_db")
+
+[node name="Margin" type="MarginContainer" parent="Backdrop/Center/Box"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 32)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][b]🎤 镇长辩论会[/b][/center]"
+
+[node name="AskerLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 26)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="QuestionLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 48)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="OptionsVBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 0)
+theme_override_constants/separation = 8
+
+[node name="RebuttalBox" type="PanelContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(580, 0)
+theme_override_styles/panel = SubResource("StyleBoxFlat_rebut")
+
+[node name="RebuttalMargin" type="MarginContainer" parent="Backdrop/Center/Box/Margin/VBox/RebuttalBox"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="RebuttalLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox/RebuttalBox/RebuttalMargin"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(550, 28)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="ResultLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(580, 200)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="ButtonRow" type="HBoxContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="NextButton" type="Button" parent="Backdrop/Center/Box/Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(180, 40)
+text = "下一题 ▶"
+
+[node name="CloseButton" type="Button" parent="Backdrop/Center/Box/Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(180, 40)
+text = "关闭"

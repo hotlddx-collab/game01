@@ -84,6 +84,10 @@ func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed:
 		return
 	var ke := event as InputEventKey
+	# 打字中（输入框聚焦）→ 让位，避免 I 等键误触
+	var f := get_viewport().gui_get_focus_owner()
+	if f is LineEdit or f is TextEdit:
+		return
 	if _is_open:
 		# 已打开：Esc / I 关闭
 		if ke.keycode == KEY_ESCAPE or ke.keycode == KEY_I:

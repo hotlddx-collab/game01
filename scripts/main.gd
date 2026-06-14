@@ -36,6 +36,8 @@ func _ready() -> void:
 	AgentClient.quest_offer_received.connect(_on_quest_offer)
 	AgentClient.quest_progress_received.connect(_on_quest_progress)
 	AgentClient.quest_completed_received.connect(_on_quest_completed)
+	AgentClient.opponent_action_received.connect(_on_opponent_action)
+	AgentClient.election_result_received.connect(_on_election_result)
 
 
 func _process(_delta: float) -> void:
@@ -263,6 +265,36 @@ func _find_animal(animal_id: String) -> Animal:
 		if n is Animal and n.animal_id == animal_id:
 			return n
 	return null
+
+
+# ---------- 选举信号 ----------
+
+func _on_opponent_action(info: Dictionary) -> void:
+	## 对手 NPC 拜访某 voter NPC，对手头顶弹气泡显示拉票台词。
+	var opponent_id := String(info.get("candidate_id", ""))
+	var text := String(info.get("text", ""))
+	if opponent_id == "" or text == "":
+		return
+	var opponent: Animal = _find_animal(opponent_id)
+	if opponent and opponent.has_method("show_speech_bubble"):
+		opponent.show_speech_bubble(text, 5.0)
+
+
+func _on_election_result(info: Dictionary) -> void:
+	## D7 投票结果到来 → 通过 ElectionHUD 触发投票演出。
+	var hud := get_node_or_null("ElectionHUD")
+	if hud and hud.has_method("show_vote_result"):
+		hud.show_vote_result(info)
+
+
+func _input(event: InputEvent) -> void:
+	## 调试快捷键：Ctrl+V 立即触发当前任期投票（测试演出用）。
+	var f := get_viewport().gui_get_focus_owner()
+	if f is LineEdit or f is TextEdit:
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_V and event.ctrl_pressed:
+		print("[main] DEBUG: 强制投票结算")
+		AgentClient.request_debug_force_vote()
 
 
 # ---------- 上下文构造 ----------

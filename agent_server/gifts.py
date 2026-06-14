@@ -52,10 +52,14 @@ AFFECTION_MULT = {
     "love":    1.3,
 }
 
-FATIGUE_DECAY_DAYS = 2     # 每过 N 个游戏日没送 → count -1
-FATIGUE_STEP       = 0.3   # 每次送多了 mult 减少这么多
+FATIGUE_DECAY_DAYS = 3     # 每过 N 个游戏日没送 → count -1（2 → 3：恢复更慢）
+FATIGUE_STEP       = 0.45  # 每次送多了 mult 减少这么多（0.3 → 0.45：疲劳更狠）
 FATIGUE_MIN        = -0.5  # 反感封顶
 FATIGUE_MAX        = 1.0   # 上限
+
+# 单次送礼好感增益硬上限：无论物品多贵 / 偏好多高，一次最多加这么多。
+# 避免送一个高 base_value 物品（如树脂 15）就跳一大截。
+GIFT_DELTA_CAP     = 8
 
 
 # ---------- 偏好分类 ----------
@@ -160,6 +164,9 @@ def compute_delta(
     fm = compute_fatigue_mult(count_before_this_gift)
     raw = item.base_value * pm * am * fm
     delta = int(round(raw))
+    # 硬上限：正向增益封顶（负向扣分不限制，保留惩罚力度）
+    if delta > GIFT_DELTA_CAP:
+        delta = GIFT_DELTA_CAP
 
     return {
         "delta": delta,

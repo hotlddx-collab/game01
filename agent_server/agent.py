@@ -73,6 +73,22 @@ def _contains_gift_words(text: str) -> bool:
     return any(w in text for w in _GIFT_WORDS)
 
 
+# 口头派活/跑腿词汇（NPC 凭空给玩家派差事 → 过家家感）
+# 命中但本回合没有真实 quest_offer 时触发重生成
+_QUEST_WORDS = (
+    "帮我送", "帮我带", "帮我取", "帮我拿", "帮我跑",
+    "替我送", "替我带", "替我跑", "替我取",
+    "捎个信", "捎封信", "捎句话", "传句话", "传个话", "带句话",
+    "跑一趟", "跑趟腿", "送一趟", "送趟",
+    "信在", "信放在", "东西在屋", "东西在门", "放在门口", "放在屋外",
+    "去帮我", "帮个忙去", "替我跑腿",
+)
+
+
+def _contains_quest_words(text: str) -> bool:
+    return any(w in text for w in _QUEST_WORDS)
+
+
 def _parse_reply_json(raw: str) -> Tuple[str, Optional[dict]]:
     """从 LLM 输出中提取 {text, intent?}，容错：解析失败则把 raw 作为 text 返回。"""
     raw = raw.strip()
@@ -122,6 +138,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 
 {player_profile_block}
 {affection_block}
+{election_block}
 {relevant_memories_block}
 {reflections_block}
 {world_events_block}
@@ -138,7 +155,8 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 9. 【诚实原则】只能说你当下能直接做到的事。不知道的事直接说"不清楚"，绝不说"我帮你问问"。
 10. 【不瞎承诺】不主动承诺任何你在这次对话里无法兑现的行动。
 11. 【严禁口头送礼】绝对不在台词里出现"送你/给你/收好/拿去/你拿着/要不要尝尝/来一口/想不想吃"等任何暗示或明示赠予物品的表述。物品赠予有独立游戏系统。对话里只能讨论话题，不能暗示玩家可以拿到什么东西。
-12. 【世界一致性】只能提及上面列出的已知地点和已知物品，不要臆造游戏里不存在的东西（月光面包、后山、夜光花、羊角包、薄荷等）。被问到不存在的地方或物品时直接说"我不知道那是什么"。"""
+12. 【严禁口头派活】绝对不在台词里要求或暗示玩家替你做事——不说"帮我送/帮我带/帮我取/去拿/去取/捎个信/跑一趟/信在门口/东西在屋外/放在某处了"等任何让玩家跑腿、送货、传话、取物的内容。所有委托任务由游戏任务系统统一下发（会弹出任务卡片并发放真实道具），你不能凭空创造差事。被玩家问"有什么要帮忙的吗"时，只能闲聊或回"暂时没有"，绝不自己编一个任务。
+13. 【世界一致性】只能提及上面列出的已知地点和已知物品，不要臆造游戏里不存在的东西（月光面包、后山、夜光花、羊角包、薄荷等）。被问到不存在的地方或物品时直接说"我不知道那是什么"。"""
 
 
 class Agent:
@@ -272,6 +290,38 @@ class Agent:
                 parts.append(f"【此刻附近还有】{names}")
         return ("\n" + "\n".join(parts)) if parts else ""
 
+    def _build_election_block(self, context: Dict[str, Any]) -> str:
+        """注入当期镇长选举身份，让 NPC 知道自己/对手是否在参选。
+
+        context["election"] 由 main.py 在 chat/greet 路径塞入：
+          { role: 'candidate'|'voter', opponent_name, day_index, term_days,
+            phase_label, is_incumbent }
+        """
+        el = context.get("election")
+        if not isinstance(el, dict) or not el:
+            return ""
+        role = el.get("role", "voter")
+        opp = el.get("opponent_name", "")
+        di = el.get("day_index", 0)
+        td = el.get("term_days", 7)
+        phase = el.get("phase_label", "")
+        lines = [f"【镇长竞选】当前正在进行第 {el.get('term_no', 1)} 届镇长竞选"
+                 f"（第 {di}/{td} 天，{phase}）。"]
+        if role == "candidate":
+            lines.append(
+                f"你正是这届竞选的候选人之一，对手是「{opp or '玩家'}」。"
+                "你清楚自己在参选，被问到时要承认并表达你的竞选态度（可以是认真、敷衍、或不情愿，按你的性格来），"
+                "绝不能否认自己在参选。"
+            )
+            if el.get("is_incumbent"):
+                lines.append("你是现任镇长，正在争取连任。")
+        else:
+            lines.append(
+                f"你不是候选人，但你是有投票权的居民。这届由玩家和「{opp}」竞争，"
+                "你会根据他们对你的好感、承诺兑现、辩论表现等来决定投票给谁。被问到时可以聊聊你的倾向。"
+            )
+        return "\n" + "\n".join(lines)
+
     def _build_affection_block(self) -> str:
         v = self.affection.get(self.animal_id)
         lvl = level_of(v)
@@ -360,6 +410,7 @@ class Agent:
             reflections_block=self._build_reflections_block(game_day),
             world_events_block=self._build_world_events_block(),
             location_block=self._build_location_block(context),
+            election_block=self._build_election_block(context),
         )
 
     def _build_recent_history(self) -> List[Dict[str, str]]:
@@ -513,7 +564,7 @@ class Agent:
         messages.extend(history)
         messages.append({"role": "user", "content": formatted_user})
 
-        raw = await self.llm.chat(messages, max_tokens=300, temperature=0.95)
+        raw = await self.llm.chat(messages, max_tokens=160, temperature=0.95)
         reply_text, intent_data = _parse_reply_json(raw)
 
         # 后处理：如果 text 里含送礼词汇但没有 intent → 自动重生成
@@ -530,7 +581,7 @@ class Agent:
                     ),
                 },
             ]
-            raw2 = await self.llm.chat(retry_messages, max_tokens=200, temperature=0.7)
+            raw2 = await self.llm.chat(retry_messages, max_tokens=140, temperature=0.7)
             reply_text2, intent_data2 = _parse_reply_json(raw2)
             # 只接受干净的版本
             if not _contains_gift_words(reply_text2):
@@ -539,6 +590,31 @@ class Agent:
                 log.info("[gift_guard] %s 重生成成功: %s", self.animal_id, reply_text[:40])
             else:
                 log.warning("[gift_guard] %s 重生成仍包含送礼词，保留但标记", self.animal_id)
+
+        # 后处理：如果 text 里含口头派活词（凭空给玩家派差事/跑腿/送信）→ 重生成
+        # 真实任务由 quest_offer 卡片下发，台词里绝不能自编差事
+        if _contains_quest_words(reply_text):
+            log.warning("[quest_guard] %s 口头派活，重生成: %s", self.animal_id, reply_text[:40])
+            retry_q = list(messages) + [
+                {"role": "assistant", "content": raw},
+                {
+                    "role": "user",
+                    "content": (
+                        "你刚才的回复里要求玩家替你跑腿/送东西/传话/取物，"
+                        "但游戏里你不能凭空派任务（任务由系统统一下发）。"
+                        "请重新回复，完全不要让玩家帮你做任何事，"
+                        "也不要提'信在门口/东西放在某处'这类编造的差事，只闲聊。"
+                        "用 JSON 格式：{\"text\": \"你说的话\"}"
+                    ),
+                },
+            ]
+            raw_q = await self.llm.chat(retry_q, max_tokens=140, temperature=0.7)
+            reply_text_q, _ = _parse_reply_json(raw_q)
+            if reply_text_q and not _contains_quest_words(reply_text_q):
+                reply_text = reply_text_q
+                log.info("[quest_guard] %s 重生成成功: %s", self.animal_id, reply_text[:40])
+            else:
+                log.warning("[quest_guard] %s 重生成仍含派活词，保留但标记", self.animal_id)
 
         # 2. 落库：玩家发言 + 自己回复
         importance = estimate_importance(user_text)
@@ -642,13 +718,18 @@ class Agent:
             q = defs[giver_qid]
             if q.get("kind") == "collect":
                 done, consume = self.quest_engine.try_complete_as_giver(giver_qid, inv)
+                req = q.get("requires", {})
+                progress = self.quest_engine.store.get_progress(giver_qid)
+                in_bag = int(inv.get(req.get("item_id", ""), 0))
+                log.info(
+                    "[quest] chat 检查 giver=%s qid=%s 要 %s×%d 背包=%d progress=%d done=%s",
+                    self.animal_id, giver_qid, req.get("item_id"),
+                    int(req.get("count", 1)), in_bag, progress, done,
+                )
                 if done:
                     self._finalize_quest(giver_qid, consume, result)
                     return
                 # 未完成 → 进度提示
-                req = q.get("requires", {})
-                progress = self.quest_engine.store.get_progress(giver_qid)
-                in_bag = int(inv.get(req.get("item_id", ""), 0))
                 result["quest_progress"] = {
                     "quest_id": giver_qid,
                     "title": q.get("title", ""),
@@ -975,15 +1056,24 @@ class Agent:
         defs = self.quest_engine.defs
         qid = self.quest_engine.store.get_active_for_giver(self.animal_id, defs)
         if not qid:
+            log.info("[quest] gift 检查 %s: 该 NPC 无 active 任务，物品=%s 不计 progress",
+                     self.animal_id, item_id)
             return
         q = defs[qid]
         if q.get("kind") != "collect":
+            log.info("[quest] gift 检查 %s qid=%s 类型=%s（非 collect）跳过",
+                     self.animal_id, qid, q.get("kind"))
             return
         req = q.get("requires", {})
-        if req.get("item_id") != item_id:
+        need_id = req.get("item_id")
+        if need_id != item_id:
+            log.info("[quest] gift 检查 %s qid=%s 送=%s 要=%s 不匹配 → progress 不变",
+                     self.animal_id, qid, item_id, need_id)
             return
         new_progress = self.quest_engine.store.add_progress(qid, 1)
         needed = int(req.get("count", 1))
+        log.info("[quest] gift 推进 %s qid=%s progress=%d/%d",
+                 self.animal_id, qid, new_progress, needed)
         if new_progress >= needed:
             # gift 路径：客户端已扣物品，consume=None
             self._finalize_quest(qid, None, result)
@@ -1066,7 +1156,7 @@ class AgentManager:
         milestone_store: Optional["MilestoneStore"] = None,
         quest_engine: Optional["QuestEngine"] = None,
     ) -> None:
-        max_turns = int(os.getenv("MAX_HISTORY_TURNS", "12"))
+        max_turns = int(os.getenv("MAX_HISTORY_TURNS", "6"))
         self._agents: Dict[str, Agent] = {
             aid: Agent(
                 p, llm, memory, profile, world, affection, gifts,

@@ -1,0 +1,287 @@
+[gd_scene load_steps=10 format=3 uid="uid://belection01"]
+
+[ext_resource type="Script" path="res://scripts/election_hud.gd" id="1_ehud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ehud"]
+bg_color = Color(0.1, 0.12, 0.2, 0.86)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.55, 0.7, 0.6)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
+bg_color = Color(0.06, 0.07, 0.11, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.34, 0.42, 0.7)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_player"]
+bg_color = Color(0.35, 0.78, 0.45, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_opponent"]
+bg_color = Color(0.86, 0.55, 0.3, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_vote_bg"]
+bg_color = Color(0.06, 0.07, 0.11, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="SB_vote_player"]
+bg_color = Color(0.35, 0.78, 0.45, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="SB_vote_opponent"]
+bg_color = Color(0.86, 0.55, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_result"]
+bg_color = Color(0.08, 0.10, 0.18, 0.95)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.55, 0.65, 0.85, 0.7)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[node name="ElectionHUD" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1_ehud")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 16.0
+offset_right = 260.0
+offset_bottom = 156.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ehud")
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = -14.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="RichTextLabel" parent="Panel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 24)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="PlayerRow" type="HBoxContainer" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+theme_override_constants/separation = 8
+
+[node name="Name" type="Label" parent="Panel/VBox/PlayerRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(86, 0)
+text = "👤 你"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="Bar" type="ProgressBar" parent="Panel/VBox/PlayerRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 18)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("SB_bar_bg")
+theme_override_styles/fill = SubResource("SB_bar_player")
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="Score" type="Label" parent="Panel/VBox/PlayerRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 0)
+text = "0"
+horizontal_alignment = 2
+theme_override_colors/font_color = Color(0.6, 0.95, 0.7, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="OpponentRow" type="HBoxContainer" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+theme_override_constants/separation = 8
+
+[node name="Name" type="Label" parent="Panel/VBox/OpponentRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(86, 0)
+text = "🐾 对手"
+theme_override_colors/font_color = Color(1, 0.85, 0.7, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="Bar" type="ProgressBar" parent="Panel/VBox/OpponentRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 18)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("SB_bar_bg")
+theme_override_styles/fill = SubResource("SB_bar_opponent")
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="Score" type="Label" parent="Panel/VBox/OpponentRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 0)
+text = "0"
+horizontal_alignment = 2
+theme_override_colors/font_color = Color(1, 0.78, 0.5, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="Hint" type="RichTextLabel" parent="Panel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+; ========== 投票日全屏结算演出（默认隐藏）==========
+[node name="ResultOverlay" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+color = Color(0, 0, 0, 0.65)
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="ResultOverlay"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ResultPanel" type="PanelContainer" parent="ResultOverlay/Center"]
+custom_minimum_size = Vector2(560, 380)
+theme_override_styles/panel = SubResource("StyleBoxFlat_result")
+
+[node name="Margin" type="MarginContainer" parent="ResultOverlay/Center/ResultPanel"]
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="ResultOverlay/Center/ResultPanel/Margin"]
+theme_override_constants/separation = 14
+
+[node name="Title" type="RichTextLabel" parent="ResultOverlay/Center/ResultPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 36)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][b]🗳 投票日[/b][/center]"
+
+[node name="Status" type="RichTextLabel" parent="ResultOverlay/Center/ResultPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 24)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][color=#888]NPC 正在投票…[/color][/center]"
+
+[node name="VotesBox" type="VBoxContainer" parent="ResultOverlay/Center/ResultPanel/Margin/VBox"]
+unique_name_in_owner = true
+theme_override_constants/separation = 6
+
+[node name="PlayerVote" type="HBoxContainer" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox"]
+custom_minimum_size = Vector2(500, 28)
+
+[node name="Name" type="Label" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+text = "👤 你"
+theme_override_font_sizes/font_size = 16
+
+[node name="Bar" type="ProgressBar" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 22)
+theme_override_styles/background = SubResource("SB_vote_bg")
+theme_override_styles/fill = SubResource("SB_vote_player")
+max_value = 6.0
+value = 0.0
+show_percentage = false
+
+[node name="Num" type="Label" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+text = "0"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="OpVote" type="HBoxContainer" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox"]
+custom_minimum_size = Vector2(500, 28)
+
+[node name="Name" type="Label" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+text = "🐾 对手"
+theme_override_font_sizes/font_size = 16
+
+[node name="Bar" type="ProgressBar" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 22)
+theme_override_styles/background = SubResource("SB_vote_bg")
+theme_override_styles/fill = SubResource("SB_vote_opponent")
+max_value = 6.0
+value = 0.0
+show_percentage = false
+
+[node name="Num" type="Label" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+text = "0"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="Banner" type="RichTextLabel" parent="ResultOverlay/Center/ResultPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 70)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="BtnCenter" type="CenterContainer" parent="ResultOverlay/Center/ResultPanel/Margin/VBox"]
+
+[node name="CloseBtn" type="Button" parent="ResultOverlay/Center/ResultPanel/Margin/VBox/BtnCenter"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+text = "继续"
