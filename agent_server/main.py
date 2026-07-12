@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -52,6 +53,8 @@ profile_store = PlayerProfile()
 world_store = WorldEventStore()
 affection_store = AffectionStore()
 gift_store = GiftStore()
+from mood import MoodStore
+mood_store = MoodStore()
 reflection_store = ReflectionStore()
 intent_store = IntentStore()
 from milestones import MilestoneStore
@@ -65,8 +68,21 @@ manager = AgentManager(
     affection_store, gift_store, reflection_store,
     milestone_store=milestone_store,
     quest_engine=quest_engine,
+    mood_store=mood_store,
 )
 log.info("加载 personas: %s", manager.all_ids())
+
+# 八卦系统（活社会核心）
+from rumor import RumorStore, RumorManager, sentiment_label
+rumor_store = RumorStore()
+rumor_manager = RumorManager(
+    rumor_store, llm, world_store,
+    name_of=lambda aid: (manager.get(aid).name if manager.get(aid) else aid),
+    persona_of=lambda aid: (manager.get(aid).persona if manager.get(aid) else {}),
+    mood_store=mood_store,
+)
+log.info("[rumor] RumorManager 就绪")
+
 
 # 镇长选举系统（D1 骨架）
 promise_store = PromiseStore()
@@ -161,10 +177,25 @@ power_manager = PowerManager(
 )
 log.info("[power] PowerManager 就绪")
 
+# 危机调解系统（镇长政务玩法）
+from crisis import CrisisManager
+crisis_manager = CrisisManager(
+    election_store=election_store,
+    affection_store=affection_store,
+    world_store=world_store,
+    personas=personas,
+    memory_store=memory_store,
+    llm=llm,
+)
+log.info("[crisis] CrisisManager 就绪 危机数=%d", len(crisis_manager.defs))
+
+# 记录上次危机抽取的游戏日，避免同日重复抽
+_last_crisis_spawn_day: int = -1
+
 # 记录上次触发反思的游戏日，避免同日重复触发
 _last_reflect_day: int = -1
 _last_election_recompute_day: int = -1
-_last_opponent_action_day: int = -1
+_last_opponent_action_slot: int = -1   # game_day*100 + game_hour//3，每 3 游戏小时一批
 _last_known_game_day: int = -1   # 任意 time_tick 后更新，供 promise 等模块取当前 day
 
 
@@ -213,6 +244,17 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         await _handle_eavesdrop(ws, msg)
         return
 
+    # 八卦：打听 / 放话 / 辟谣
+    if msg_type == "rumor_inquire":
+        await _handle_rumor_inquire(ws, msg)
+        return
+    if msg_type == "rumor_spread":
+        await _handle_rumor_spread(ws, msg)
+        return
+    if msg_type == "rumor_debunk":
+        await _handle_rumor_debunk(ws, msg)
+        return
+
     # 选举状态查询（C→S 拉取，回 election_state）
     if msg_type == "election_query":
         await _handle_election_query(ws, msg)
@@ -248,6 +290,20 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         return
     if msg_type == "debug_grant_power":
         await _handle_debug_grant_power(ws, msg)
+        return
+    if msg_type == "debug_opponent_action":
+        await _handle_debug_opponent_action(ws, msg)
+        return
+
+    # 危机调解：查询当前危机 / 提交调解方案 / 调试触发
+    if msg_type == "crisis_query":
+        await _handle_crisis_query(ws, msg)
+        return
+    if msg_type == "crisis_resolve":
+        await _handle_crisis_resolve(ws, msg)
+        return
+    if msg_type == "debug_spawn_crisis":
+        await _handle_debug_spawn_crisis(ws, msg)
         return
 
     animal_id = msg.get("animal_id", "")
@@ -309,6 +365,43 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         "affection": result.get("affection", {}),
         "ok": True,
     }
+
+    # 心情推动：由好感 delta + 互动类型折算，回包带当前心情供前端头顶显示
+    try:
+        _gd = int(context.get("game_day", -1))
+        _aff_d = int(result.get("affection", {}).get("delta", 0) or 0)
+        if msg_type == "greet":
+            _md = _aff_d + 1
+        elif msg_type == "chat":
+            _md = _aff_d * 2 if _aff_d != 0 else 1
+        elif msg_type == "gift":
+            _md = _aff_d * 2
+        else:
+            _md = 0
+        payload["mood"] = mood_store.adjust(animal_id, _md, _gd)
+    except Exception as e:
+        log.debug("[mood] 推动失败: %s", e)
+
+    # 八卦生成：玩家显著言行 → 以玩家为主角的话题，见证的 NPC 成为初始知情者
+    try:
+        _npc_name = agent.name
+        _gd2 = int(context.get("game_day", -1))
+        _gift_d = int(result.get("gift", {}).get("delta", 0) or 0) if "gift" in result else 0
+        if msg_type == "gift" and _gift_d >= 4:
+            rumor_manager.generate(
+                "player", f"那位旅人给{_npc_name}送了挺贵重的东西，出手真大方",
+                sentiment="praise", origin="auto", game_day=_gd2, initial_knowers=[animal_id])
+        elif msg_type == "gift" and _gift_d <= -2:
+            rumor_manager.generate(
+                "player", f"那位旅人送{_npc_name}的东西，人家压根不待见",
+                sentiment="smear", origin="auto", game_day=_gd2, initial_knowers=[animal_id])
+        elif msg_type == "chat" and _aff_d <= -3:
+            rumor_manager.generate(
+                "player", f"那位旅人跟{_npc_name}说话冲得很，把人惹毛了",
+                sentiment="smear", origin="auto", game_day=_gd2, initial_knowers=[animal_id])
+    except Exception as e:
+        log.debug("[rumor] 生成失败: %s", e)
+
     if "gift" in result:
         payload["gift"] = result["gift"]
     if "npc_gift" in result:
@@ -376,6 +469,19 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
     turns = int(os.getenv("NPC_CHAT_TURNS", "3"))
     bubble_gap = float(os.getenv("NPC_CHAT_GAP_SEC", "2.5"))
 
+    # 八卦：speaker 手里若有热门话题，注入让 ta 闲聊时带出来（会变味）
+    gossip_item = None
+    try:
+        gossip_item = rumor_manager.pick_gossip_for(speaker_id)
+        if gossip_item:
+            context = dict(context)
+            context["gossip"] = {
+                "subject": rumor_manager.subject_label(gossip_item["rumor"].subject_id),
+                "version": gossip_item["version"],
+            }
+    except Exception as e:
+        log.debug("[rumor] pick_gossip 失败: %s", e)
+
     try:
         first_packet = True
         async for line_pkt in manager.trigger_npc_chat_session(
@@ -392,6 +498,141 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
         log.exception("npc_chat session 失败")
         await _send_error(ws, f"LLM 错误: {e}")
         return
+
+    # 八卦传播：listener 学到 speaker 带出来的话题（变味），并处理"传到当事人"后果
+    if gossip_item:
+        try:
+            game_day = int(context.get("game_day", _last_known_game_day))
+            spread = await rumor_manager.propagate(
+                gossip_item["rumor"].id, speaker_id, listener_id, game_day)
+            if spread and spread.get("reached_subject"):
+                await _apply_rumor_consequence(ws, spread, listener_id, game_day)
+        except Exception as e:
+            log.debug("[rumor] 传播失败: %s", e)
+
+
+async def _apply_rumor_consequence(ws: WebSocket, spread: dict, subject_id: str, game_day: int) -> None:
+    """话题传到当事人耳朵：影响其心情，并（若源自玩家）牵动对玩家的好感。"""
+    sentiment = spread.get("sentiment", "neutral")
+    r = rumor_store.get(spread.get("rumor_id", 0))
+    origin = r.origin if r else ""
+    mood_delta = 0
+    aff_delta = 0
+    if sentiment == "praise":
+        mood_delta = 10
+        if origin == "player":
+            aff_delta = 2
+    elif sentiment == "smear":
+        mood_delta = -15
+        if origin == "player":
+            aff_delta = -4   # 发现是玩家散布的坏话 → 记恨
+    if mood_delta == 0 and aff_delta == 0:
+        return
+    mood_snap = mood_store.adjust(subject_id, mood_delta, game_day)
+    aff = affection_store.adjust(subject_id, aff_delta) if aff_delta else affection_store.snapshot(subject_id)
+    await ws.send_text(json.dumps({
+        "type": "reply",
+        "animal_id": subject_id,
+        "text": "",
+        "affection": {"value": aff.get("value", 0), "level": aff.get("level", "neutral"),
+                      "delta": aff.get("delta", 0)},
+        "mood": mood_snap,
+        "silent": True,
+        "ok": True,
+    }, ensure_ascii=False))
+    log.info("[rumor] consequence subject=%s sent=%s mood%+d aff%+d", subject_id, sentiment, mood_delta, aff_delta)
+
+
+async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
+    """玩家向 NPC 打听：ta 把知道的最热话题用自己的口吻讲给玩家。"""
+    animal_id = msg.get("animal_id", "")
+    agent = manager.get(animal_id)
+    if agent is None:
+        await _send_error(ws, "未知 animal_id")
+        return
+    known = rumor_store.known_by(animal_id, min_heat=1)
+    if not known:
+        await ws.send_text(json.dumps({
+            "type": "rumor_reply", "animal_id": animal_id,
+            "text": "最近？没听说啥新鲜事儿。", "has_rumor": False, "ok": True,
+        }, ensure_ascii=False))
+        return
+    top = known[0]
+    subject = rumor_manager.subject_label(top["rumor"].subject_id)
+    prompt = (
+        f"你是{agent.name}。有人凑过来问你「最近镇上有什么新鲜事」。\n"
+        f"你正好听说了关于{subject}的一件事：「{top['version']}」\n"
+        "请用你自己的口吻，压低声音八卦一句（20 字内），把这事透露给对方。只输出这句话。"
+    )
+    try:
+        line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=60, temperature=0.9)
+        line = line.strip().strip("「」\"'").splitlines()[0][:50]
+    except Exception:
+        line = top["version"]
+    await ws.send_text(json.dumps({
+        "type": "rumor_reply", "animal_id": animal_id, "text": line,
+        "has_rumor": True, "rumor_id": top["rumor"].id,
+        "subject_id": top["rumor"].subject_id, "sentiment": top["rumor"].sentiment,
+        "ok": True,
+    }, ensure_ascii=False))
+
+
+async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
+    """玩家放话：把一句话灌给某 NPC，成为新话题的初始知情者（可真可假）。"""
+    animal_id = msg.get("animal_id", "")
+    subject_id = str(msg.get("subject_id", "")) or "player"
+    content = str(msg.get("content", "")).strip()
+    sentiment = str(msg.get("sentiment", "neutral"))
+    truth = int(msg.get("truth", 0))
+    game_day = int(msg.get("game_day", _last_known_game_day))
+    agent = manager.get(animal_id)
+    if agent is None or not content:
+        await _send_error(ws, "rumor_spread 缺少 animal_id 或 content")
+        return
+    rid = rumor_manager.generate(
+        subject_id, content, sentiment=sentiment, truth=truth,
+        origin="player", game_day=game_day, initial_knowers=[animal_id], heat=50)
+    # NPC 当面反应
+    prompt = (
+        f"你是{agent.name}。有人悄悄跟你说了个小道消息：「{content}」\n"
+        "请用你自己的口吻回一句（15 字内），表现出你的态度（好奇/怀疑/吃惊/不屑都行）。只输出这句话。"
+    )
+    try:
+        line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=50, temperature=0.9)
+        line = line.strip().strip("「」\"'").splitlines()[0][:40]
+    except Exception:
+        line = "哦？还有这事？"
+    await ws.send_text(json.dumps({
+        "type": "rumor_reply", "animal_id": animal_id, "text": line,
+        "spread_ok": True, "rumor_id": rid, "ok": True,
+    }, ensure_ascii=False))
+
+
+async def _handle_rumor_debunk(ws: WebSocket, msg: dict) -> None:
+    """玩家辟谣：给某 NPC 澄清 → 大幅降热度，冷透则标 debunked。"""
+    animal_id = msg.get("animal_id", "")
+    rumor_id = int(msg.get("rumor_id", 0))
+    agent = manager.get(animal_id)
+    r = rumor_store.get(rumor_id)
+    if agent is None or r is None:
+        await _send_error(ws, "rumor_debunk 缺少有效 animal_id / rumor_id")
+        return
+    new_heat = rumor_store.adjust_heat(rumor_id, -35)
+    if new_heat <= 0:
+        rumor_store.set_status(rumor_id, "debunked")
+    prompt = (
+        f"你是{agent.name}。之前你听说过「{r.content}」，现在有人郑重跟你澄清这是谣传。\n"
+        "请用你自己的口吻回一句（15 字内），表现被澄清后的反应。只输出这句话。"
+    )
+    try:
+        line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=50, temperature=0.85)
+        line = line.strip().strip("「」\"'").splitlines()[0][:40]
+    except Exception:
+        line = "原来是误会啊……"
+    await ws.send_text(json.dumps({
+        "type": "rumor_reply", "animal_id": animal_id, "text": line,
+        "debunk_ok": True, "rumor_id": rumor_id, "heat": new_heat, "ok": True,
+    }, ensure_ascii=False))
 
 
 async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
@@ -770,10 +1011,124 @@ async def _handle_debug_grant_power(ws: WebSocket, msg: dict) -> None:
     await _broadcast_election_state(ws, game_day)
 
 
-async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket) -> None:
-    """对手 NPC 当日动作（异步）：纲领懒生 + 多个动作（visit/promise/smear）。
+async def _handle_debug_opponent_action(ws: WebSocket, msg: dict) -> None:
+    """调试：立即触发一批对手行动（绕过每日一批守卫），用于肉眼验证追赶。
+
+    入参：{"type": "debug_opponent_action", "game_day": N}
+    """
+    game_day = int(msg.get("game_day", 0))
+    term = election_store.ensure_term_active(game_day)
+    await _run_opponent_daily(term, game_day, ws, force=True)
+    await _broadcast_election_state(ws, game_day)
+
+
+# ---------- 危机调解 ----------
+
+async def _push_crisis_state(ws: WebSocket, view: Optional[dict]) -> None:
+    """推送当前危机视图（view=None → 无危机）。"""
+    payload = {"type": "crisis_state", "ok": True, "active": view is not None}
+    if view is not None:
+        payload["crisis"] = view
+    await ws.send_text(json.dumps(payload, ensure_ascii=False))
+
+
+async def _handle_crisis_query(ws: WebSocket, msg: dict) -> None:
+    """查询当前危机；若有则确保双方说法已生成再推送。"""
+    active = crisis_manager.get_active()
+    if active is None:
+        await _push_crisis_state(ws, None)
+        return
+    try:
+        view = await crisis_manager.open_view(active["crisis_id"])
+    except Exception as e:
+        log.warning("[crisis] open_view 失败: %s", e)
+        view = active
+    await _push_crisis_state(ws, view)
+
+
+async def _handle_debug_spawn_crisis(ws: WebSocket, msg: dict) -> None:
+    """调试：立即触发一个危机（忽略 min_day/cooldown）。"""
+    game_day = int(msg.get("game_day", 0))
+    template_id = str(msg.get("template_id", ""))
+    view = crisis_manager.force_spawn(game_day, template_id, int(msg.get("game_hour", 8)))
+    if view is None:
+        await _send_error(ws, "危机池为空，无法触发")
+        return
+    try:
+        view = await crisis_manager.open_view(view["crisis_id"])
+    except Exception as e:
+        log.warning("[crisis] open_view 失败: %s", e)
+    await _push_crisis_state(ws, view)
+
+
+async def _handle_crisis_resolve(ws: WebSocket, msg: dict) -> None:
+    """提交调解方案：结算 + 推反应 + 刷新好感/选情。"""
+    game_day = int(msg.get("game_day", 0))
+    crisis_id = int(msg.get("crisis_id", 0))
+    option_id = str(msg.get("option_id", ""))
+    inventory = msg.get("inventory", {}) or {}
+    try:
+        result = await crisis_manager.resolve(crisis_id, option_id, inventory)
+    except Exception as e:
+        log.warning("[crisis] resolve 失败: %s", e)
+        await _send_error(ws, f"调解失败: {e}")
+        return
+
+    await ws.send_text(json.dumps({"type": "crisis_result", **result}, ensure_ascii=False))
+
+    if result.get("ok"):
+        # 把受影响 NPC 的好感变化推给客户端（头顶飘字）
+        for a in result.get("affected", []):
+            _npc = a.get("npc_id", "")
+            _mood = None
+            try:
+                _mood = mood_store.adjust(_npc, int(a.get("delta", 0) or 0) * 2, game_day)
+            except Exception:
+                pass
+            await ws.send_text(json.dumps({
+                "type": "reply",
+                "animal_id": _npc,
+                "text": "",
+                "affection": {
+                    "value": a.get("affection", 0),
+                    "level": a.get("level", "neutral"),
+                    "delta": a.get("delta", 0),
+                },
+                "mood": _mood,
+                "silent": True,
+                "ok": True,
+            }, ensure_ascii=False))
+        # 危机已解决 → 推空状态关闭面板 + 刷新选举（好感/事件已变）
+        await _push_crisis_state(ws, None)
+        # 八卦：调解结果 → 以玩家为主角的话题，受影响 NPC 为初始知情者
+        try:
+            _affected = result.get("affected", [])
+            _knowers = [a.get("npc_id", "") for a in _affected if a.get("npc_id")]
+            _sum = sum(int(a.get("delta", 0) or 0) for a in _affected)
+            _title = str(result.get("title", "镇上的事"))
+            if _knowers and _sum > 0:
+                rumor_manager.generate(
+                    "player", f"那位旅人把「{_title}」处理得挺漂亮，大家都念他的好",
+                    sentiment="praise", origin="auto", game_day=game_day,
+                    initial_knowers=_knowers, heat=55)
+            elif _knowers and _sum < 0:
+                rumor_manager.generate(
+                    "player", f"那位旅人处理「{_title}」不太地道，有人有意见",
+                    sentiment="smear", origin="auto", game_day=game_day,
+                    initial_knowers=_knowers, heat=55)
+        except Exception as e:
+            log.debug("[rumor] 危机生成失败: %s", e)
+        try:
+            await _broadcast_election_state(ws, game_day)
+        except Exception as e:
+            log.debug("[crisis] 刷新选举失败: %s", e)
+
+
+async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket, force: bool = False) -> None:
+    """对手 NPC 一批动作（异步）：纲领懒生 + 多个动作（visit/promise/smear）。
 
     动作数随任期推进 + 落后幅度增加；每个动作推送 opponent_action 消息给客户端。
+    force=True 跳过"每日一批"守卫（用于定时多批 / 调试键即时触发）。
     """
     try:
         await opponent_ai.ensure_platform(term)
@@ -783,7 +1138,8 @@ async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket) -> None:
         player_score = float(scores.get("player", 0.0))
         opponent_score = float(scores.get(term["opponent_id"], 0.0))
         actions = await opponent_ai.run_daily_actions(
-            term, game_day, player_score=player_score, opponent_score=opponent_score
+            term, game_day, player_score=player_score, opponent_score=opponent_score,
+            force=force,
         )
         for action in actions:
             await ws.send_text(json.dumps({
@@ -808,7 +1164,7 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
 
     消息格式：{"type": "time_tick", "game_day": N, "game_hour": H}
     """
-    global _last_reflect_day, _last_election_recompute_day, _last_opponent_action_day, _last_known_game_day
+    global _last_reflect_day, _last_election_recompute_day, _last_opponent_action_slot, _last_known_game_day, _last_crisis_spawn_day
     game_day = int(msg.get("game_day", -1))
     game_hour = int(msg.get("game_hour", 0))
 
@@ -824,18 +1180,71 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
     if game_hour >= 22 and game_day > _last_reflect_day:
         _last_reflect_day = game_day
         asyncio.create_task(manager.run_all_daily_reflections(game_day, intent_store))
-
-    # 07:00+ → 对手 NPC 当日动作（仅 campaign 阶段，D6/D7 不动）
-    if game_hour >= 7 and game_day > _last_opponent_action_day:
+        # 八卦每日降温：冷透的话题自动淡出
         try:
-            term = election_store.ensure_term_active(game_day)
-            day_idx = election_store.day_index_in_term(term, game_day)
-            phase = election_store.phase_of(day_idx)
-            if phase == "campaign":
-                _last_opponent_action_day = game_day
-                asyncio.create_task(_run_opponent_daily(term, game_day, ws))
+            faded = rumor_store.decay_daily()
+            if faded:
+                log.info("[rumor] 每日降温：%d 条话题淡出", faded)
         except Exception as e:
-            log.warning("[opponent_ai] 触发失败: %s", e)
+            log.debug("[rumor] decay 失败: %s", e)
+
+    # 对手 NPC 动作：每 3 游戏小时一批（醒着时段 7-21、仅 campaign 阶段）
+    if 7 <= game_hour <= 21:
+        slot = game_day * 100 + (game_hour // 3)
+        if slot > _last_opponent_action_slot:
+            try:
+                term = election_store.ensure_term_active(game_day)
+                day_idx = election_store.day_index_in_term(term, game_day)
+                phase = election_store.phase_of(day_idx)
+                if phase == "campaign":
+                    _last_opponent_action_slot = slot
+                    asyncio.create_task(_run_opponent_daily(term, game_day, ws, force=True))
+            except Exception as e:
+                log.warning("[opponent_ai] 触发失败: %s", e)
+
+    # 危机调解：每游戏日尝试抽一次（醒着时段，避免同日重复），概率触发
+    # 避让选举关键日（辩论日/投票日），不打断选举演出
+    if 8 <= game_hour <= 20 and game_day > _last_crisis_spawn_day:
+        _last_crisis_spawn_day = game_day
+        try:
+            import random as _rnd
+            skip_phase = False
+            try:
+                term = election_store.ensure_term_active(game_day)
+                di = election_store.day_index_in_term(term, game_day)
+                skip_phase = election_store.phase_of(di) in ("debate", "vote")
+            except Exception:
+                pass
+            if not skip_phase and _rnd.random() < 0.75:
+                view = crisis_manager.maybe_spawn(game_day, game_hour)
+                if view is not None:
+                    await _push_crisis_state(ws, view)
+                    log.info("[crisis] day=%d h=%d 触发危机 %s", game_day, game_hour, view.get("template_id"))
+        except Exception as e:
+            log.warning("[crisis] 抽取失败: %s", e)
+
+    # 危机软性截止：超时未处理 → 自动按「不管」结算 + 广播
+    try:
+        expired = await crisis_manager.check_expired(game_day, game_hour)
+        if expired and expired.get("ok"):
+            await ws.send_text(json.dumps({"type": "crisis_result", **expired}, ensure_ascii=False))
+            for a in expired.get("affected", []):
+                await ws.send_text(json.dumps({
+                    "type": "reply",
+                    "animal_id": a.get("npc_id", ""),
+                    "text": "",
+                    "affection": {
+                        "value": a.get("affection", 0),
+                        "level": a.get("level", "neutral"),
+                        "delta": a.get("delta", 0),
+                    },
+                    "silent": True,
+                    "ok": True,
+                }, ensure_ascii=False))
+            await _push_crisis_state(ws, None)
+            await _broadcast_election_state(ws, game_day)
+    except Exception as e:
+        log.warning("[crisis] 截止检查失败: %s", e)
 
     # 选举权重重算：每日 22:00+ 重算一次（与反思同时机），并推送状态
     if game_hour >= 22 and game_day > _last_election_recompute_day:

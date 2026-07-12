@@ -1,0 +1,131 @@
+[gd_scene format=3 uid="uid://bcrisis01"]
+
+[ext_resource type="Script" path="res://scripts/crisis_panel.gd" id="1_cr"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cr"]
+bg_color = Color(0.14, 0.11, 0.08, 0.98)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.6, 0.3, 0.85)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_banner"]
+bg_color = Color(0.2, 0.12, 0.06, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9, 0.6, 0.25, 0.8)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+
+[node name="CrisisPanel" type="CanvasLayer"]
+layer = 6
+script = ExtResource("1_cr")
+
+[node name="Banner" type="PanelContainer" parent="."]
+visible = false
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 200.0
+offset_right = 260.0
+offset_bottom = 236.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_banner")
+
+[node name="BannerLabel" type="RichTextLabel" parent="Banner"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 24)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[color=#ffd28a]⚠ 镇务待办[/color]"
+
+[node name="Backdrop" type="ColorRect" parent="."]
+visible = false
+color = Color(0, 0, 0, 0.55)
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="Backdrop"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Box" type="PanelContainer" parent="Backdrop/Center"]
+custom_minimum_size = Vector2(640, 520)
+theme_override_styles/panel = SubResource("StyleBoxFlat_cr")
+
+[node name="Margin" type="MarginContainer" parent="Backdrop/Center/Box"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 32)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[center][b]⚖ 危机调解[/b][/center]"
+
+[node name="Summary" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 60)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="SepA" type="HSeparator" parent="Backdrop/Center/Box/Margin/VBox"]
+
+[node name="StatementsVBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+theme_override_constants/separation = 6
+
+[node name="SepB" type="HSeparator" parent="Backdrop/Center/Box/Margin/VBox"]
+
+[node name="OptionsHint" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+custom_minimum_size = Vector2(580, 22)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[color=#ffd28a]你打算怎么裁决？[/color]"
+
+[node name="Scroll" type="ScrollContainer" parent="Backdrop/Center/Box/Margin/VBox"]
+custom_minimum_size = Vector2(580, 210)
+size_flags_vertical = 3
+
+[node name="OptionsVBox" type="VBoxContainer" parent="Backdrop/Center/Box/Margin/VBox/Scroll"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ResultLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 60)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="HelpLabel" type="RichTextLabel" parent="Backdrop/Center/Box/Margin/VBox"]
+custom_minimum_size = Vector2(580, 24)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[color=#aaa]走到当事人身边按 [b]E[/b] 调解 · [b]Ctrl+J[/b] 调试触发 · [b]Esc[/b] 关闭[/color]"

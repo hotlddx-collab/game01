@@ -166,6 +166,59 @@ CREATE TABLE IF NOT EXISTS debate_scores (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (term_id, voter_id, candidate_id)
 );
+
+-- 危机调解：镇上 NPC 间纠纷事件，玩家介入断案
+CREATE TABLE IF NOT EXISTS crisis_state (
+  crisis_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_id     TEXT NOT NULL,       -- data/world/crises.json 条目
+  game_day        INTEGER NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'active',  -- active|resolved
+  chosen_option   TEXT,
+  statements_json TEXT,                -- 缓存双方 LLM 说法
+  deadline_hour   INTEGER,             -- 软性截止：绝对游戏小时(day*24+hour)，超时自动按「不管」结算
+  created_at      INTEGER NOT NULL,
+  resolved_at     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_crisis_status ON crisis_state(status);
+CREATE INDEX IF NOT EXISTS idx_crisis_template ON crisis_state(template_id, status);
+
+-- 心情系统：每只 NPC 的动态情绪（单标量 valence，随时间向 0 衰减）
+CREATE TABLE IF NOT EXISTS mood (
+  animal_id     TEXT PRIMARY KEY,
+  value         INTEGER NOT NULL DEFAULT 0,   -- [-100,100]，正=愉悦 负=低落/烦躁
+  updated_at    INTEGER NOT NULL,
+  last_day      INTEGER NOT NULL DEFAULT -1   -- 上次结算所在游戏日（惰性衰减用）
+);
+
+-- 八卦话题：小镇流传的话题（可真可假，有情感倾向与热度）
+CREATE TABLE IF NOT EXISTS rumor (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id  TEXT NOT NULL,                   -- 话题主角：animal_id 或 'player'
+  sentiment   TEXT NOT NULL DEFAULT 'neutral', -- praise 褒 / smear 贬 / neutral 中
+  truth       INTEGER NOT NULL DEFAULT 1,      -- 1 真 0 假
+  heat        INTEGER NOT NULL DEFAULT 50,     -- 热度 0-100
+  content     TEXT NOT NULL,                   -- 原始话题一句话
+  origin      TEXT NOT NULL DEFAULT '',        -- 来源：player / auto / npc_id
+  game_day    INTEGER NOT NULL DEFAULT 0,
+  status      TEXT NOT NULL DEFAULT 'active',  -- active / faded / debunked
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rumor_status ON rumor(status, heat);
+CREATE INDEX IF NOT EXISTS idx_rumor_subject ON rumor(subject_id, status);
+
+-- 谁知道哪条八卦 + ta 口中的版本（每传一手可能变味）
+CREATE TABLE IF NOT EXISTS rumor_knowledge (
+  rumor_id    INTEGER NOT NULL,
+  animal_id   TEXT NOT NULL,
+  version     TEXT NOT NULL,                   -- 该 NPC 口中的说法
+  hops        INTEGER NOT NULL DEFAULT 0,      -- 传到 ta 手上经过几手
+  learned_day INTEGER NOT NULL DEFAULT 0,
+  told_count  INTEGER NOT NULL DEFAULT 0,      -- ta 传给别人几次（防刷）
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (rumor_id, animal_id)
+);
+CREATE INDEX IF NOT EXISTS idx_rumor_know_animal ON rumor_knowledge(animal_id);
 """
 
 
@@ -178,6 +231,10 @@ def _migrate(conn) -> None:
     cs_cols = {row["name"] for row in conn.execute("PRAGMA table_info(candidate_state)").fetchall()}
     if cs_cols and "last_power_day" not in cs_cols:
         conn.execute("ALTER TABLE candidate_state ADD COLUMN last_power_day INTEGER NOT NULL DEFAULT -1")
+    # crisis_state.deadline_hour（危机软性截止）
+    cr_cols = {row["name"] for row in conn.execute("PRAGMA table_info(crisis_state)").fetchall()}
+    if cr_cols and "deadline_hour" not in cr_cols:
+        conn.execute("ALTER TABLE crisis_state ADD COLUMN deadline_hour INTEGER")
 
 _lock = threading.Lock()
 _initialized = False

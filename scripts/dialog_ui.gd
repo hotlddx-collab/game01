@@ -32,13 +32,25 @@ var _animal_id: String = ""
 @onready var text_label: RichTextLabel = %DialogText
 @onready var input_line: LineEdit = %InputLine
 @onready var gift_button: Button = %GiftButton
+@onready var gossip_button: Button = %GossipButton
+@onready var gossip_bar: Panel = %GossipBar
+@onready var inquire_button: Button = %InquireButton
+@onready var spread_button: Button = %SpreadButton
+@onready var debunk_button: Button = %DebunkButton
+
+var _last_rumor_id: int = 0   # 最近打听到的话题（供辟谣）
 
 
 func _ready() -> void:
 	close()
 	input_line.text_submitted.connect(_on_input_submitted)
 	gift_button.pressed.connect(_on_gift_button_pressed)
+	gossip_button.pressed.connect(_on_gossip_button_pressed)
+	inquire_button.pressed.connect(_on_inquire_pressed)
+	spread_button.pressed.connect(_on_spread_pressed)
+	debunk_button.pressed.connect(_on_debunk_pressed)
 	AgentClient.chat_intent_made.connect(_on_chat_intent_made)
+	AgentClient.rumor_reply_received.connect(_on_rumor_reply)
 	# 背包 UI 送礼选中信号
 	var inv_ui := get_tree().get_root().find_child("InventoryUI", true, false)
 	if inv_ui and inv_ui.has_signal("gift_item_chosen"):
@@ -91,6 +103,9 @@ func open_chat(animal_id: String, speaker: String) -> void:
 	input_line.text = ""
 	input_line.editable = false  # 等 NPC 开口完才能发
 	gift_button.disabled = true  # 等 greet 完才允许送礼
+	gossip_button.disabled = true
+	gossip_bar.hide()
+	_last_rumor_id = 0
 	panel.show()
 	_is_open = true
 
@@ -104,6 +119,7 @@ func show_npc_line(text: String) -> void:
 	status_label.text = ""
 	input_line.editable = true
 	gift_button.disabled = false
+	gossip_button.disabled = false
 	input_line.grab_focus()
 
 
@@ -228,3 +244,54 @@ func _append_log(bbcode: String) -> void:
 	else:
 		text_label.text = _log_buffer
 	_scroll_to_bottom()
+
+
+# ---------- 八卦（打听 / 放话 / 辟谣）----------
+
+func _on_gossip_button_pressed() -> void:
+	gossip_bar.visible = not gossip_bar.visible
+
+
+func _on_inquire_pressed() -> void:
+	if _animal_id == "":
+		return
+	gossip_bar.hide()
+	_append_log("[b][color=#205080]你：[/color][/b][i]（凑近打听最近的新鲜事）[/i]\n\n")
+	status_label.text = "正在打听..."
+	AgentClient.request_rumor_inquire(_animal_id)
+
+
+func _on_spread_pressed() -> void:
+	if _animal_id == "":
+		return
+	var content := input_line.text.strip_edges()
+	if content == "":
+		status_label.text = "先在输入框写下你要放的话"
+		return
+	gossip_bar.hide()
+	input_line.text = ""
+	input_line.editable = false
+	_append_log("[b][color=#205080]你：[/color][/b][i]（压低声音放话）[/i]%s\n\n" % content)
+	status_label.text = "正在放话..."
+	AgentClient.request_rumor_spread(_animal_id, content)
+
+
+func _on_debunk_pressed() -> void:
+	if _animal_id == "":
+		return
+	gossip_bar.hide()
+	if _last_rumor_id <= 0:
+		status_label.text = "先打听到一条传闻，才能辟谣"
+		return
+	input_line.editable = false
+	_append_log("[b][color=#205080]你：[/color][/b][i]（郑重澄清那是谣传）[/i]\n\n")
+	status_label.text = "正在辟谣..."
+	AgentClient.request_rumor_debunk(_animal_id, _last_rumor_id)
+
+
+func _on_rumor_reply(info: Dictionary) -> void:
+	if String(info.get("animal_id", "")) != _animal_id or not _is_open:
+		return
+	if int(info.get("rumor_id", 0)) > 0 and info.get("has_rumor", false):
+		_last_rumor_id = int(info.get("rumor_id", 0))
+	show_npc_line(String(info.get("text", "")))

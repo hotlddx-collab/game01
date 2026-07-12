@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>怪物森林 · 职业玩法设计 slide deck</title>
+<style>
+  :root{
+    --bg:#141b17; --bg2:#1b2620; --ink:#eef3ec; --dim:#a9baa6;
+    --line:#2f4038; --acc:#6fcf97; --acc2:#f2c14e; --acc3:#7fb2f0;
+    --warn:#e08a5a; --card:#20302a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#0c110e; color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;}
+  .deck{max-width:1180px; margin:0 auto;}
+  .slide{
+    position:relative; min-height:100vh; padding:56px 64px 72px;
+    background:radial-gradient(1200px 600px at 78% -8%, #22332a 0%, var(--bg) 46%, var(--bg2) 100%);
+    border-bottom:1px solid var(--line); display:flex; flex-direction:column; justify-content:center;
+  }
+  .snum{position:absolute; top:22px; right:30px; font-size:13px; color:var(--dim); letter-spacing:2px;}
+  .kicker{color:var(--acc); font-size:14px; letter-spacing:4px; text-transform:uppercase; margin-bottom:10px;}
+  h1{font-size:52px; line-height:1.15; letter-spacing:1px;}
+  h2{font-size:34px; margin-bottom:6px; letter-spacing:.5px;}
+  h2 .u{color:var(--acc);}
+  h3{font-size:20px; color:var(--acc2); margin:18px 0 8px;}
+  p{color:var(--dim); font-size:16px; margin:8px 0;}
+  .lead{font-size:20px; color:var(--ink); max-width:820px;}
+  .tag{display:inline-block; padding:3px 12px; border-radius:20px; font-size:13px;
+    background:#25352d; border:1px solid var(--line); color:var(--acc); margin:4px 6px 4px 0;}
+  .cover-meta{margin-top:34px; color:var(--dim); font-size:15px; letter-spacing:1px;}
+  ul{margin:8px 0 8px 22px;} li{color:var(--dim); font-size:16px; margin:6px 0;}
+  li b, p b{color:var(--ink);}
+  .em{color:var(--acc2);} .em2{color:var(--acc3);} .emw{color:var(--warn);}
+
+  .grid{display:grid; gap:16px; margin-top:22px;}
+  .g2{grid-template-columns:repeat(2,1fr);}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+  .card .ico{font-size:30px;}
+  .card h4{font-size:19px; margin:6px 0 2px;}
+  .card .who{font-size:13px; color:var(--acc3); margin-bottom:8px;}
+  .card p{font-size:14px; margin:5px 0;}
+  .pill{font-size:12px; color:var(--acc2); border:1px solid #4a4327; background:#2c2818; border-radius:6px; padding:2px 8px; display:inline-block; margin-top:6px;}
+
+  table{border-collapse:collapse; width:100%; margin-top:18px; font-size:14px;}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#243530; color:var(--acc); font-weight:600;}
+  td b{color:var(--ink);} tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+
+  .flow{background:#0f1713; border:1px dashed #3a5147; border-radius:14px; padding:20px; margin-top:20px; overflow:auto;}
+  .note{border-left:4px solid var(--acc); background:#18241e; padding:12px 18px; margin:16px 0; color:var(--dim); border-radius:0 8px 8px 0;}
+  .note b{color:var(--acc);}
+  .rec{border-left:4px solid var(--acc2); background:#241f14;}
+  .rec b{color:var(--acc2);}
+
+  .cycle{display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; font-size:15px;}
+  .node{background:#243530; border:1px solid var(--line); border-radius:10px; padding:8px 14px; color:var(--ink);}
+  .node .s{display:block; font-size:12px; color:var(--dim);}
+  .arw{color:var(--acc); font-size:20px;}
+
+  .opt{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:20px;}
+  .opt .card h4{font-size:17px;} .opt .card .ico{font-size:26px;}
+  .badge-good{color:var(--acc);} .badge-risk{color:var(--warn);}
+  .foot{position:absolute; bottom:22px; left:64px; color:#5f6f66; font-size:12px; letter-spacing:2px;}
+
+  @media print{ .slide{min-height:auto; page-break-after:always; padding:30px 34px;} html,body{background:#fff;} }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1 封面 -->
+<section class="slide">
+  <div class="snum">01</div>
+  <div class="kicker">Monster Forest · Design Deck</div>
+  <h1>职业玩法设计<br><span style="color:var(--acc)">让小镇经济转起来</span></h1>
+  <div style="margin-top:22px;">
+    <span class="tag">6 行业自洽</span>
+    <span class="tag">策略性</span>
+    <span class="tag">需求·产出循环</span>
+    <span class="tag">金钱=一般等价物</span>
+    <span class="tag">长期金钱出口</span>
+  </div>
+  <p class="lead" style="margin-top:26px;">在一镇活 LLM NPC 之上，长出属于我们自己的日常底座：<b class="em">你选一门营生，活在整座会呼吸的经济里。</b></p>
+  <div class="cover-meta">v1 · 设计评审稿 · 垫在「聊天 + 竞选镇长」之下的底层循环</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 2 目标 -->
+<section class="slide">
+  <div class="snum">02</div>
+  <div class="kicker">Why</div>
+  <h2>设计目标：<span class="u">五条硬约束</span></h2>
+  <p class="lead">现有触发类玩法（危机 / 情报 / 舆论）是"上层内容"，缺一个每天都在转的<b class="em">底座</b>。职业系统来补。</p>
+  <div class="grid g2" style="margin-top:8px;">
+    <div class="card"><div class="ico">🌲</div><h4>① 世界观自洽</h4><p>每个职业都能在当前小镇里被想象——不是凭空工种，而是<b>接手镇上已有的某门营生</b>。</p></div>
+    <div class="card"><div class="ico">♟️</div><h4>② 有策略性</h4><p>不是"点一下出钱"，而是<b>有限资源下的押注与取舍</b>：情报、风险回报、产能、时效。</p></div>
+    <div class="card"><div class="ico">🔄</div><h4>③ 都有用、能循环</h4><p>每职业需求与产出<b>互为上下游</b>，货与钱在镇里绕圈，任一行都不是死胡同。</p></div>
+    <div class="card"><div class="ico">🪙</div><h4>④ 金钱=一般等价物</h4><p>所有营生的产出经由<b>森林币</b>换算、交易、比较——统一的价值尺度。</p></div>
+  </div>
+  <div class="note rec" style="margin-top:16px;"><b>⑤ 长期金钱出口：</b>必须有一个"永远填不满的坑"把钱抽走，循环才不会因通胀而失速——本稿给出 <b class="em">4 个方案 + 推荐组合</b>（见 P08）。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 3 6行业总览 -->
+<section class="slide">
+  <div class="snum">03</div>
+  <div class="kicker">Overview</div>
+  <h2>6 镇民 = 6 行业，<span class="u">玩家拜入其一</span></h2>
+  <p class="lead">镇上 6 个活人本就各据一门营生。你不是新工种，而是<b class="em">加入某个已存在的行业</b>，与该镇民成为同行 / 师徒 / 对手。</p>
+  <div class="grid g3" style="margin-top:8px;">
+    <div class="card"><div class="ico">🍞</div><h4>面包师</h4><div class="who">前辈 · 苔老板</div><p>制作型 · 备料→烤制→摆卖</p><span class="pill">押当日爆款</span></div>
+    <div class="card"><div class="ico">🌿</div><h4>药师</h4><div class="who">前辈 · 小翠</div><p>制作型 · 采药→配方→医治</p><span class="pill">对症下药</span></div>
+    <div class="card"><div class="ico">✉️</div><h4>邮差</h4><div class="who">前辈 · 焰仔</div><p>服务型 · 接单→送达→收酬</p><span class="pill">路线排程</span></div>
+    <div class="card"><div class="ico">🎣</div><h4>渔夫</h4><div class="who">前辈 · 老咸</div><p>采集型 · 读汛→垂钓→售鱼</p><span class="pill">钓点押注</span></div>
+    <div class="card"><div class="ico">🧺</div><h4>行商</h4><div class="who">前辈 · 小蓝</div><p>套利型 · 收货→囤货→倒卖</p><span class="pill">低买高卖</span></div>
+    <div class="card"><div class="ico">🔮</div><h4>学者</h4><div class="who">前辈 · 煊赫</div><p>研究型 · 取样→研究→出成果</p><span class="pill">研究投资</span></div>
+  </div>
+  <div class="note"><b>原料层不是职业：</b>砍木 / 采矿 / 拾荒等采集动作，是<b>任何职业都能做的资源获取</b>，用来喂养 6 大行业，而非第 7~N 个"采集复制品"。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 4 职业玩法详解 上 -->
+<section class="slide">
+  <div class="snum">04</div>
+  <div class="kicker">Gameplay · 1/2</div>
+  <h2>职业玩法详解 <span class="u">（一）制作 &amp; 采集</span></h2>
+  <table>
+    <tr><th width="12%">职业</th><th width="26%">原料入口</th><th width="24%">加工 / 产出</th><th width="38%">策略核心（押注 · 取舍）</th></tr>
+    <tr><td><b>🍞 面包师</b></td><td>面粉·坚果·蜂蜜<br><span style="color:var(--dim)">自采 / 向渔夫·行商买</span></td><td>工作台按<b>配方</b>出炉<br>面包·点心（会变质）</td><td>炉容有限、成品会坏 → <b class="em">赌今天谁来、爱吃啥</b>；押中爆款大赚，押错砸手里。情报越准越稳。</td></tr>
+    <tr><td><b>🌿 药师</b></td><td>草药·露珠·薄荷<br><span style="color:var(--dim)">看时段/天气采</span></td><td>诊断→配药方<br>药剂（分症对症）</td><td>NPC 生不同的病，<b class="em">诊断错→无效或掉好感</b>；稀有药材受时段天气限；急症肯出高价但压时间。</td></tr>
+    <tr><td><b>🎣 渔夫</b></td><td>钓点 / 鱼饵<br><span style="color:var(--dim)">饵可自制或买</span></td><td>垂钓→渔获<br>鱼·贝·珍珠</td><td>鱼在<b class="em">特定钓点×时段×天气×鱼汛</b>出没，读规律押点；鲜度衰减 + 供多价跌，逼你择时出手。</td></tr>
+  </table>
+  <div class="note"><b>共通策略骨架：</b>信息不对称（越懂顾客/病情/鱼汛越准）× 风险回报（押爆款/急症/稀货）× 产能上限（每日槽位有限）× 时效（会坏、会过期）。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 5 职业玩法详解 下 -->
+<section class="slide">
+  <div class="snum">05</div>
+  <div class="kicker">Gameplay · 2/2</div>
+  <h2>职业玩法详解 <span class="u">（二）服务 · 套利 · 研究</span></h2>
+  <table>
+    <tr><th width="12%">职业</th><th width="26%">输入</th><th width="24%">产出</th><th width="38%">策略核心 &amp; 上层咬合</th></tr>
+    <tr><td><b>✉️ 邮差</b></td><td>NPC 的信件 / 包裹委托</td><td>准时送达<br>（收发双方满意）</td><td><b class="em">多委托路线排程</b>：按时效+路程排序，一趟多送更划算；送信途中撞见 NPC 秘密 → 天然接 <span class="em2">②情报</span>。</td></tr>
+    <tr><td><b>🧺 行商</b></td><td>各店 / 各 NPC 的货<br><span style="color:var(--dim)">价格有地区/供需差</span></td><td>把货倒到高价处<br>赚差价 + 补稀缺料</td><td><b class="em">低买高卖套利</b>：收供需情报、囤货、看行情出手（最纯经济博弈）。是给全镇补货的"血液"。接 <span class="em2">②情报</span>。</td></tr>
+    <tr><td><b>🔮 学者</b></td><td>矿石·珍珠·古物样本<br>+ 研究时间</td><td>图纸 / 情报 / 占卜<br><span style="color:var(--dim)">产出不确定</span></td><td><b class="em">研究投资</b>：投样本+时间，可能突破可能失败（高风险高回报）。图纸卖各行升级、情报卖行商、施政数据卖镇长。接 <span class="em2">⑤施政 ②情报</span>。</td></tr>
+  </table>
+  <div class="note rec"><b>选职业 = 选政治路线：</b>药师看危机、邮差/行商/学者踩情报、学者接施政。职业不是孤立赚钱，而是<b class="em">上层内容的入口</b>——把社交、经济、竞选串成一张网。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 6 需求产出循环图 -->
+<section class="slide">
+  <div class="snum">06</div>
+  <div class="kicker">The Loop</div>
+  <h2>职业需求 · 产出循环图 <span class="u">（核心）</span></h2>
+  <p class="lead">6 行业互为上下游，货与钱在镇里绕圈。任一职业既是别人的<b class="em2">买家</b>，又是别人的<b class="em">供货方</b>。</p>
+  <div class="flow">
+    <svg viewBox="0 0 1040 400" width="100%" style="max-height:52vh">
+      <defs>
+        <marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#6fcf97"/>
+        </marker>
+        <marker id="ay" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#f2c14e"/>
+        </marker>
+        <style>
+          .n{fill:#243530; stroke:#3a5147; rx:12;}
+          .t{fill:#eef3ec; font:600 16px "PingFang SC",sans-serif;}
+          .st{fill:#a9baa6; font:12px "PingFang SC",sans-serif;}
+          .lg{stroke:#6fcf97; stroke-width:2; fill:none; marker-end:url(#ah);}
+          .lm{stroke:#f2c14e; stroke-width:2; fill:none; marker-end:url(#ay); stroke-dasharray:5 4;}
+          .ll{fill:#7fb2f0; font:12px "PingFang SC",sans-serif;}
+        </style>
+      </defs>
+
+      <!-- nodes -->
+      <g><rect class="n" x="30"  y="30"  width="150" height="52"/><text class="t" x="48" y="55">🎣 渔夫</text><text class="st" x="48" y="72">鱼·贝·珍珠</text></g>
+      <g><rect class="n" x="440" y="30"  width="160" height="52"/><text class="t" x="458" y="55">🍞 面包师</text><text class="st" x="458" y="72">面包·点心</text></g>
+      <g><rect class="n" x="860" y="30"  width="150" height="52"/><text class="t" x="878" y="55">🏘️ 全镇居民</text><text class="st" x="878" y="72">日常消费者</text></g>
+      <g><rect class="n" x="440" y="175" width="160" height="52"/><text class="t" x="458" y="200">🌿 药师</text><text class="st" x="458" y="217">药剂·医治</text></g>
+      <g><rect class="n" x="30"  y="320" width="150" height="52"/><text class="t" x="48" y="345">🔮 学者</text><text class="st" x="48" y="362">图纸·情报·占卜</text></g>
+      <g><rect class="n" x="440" y="320" width="160" height="52"/><text class="t" x="458" y="345">🧺 行商</text><text class="st" x="458" y="362">调货·套利</text></g>
+      <g><rect class="n" x="860" y="320" width="150" height="52"/><text class="t" x="878" y="345">🏛️ 镇长/政务</text><text class="st" x="878" y="362">施政采购</text></g>
+      <g><rect class="n" x="860" y="175" width="150" height="52"/><text class="t" x="878" y="200">✉️ 邮差</text><text class="st" x="878" y="217">连接各方</text></g>
+
+      <!-- flows (green = goods) -->
+      <path class="lg" d="M180,56 L436,56"/><text class="ll" x="250" y="46">鱼当食材</text>
+      <path class="lg" d="M600,56 L856,56"/><text class="ll" x="670" y="46">卖面包</text>
+      <path class="lg" d="M520,82 L520,171"/><text class="ll" x="530" y="130">居民/渔夫生病</text>
+      <path class="lg" d="M600,201 L856,201"/><text class="ll" x="660" y="191">送药到户(邮差)</text>
+      <path class="lg" d="M180,346 L436,346"/><text class="ll" x="240" y="336">古物样本</text>
+      <path class="lg" d="M105,320 L105,82"/><text class="ll" x="10" y="210">珍珠→样本</text>
+      <path class="lg" d="M600,340 L856,340"/><text class="ll" x="650" y="330">情报/图纸→施政</text>
+      <path class="lg" d="M520,320 L520,231"/><text class="ll" x="530" y="285">补稀缺药材</text>
+
+      <!-- money (yellow dashed = 森林币回流) -->
+      <path class="lm" d="M856,72 C700,120 300,120 182,72"/><text class="ll" x="470" y="112" style="fill:#f2c14e">🪙 居民付钱 → 生产者</text>
+      <path class="lm" d="M905,320 C905,250 905,235 905,229"/>
+    </svg>
+  </div>
+  <p><span style="color:var(--acc)">▬</span> 实线=货物/服务流　　<span style="color:var(--acc2)">▬ ▬</span> 虚线=森林币回流　　<span style="color:var(--acc3)">文字</span>=交易内容</p>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 7 单职业闭环 + 防枯竭 -->
+<section class="slide">
+  <div class="snum">07</div>
+  <div class="kicker">Keep Turning</div>
+  <h2>每职业的<span class="u">完整闭环</span> · 保证"转得动"</h2>
+  <p class="lead">对玩家所选的任一职业，四要素缺一不可，否则循环断点：</p>
+  <div class="grid g2">
+    <div class="card"><h3>闭环四要素</h3>
+      <ul>
+        <li><b>原料入口</b>：≥2 条 —— 自采（免费费时）+ 购买（花钱省时）。</li>
+        <li><b>加工产出</b>：熟练度决定品质 / 成功率 / 售价上限。</li>
+        <li><b>稳定买家</b>：活 NPC 需求<b class="em">每日再生</b>（吃饭、生病、装扮、施政）。</li>
+        <li><b>钱回投</b>：明确的花钱去处 —— 买更好原料 / 升级工坊 / 雇帮手。</li>
+      </ul>
+    </div>
+    <div class="card"><h3>防枯竭三闸（长期不失速）</h3>
+      <ul>
+        <li><b class="em2">需求再生</b>：NPC 每日/每周产生新需求，消费永不断档。</li>
+        <li><b class="em2">原料再生</b>：采集点定时刷新；稀缺料靠行商/邮差跨区补。</li>
+        <li><b class="em2">行情调节</b>：某货供多→价跌、稀缺→价涨，逼玩家换品类，防单一刷钱。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>硬需求驱动社交：</b>面包师要向渔夫买鱼、请邮差送货、生病找药师 —— <b class="em">关系好 = 进货便宜 + 买家优先</b>。于是"聊天 / 好感"从可有可无变成经济刚需。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 8 长期金钱出口 方案 -->
+<section class="slide">
+  <div class="snum">08</div>
+  <div class="kicker">Money Sink</div>
+  <h2>长期金钱出口 <span class="u">· 4 方案</span></h2>
+  <p class="lead">循环要有"永远填不满的坑"把钱抽走，否则钱越攒越多、边际归零、循环失速。</p>
+  <div class="opt">
+    <div class="card"><div class="ico">🏠</div><h4>A · 房子装修/升级</h4>
+      <p><span class="badge-good">优</span> 动森式养成、有炫耀与归属感、软目标持久。</p>
+      <p><span class="badge-risk">风险</span> 与"竞选主轴"耦合弱，可能驱动力不足。</p></div>
+    <div class="card"><div class="ico">🗳️</div><h4>B · 捐款换竞选积分</h4>
+      <p><span class="badge-good">优</span> 钱直接换选票权重/权力点，<b class="em">与主轴强耦合</b>。</p>
+      <p><span class="badge-risk">风险</span> 易变 Pay-to-Win，破坏"靠人缘当选"的立意。</p></div>
+    <div class="card"><div class="ico">🏭</div><h4>C · 店铺/工坊升级</h4>
+      <p><span class="badge-good">优</span> 钱→产能，<b class="em">经济内循环健康</b>，前期天然去处。</p>
+      <p><span class="badge-risk">风险</span> 纯经济、缺情感目标，会有上限。</p></div>
+    <div class="card"><div class="ico">🏛️</div><h4>D · 公共建设/施政基金</h4>
+      <p><span class="badge-good">优</span> 花钱办集市/修路→<b class="em">全镇加成 + 民意</b>，钱变政绩。</p>
+      <p><span class="badge-risk">风险</span> 多为当选后才解锁，前期用不上。</p></div>
+  </div>
+  <div class="note rec"><b>推荐组合（分期释放）：</b>
+    前期 <b class="em">C 工坊升级</b>（钱有立即去处、放大产能）→
+    中期 <b class="em">A 房子装修</b>（软性长期目标、身份象征）→
+    当选后 <b class="em">D 施政基金</b>（钱→民意→连任）。
+    <b class="em">B 捐款</b>仅作有限出口：设<b>每日上限 + 边际递减</b>，钱只能小幅助攻、决定权仍在人缘，避免 P2W。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 9 金钱系统 -->
+<section class="slide">
+  <div class="snum">09</div>
+  <div class="kicker">Currency</div>
+  <h2>金钱：<span class="u">一般等价物</span></h2>
+  <div class="grid g2">
+    <div class="card"><h3>森林币 (Forest Coin)</h3>
+      <ul>
+        <li>唯一货币，统一衡量所有产出与服务的价值。</li>
+        <li><b>玩家有钱包</b>（MoneyStore，落库）；NPC 简化为"店铺报价 + 需求预算"，不做全镇钱包模拟，避免复杂度爆炸。</li>
+        <li>收入来源：售卖成品 / 完成委托 / 售出情报图纸。</li>
+        <li>支出去向：进原料 · 工坊升级 · 装修 · 施政基金 · 有限捐款。</li>
+      </ul>
+    </div>
+    <div class="card"><h3>行情（让钱活）</h3>
+      <ul>
+        <li>每种货有<b class="em2">基准价 ± 供需浮动</b>：卖得多→价跌，稀缺→价涨。</li>
+        <li>行情随事件波动：节庆面包涨、瘟疫药材涨、鱼汛期鱼便宜。</li>
+        <li><b class="em">行商</b>的整个玩法就建立在读行情、跨区套利之上。</li>
+        <li>行情是<b>防枯竭</b>与<b>策略性</b>的共同来源。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>钱的三个使命：</b>① 度量——把不同营生的产出可比较；② 润滑——让行业间交易发生；③ 沉淀——经长期出口抽走，维持循环张力。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 10 落地 MVP -->
+<section class="slide">
+  <div class="snum">10</div>
+  <div class="kicker">Roadmap</div>
+  <h2>落地路径 <span class="u">· MVP 先跑通最小循环</span></h2>
+  <div class="grid g2">
+    <div class="card"><h3>第一刀 · 验证抽象</h3>
+      <p>做 <b class="em">🎣 渔夫（产原料）+ 🍞 面包师（吃原料）</b> 这对上下游：</p>
+      <div class="flow" style="margin-top:10px; padding:14px;">
+        <div class="cycle">
+          <span class="node">🎣 钓鱼<span class="s">读汛押点</span></span><span class="arw">→</span>
+          <span class="node">🍞 收鱼做面包<span class="s">配方/炉容</span></span><span class="arw">→</span>
+          <span class="node">🏘️ 卖居民<span class="s">口味/好感</span></span><span class="arw">→</span>
+          <span class="node">🪙 森林币<span class="s">回投买料/升级</span></span>
+        </div>
+      </div>
+      <p>一次验证「采集→制作→消费→钱回流」整条链能否转起来。</p>
+    </div>
+    <div class="card"><h3>通用框架（一套码撑 6 职业）</h3>
+      <ul>
+        <li><b>data/professions/*.json</b>：原型/前辈/采点/配方/委托/策略参数/成长曲线。加职业 = 加 JSON。</li>
+        <li>三原型（制作/服务/采集）共用「资源→动作→产出→售卖」抽象。</li>
+        <li><b>MoneyStore</b> 钱包 + 行情表 + 商店/售卖 UI。</li>
+        <li>活顾客引擎：购买由 情报匹配 + 好感 + 需求 + 口碑 驱动 → 喂选举声望。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note rec"><b>依赖顺序：</b>① 金钱+商店系统（下一份细化稿）→ ② 渔夫+面包师垂直切片 → ③ 行情/口碑 → ④ 其余 4 职按 JSON 扩 → ⑤ 长期出口（C→A→D）逐步接入。</div>
+  <div class="foot">怪物森林 · 职业系统</div>
+</section>
+
+<!-- 11 待确认 -->
+<section class="slide">
+  <div class="snum">11</div>
+  <div class="kicker">Decisions</div>
+  <h2>待你拍板的<span class="u">分叉点</span></h2>
+  <div class="grid g2">
+    <div class="card"><h4>1 · 职业是否可转行？</h4><p>建议开局选一门专精，后期花钱/达成条件可转行体验其他行业（增加重玩性）。</p></div>
+    <div class="card"><h4>2 · NPC 要不要真实钱包？</h4><p>建议先"玩家钱包 + NPC 需求预算"，不做全镇钱包模拟；验证后再考虑。</p></div>
+    <div class="card"><h4>3 · 长期出口组合？</h4><p>推荐 C→A→D 分期，B 捐款设上限。是否采纳？</p></div>
+    <div class="card"><h4>4 · MVP 组合？</h4><p>推荐 渔夫 + 面包师。若想先验证经济博弈，可换 面包师 + 行商。</p></div>
+  </div>
+  <div class="note"><b>确认以上后：</b>我出《金钱 + 购物系统》细化设计稿（货币/钱包/商店 UI/行情算法/长期出口数值），然后进入实现。</div>
+  <div class="foot">怪物森林 · 职业系统 · 完</div>
+</section>
+
+</div>
+
+<script>
+  // 键盘上下/左右翻页
+  const slides=[...document.querySelectorAll('.slide')]; let i=0;
+  function go(n){ i=Math.max(0,Math.min(slides.length-1,n)); slides[i].scrollIntoView({behavior:'smooth'}); }
+  addEventListener('keydown',e=>{
+    if(['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(i+1);}
+    if(['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(i-1);}
+  });
+  // 滚动时同步当前页索引
+  addEventListener('scroll',()=>{ i=slides.findIndex(s=>s.getBoundingClientRect().top>-window.innerHeight/2); if(i<0)i=slides.length-1; });
+</script>
+</body>
+</html>

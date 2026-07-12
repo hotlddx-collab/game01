@@ -19,5 +19,5 @@ rm -f "$ROOT/agent_server/town.db" "$ROOT/agent_server/town.db-shm" "$ROOT/agent
 echo "✅ 已清空 town.db / -shm / -wal"
 echo ""
 echo "下一步："
-echo "  cd $ROOT/agent_server && python3 main.py"
+echo "  cd $ROOT/agent_server && .venv/bin/python main.py"
 echo "  然后在 Godot 重新跑游戏"

@@ -41,6 +41,10 @@ window/stretch/mode="canvas_items"
 
 project/assembly_name="Animal Town"
 
+[gui]
+
+theme/custom="res://theme/main_theme.tres"
+
 [input]
 
 move_up={

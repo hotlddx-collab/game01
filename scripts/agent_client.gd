@@ -12,6 +12,8 @@ signal npc_intent_received(initiator_id: String, target_id: String, intent_text:
 signal chat_intent_made(animal_id: String, target_name: String, summary: String)
 signal npc_gift_received(animal_id: String, item_id: String, item_name: String, message: String)
 signal affection_changed(animal_id: String, value: int, level: String, delta: int)
+signal mood_changed(animal_id: String, emote: String, level: String)
+signal rumor_reply_received(info: Dictionary)
 signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
 signal quest_offer_received(animal_id: String, quest_id: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String, item_id: String, required: int)
 signal quest_completed_received(animal_id: String, quest_id: String, title: String, kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int)
@@ -25,6 +27,8 @@ signal debate_rebuttal_received(info: Dictionary)
 signal debate_result_received(info: Dictionary)
 signal power_state_received(info: Dictionary)
 signal power_result_received(info: Dictionary)
+signal crisis_state_received(info: Dictionary)
+signal crisis_result_received(info: Dictionary)
 signal error_received(message: String)
 
 @export var host: String = "127.0.0.1"
@@ -149,6 +153,36 @@ func request_gift(animal_id: String, item_id: String, context: Dictionary = {}) 
 	})
 
 
+## 八卦·打听：问 NPC 最近听说了什么
+func request_rumor_inquire(animal_id: String) -> bool:
+	return _send({
+		"type": "rumor_inquire",
+		"animal_id": animal_id,
+	})
+
+
+## 八卦·放话：把一句话灌给 NPC，成为新话题
+func request_rumor_spread(animal_id: String, content: String, subject_id: String = "player", sentiment: String = "neutral", truth: int = 0) -> bool:
+	return _send({
+		"type": "rumor_spread",
+		"animal_id": animal_id,
+		"subject_id": subject_id,
+		"content": content,
+		"sentiment": sentiment,
+		"truth": truth,
+		"game_day": WorldClock.get_day(),
+	})
+
+
+## 八卦·辟谣：向 NPC 澄清某条话题
+func request_rumor_debunk(animal_id: String, rumor_id: int) -> bool:
+	return _send({
+		"type": "rumor_debunk",
+		"animal_id": animal_id,
+		"rumor_id": rumor_id,
+	})
+
+
 ## 发送游戏时间 tick，触发后端每日反思判断
 func send_time_tick() -> bool:
 	return _send({
@@ -237,6 +271,44 @@ func request_debug_grant_power() -> bool:
 	})
 
 
+## 调试：立即触发一批对手行动（Ctrl+O，验证追赶用）
+func request_debug_opponent_action() -> bool:
+	return _send({
+		"type": "debug_opponent_action",
+		"game_day": WorldClock.get_day(),
+	})
+
+
+## 危机调解：查询当前危机（open=true 时后端生成双方说法，用于打开面板）
+func request_crisis_query(open_detail: bool = false) -> bool:
+	return _send({
+		"type": "crisis_query",
+		"game_day": WorldClock.get_day(),
+		"open": open_detail,
+	})
+
+
+## 危机调解：提交调解方案
+func request_crisis_resolve(crisis_id: int, option_id: String, inventory: Dictionary = {}) -> bool:
+	return _send({
+		"type": "crisis_resolve",
+		"game_day": WorldClock.get_day(),
+		"crisis_id": crisis_id,
+		"option_id": option_id,
+		"inventory": inventory,
+	})
+
+
+## 调试：立即触发一个危机（Ctrl+J）
+func request_debug_spawn_crisis(template_id: String = "") -> bool:
+	return _send({
+		"type": "debug_spawn_crisis",
+		"game_day": WorldClock.get_day(),
+		"game_hour": WorldClock.get_hour(),
+		"template_id": template_id,
+	})
+
+
 func _on_world_hour_changed(hour: int) -> void:
 	## 每个整点都通知后端：07:00 触发对手动作 / 22:00 触发反思+权重重算
 	if _connected:
@@ -279,6 +351,13 @@ func _handle_packet(text: String) -> void:
 					int(aff.get("value", 0)),
 					String(aff.get("level", "neutral")),
 					int(aff.get("delta", 0)),
+				)
+			var mood = data.get("mood", null)
+			if typeof(mood) == TYPE_DICTIONARY and mood.has("emote"):
+				mood_changed.emit(
+					aid,
+					String(mood.get("emote", "")),
+					String(mood.get("level", "calm")),
 				)
 			var gift = data.get("gift", null)
 			if typeof(gift) == TYPE_DICTIONARY and gift.has("item_id"):
@@ -354,6 +433,8 @@ func _handle_packet(text: String) -> void:
 				data.get("target_id", ""),
 				data.get("intent_text", "")
 			)
+		"rumor_reply":
+			rumor_reply_received.emit(data)
 		"election_state":
 			election_state_received.emit(data)
 		"election_result":
@@ -372,6 +453,10 @@ func _handle_packet(text: String) -> void:
 			power_state_received.emit(data)
 		"power_result":
 			power_result_received.emit(data)
+		"crisis_state":
+			crisis_state_received.emit(data)
+		"crisis_result":
+			crisis_result_received.emit(data)
 		"error":
 			var m: String = data.get("message", "未知错误")
 			push_warning("[AgentClient] server error: %s" % m)

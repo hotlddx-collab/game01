@@ -105,13 +105,15 @@ check("pirate_lao→player loyalty=0 (玩家无亲近圈)",
       sub["loyalty"] == 0.0)
 
 w_fox_op, sub = es.compute_weight("fox_postman", "bear_baker", term1)
+_tf1 = es._term_factor(term1)
 # fox 在 bear_baker 亲近圈
-check("fox_postman→bear_baker loyalty=W_LOYALTY_MAX",
-      sub["loyalty"] == W_LOYALTY_MAX)
-# 对手 base 4 + 0 visits + 4 (亲近圈 bonus) = 8
-check("fox_postman→bear_baker affection=8 (无 visit + 亲近圈 +4)",
-      abs(sub["affection"] - 8.0) < 0.01,
-      f"got {sub['affection']}")
+check("fox_postman→bear_baker loyalty=W_LOYALTY_MAX*难度",
+      abs(sub["loyalty"] - W_LOYALTY_MAX * _tf1) < 0.01,
+      f"got {sub['loyalty']} (tf={_tf1})")
+# 对手 base 4 + 0 visits + 4 (亲近圈 bonus) = 8，再乘难度系数
+check("fox_postman→bear_baker affection=8*难度 (无 visit + 亲近圈 +4)",
+      abs(sub["affection"] - 8.0 * _tf1) < 0.01,
+      f"got {sub['affection']} (tf={_tf1})")
 
 
 # ──────────────────────────────────────────────────────────
@@ -127,8 +129,8 @@ check("玩家 2 个正面事件 → fox_postman event ≥ +6 (3*2)",
       f"got {sub2['event']}")
 
 w_fox_op2, sub2b = es.compute_weight("fox_postman", "bear_baker", term1)
-check("bear_baker 1 个负面事件 → fox_postman event ≤ -3",
-      sub2b["event"] <= -3.0,
+check("bear_baker 1 个负面事件 → fox_postman event ≤ -3*难度",
+      sub2b["event"] <= -3.0 * es._term_factor(term1),
       f"got {sub2b['event']}")
 
 
@@ -327,8 +329,8 @@ print(f"  [C] 加完成 promise（含破诺）：玩家={p_c:.1f} 对手={o_c:.1
 check("场景 C：完成承诺有显著加分（玩家 > 对手）",
       p_c > o_c,
       f"玩家 {p_c:.1f} 对手 {o_c:.1f}")
-check("场景 C：差距合理（不超过 100）",
-      diff_c < 100.0,
+check("场景 C：差距合理（不超过难度调整上限）",
+      diff_c < 100.0 / es3._term_factor(term3),
       f"差距 {diff_c:.1f}")
 
 
@@ -393,8 +395,8 @@ check("未举行辩论 → debate 子项 = 0", sub_e["debate"] == 0.0, f"got {su
 # 对手也写入 debate 基线分
 check("对手 debate 分已写入", v0 in res["opponent_scores"])
 _, sub_op = es_d.compute_weight(v0, op_d, term_d)
-expected_op = affinity(dm.stance_pref(op_d), pref0) * W_DEBATE_MAX
-check("对手 debate 子项 = 固定立场亲和度 × W_DEBATE_MAX",
+expected_op = affinity(dm.stance_pref(op_d), pref0) * W_DEBATE_MAX * es_d._term_factor(term_d)
+check("对手 debate 子项 = 固定立场亲和度 × W_DEBATE_MAX × 难度",
       abs(sub_op["debate"] - expected_op) < 1e-6,
       f"got {sub_op['debate']} expect {expected_op}")
 
@@ -532,9 +534,10 @@ _, sub_after = es_op.compute_weight(v0, op_id, term_op)
 check("对手 promise 子项随动作上涨",
       sub_after["promise"] > sub_before["promise"],
       f"{sub_before['promise']:.1f}→{sub_after['promise']:.1f}")
-check("对手 2 次 promise = 2*PROMISE_PER_ACTION",
-      abs(sub_after["promise"] - 2 * PROMISE_PER_ACTION) < 1e-6,
-      f"{sub_after['promise']:.1f}")
+_tf = es_op._term_factor(term_op)
+check("对手 2 次 promise = 2*PROMISE_PER_ACTION*难度系数",
+      abs(sub_after["promise"] - 2 * PROMISE_PER_ACTION * _tf) < 1e-6,
+      f"{sub_after['promise']:.1f} (tf={_tf})")
 
 # 13b. 对手 smear → 玩家在该 voter 的 event 扣分
 p_event_before, _ = es_op.compute_weight(v0, "player", term_op), None
@@ -558,15 +561,22 @@ check("smear 铁票反噬对手 event 分",
       op_event_after < op_event_before,
       f"{op_event_before:.1f}→{op_event_after:.1f}")
 
-# 13d. 行动数随任期推进 + 落后递增
-from opponent_ai import OpponentAI, CATCHUP_BEHIND_THRESHOLD
+# 13d. 行动数双向橡皮筋：随任期推进 + 落后追赶 + 领先收手
+from opponent_ai import (
+    OpponentAI, CATCHUP_BEHIND_THRESHOLD,
+    AHEAD_EASE_THRESHOLD, AHEAD_STOP_THRESHOLD,
+)
 oai = OpponentAI(es_op, personas={}, llm=None, world_store=ws_op)
-n_d1 = oai._daily_action_count(1, behind=0.0)
-n_d5 = oai._daily_action_count(5, behind=0.0)
-n_behind = oai._daily_action_count(1, behind=CATCHUP_BEHIND_THRESHOLD + 10)
+n_d1 = oai._daily_action_count(1, gap=0.0)
+n_d5 = oai._daily_action_count(5, gap=0.0)
+n_behind = oai._daily_action_count(1, gap=CATCHUP_BEHIND_THRESHOLD + 10)
 check("D1 行动数 < D5 行动数", n_d1 < n_d5, f"{n_d1} < {n_d5}")
 check("落后时行动数 +1", n_behind > n_d1, f"{n_behind} > {n_d1}")
-check("行动数封顶 4", oai._daily_action_count(5, behind=999) <= 4)
+check("行动数封顶 4", oai._daily_action_count(5, gap=999) <= 4)
+check("对手领先一些 → 收手最多 1",
+      oai._daily_action_count(5, gap=-(AHEAD_EASE_THRESHOLD + 5)) <= 1)
+check("对手领先很多 → 完全等(0)",
+      oai._daily_action_count(5, gap=-(AHEAD_STOP_THRESHOLD + 5)) == 0)
 
 # 13e. 智能选目标：玩家领先多 → smear
 v_lead = voters_op[2]

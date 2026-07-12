@@ -138,10 +138,13 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 
 {player_profile_block}
 {affection_block}
+{mood_block}
 {election_block}
+{quest_block}
 {relevant_memories_block}
 {reflections_block}
 {world_events_block}
+{gossip_block}
 
 【对话规则】
 1. 用中文回复，每次只回 1-2 句，自然口语，符合上述性格和说话风格。
@@ -172,6 +175,7 @@ class Agent:
         reflection_store: ReflectionStore,
         milestone_store: Optional["MilestoneStore"] = None,
         quest_engine: Optional["QuestEngine"] = None,
+        mood_store: Optional["MoodStore"] = None,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -184,6 +188,7 @@ class Agent:
         self.reflection_store = reflection_store
         self.milestone_store = milestone_store
         self.quest_engine = quest_engine
+        self.mood_store = mood_store
         self.max_history_turns = max_history_turns
         # AgentManager 初始化完成后设置，供 intent 提示用
         self.npc_name_map: Dict[str, str] = {}  # {display_name: animal_id}
@@ -322,6 +327,83 @@ class Agent:
             )
         return "\n" + "\n".join(lines)
 
+    def _build_quest_block(self, context: Dict[str, Any]) -> str:
+        """注入与本 NPC 相关的进行中委托，让回话围绕任务、能识别玩家正在交付/完成。
+
+        覆盖三类：
+          - 我是 collect 委托方：玩家凑齐物品来交付时要顺着任务道谢兑奖
+          - 我是 deliver 目标：玩家把别人托带的物品送到时要自然收下
+          - 我是 relay 目标：玩家转达口信时要自然回应
+        进度/背包即时读取，凑齐时给出 ★ 明确指引（生成台词前预判完成）。
+        """
+        if self.quest_engine is None:
+            return ""
+        defs = self.quest_engine.defs
+        inv: Dict[str, int] = context.get("inventory", {}) or {}
+
+        def item_label(iid: str) -> str:
+            it = items_module.get(iid)
+            return it.name if it else (iid or "东西")
+
+        lines: List[str] = []
+
+        # 我作为委托方的 active 任务
+        giver_qid = self.quest_engine.store.get_active_for_giver(self.animal_id, defs)
+        if giver_qid:
+            q = defs.get(giver_qid, {})
+            kind = q.get("kind", "")
+            req = q.get("requires", {})
+            reward = q.get("reward", {}) or {}
+            rw = (
+                f"{item_label(reward.get('item_id',''))}×{int(reward.get('count',1))}"
+                if reward.get("item_id") else "一点谢礼"
+            )
+            if kind == "collect":
+                iid = req.get("item_id", "")
+                need = int(req.get("count", 1))
+                progress = self.quest_engine.store.get_progress(giver_qid)
+                in_bag = int(inv.get(iid, 0))
+                have = progress + in_bag
+                lines.append(
+                    f"- 你之前拜托玩家帮你收集 {item_label(iid)}×{need}（任务：{q.get('title','')}）。"
+                    f"玩家已交 {min(progress, need)}，身上还带着 {in_bag} 个。"
+                )
+                if have >= need:
+                    lines.append(
+                        f"  ★ 玩家这次正好把 {item_label(iid)} 凑齐交给你了！请自然地确认收下、由衷道谢，"
+                        f"并表示把酬劳「{rw}」交给他/她。绝不要当成陌生新鲜事，也别质问玩家为什么拿着这些。"
+                    )
+                else:
+                    lines.append(
+                        f"  若玩家提到这件事或交来 {item_label(iid)}，顺着这个任务回应，别当成新话题。"
+                    )
+            else:
+                lines.append(
+                    f"- 你托玩家去办一件事（任务：{q.get('title','')}）。若玩家提起，顺着回应，别当成陌生事。"
+                )
+
+        # 我作为 relay / deliver 的目标
+        target_qid = self.quest_engine.store.get_active_with_target(self.animal_id, defs)
+        if target_qid and target_qid != giver_qid:
+            q = defs.get(target_qid, {})
+            kind = q.get("kind", "")
+            req = q.get("requires", {})
+            if kind == "deliver":
+                iid = req.get("item_id", "")
+                cnt = int(req.get("count", 1))
+                in_bag = int(inv.get(iid, 0))
+                lines.append(f"- 有居民托玩家给你捎来 {item_label(iid)}×{cnt}。")
+                if in_bag >= cnt:
+                    lines.append(
+                        f"  ★ 玩家这次正好把 {item_label(iid)} 带到了！请自然地收下并道谢，别当成陌生新鲜事。"
+                    )
+            elif kind == "relay":
+                lines.append("- 有居民托玩家给你带个口信。若玩家转达，请自然地回应、表示知道了。")
+
+        if not lines:
+            return ""
+        return "\n【进行中的委托】\n" + "\n".join(lines)
+
     def _build_affection_block(self) -> str:
         v = self.affection.get(self.animal_id)
         lvl = level_of(v)
@@ -341,6 +423,33 @@ class Agent:
             if not prof.get("name"):
                 extra = "\n- 你们已经聊了不少，但你还不知道对方叫什么，在合适时机可以自然地问一句名字。"
         return f"\n【你对玩家的好感度】{label}（{v}/100）\n- {hint}{extra}"
+
+    def _build_mood_block(self, game_day: int = -1) -> str:
+        if self.mood_store is None:
+            return ""
+        snap = self.mood_store.snapshot(self.animal_id, game_day)
+        v = int(snap["value"])
+        if -14 <= v <= 14:
+            return ""  # 平静：不额外扰动语气
+        hint = {
+            "excited": "你今天心情特别好，兴高采烈，说话带劲、爱开玩笑。",
+            "happy":   "你今天心情不错，语气轻快、乐意搭话。",
+            "down":    "你今天有点低落，语气发蔫、提不起劲、话少。",
+            "upset":   "你今天心情很差、烦躁易怒，说话冲、没耐心、容易抱怨。",
+        }.get(str(snap["level"]), "")
+        return f"\n【你此刻的心情】{snap['label']} {snap['emote']}\n- {hint}"
+
+    def _build_gossip_block(self, context: Dict[str, Any]) -> str:
+        """NPC↔NPC 闲聊时，若手里攥着热门八卦，提示 ta 主动带出来（会自然变味）。"""
+        g = context.get("gossip")
+        if not isinstance(g, dict) or not g.get("version"):
+            return ""
+        return (
+            f"\n【你今天很想八卦的一件事】关于{g.get('subject', '某人')}："
+            f"「{g['version']}」\n"
+            "- 在这次闲聊里，请自然地把这件事当八卦讲出来，用你自己的口吻，"
+            "可以带上你的态度、猜测或情绪（八卦本来就会走样），但别逐字照搬。"
+        )
 
     def _build_intent_hint(self) -> str:
         """注入到 user 消息末尾，要求 LLM 以 JSON 格式回复。
@@ -406,11 +515,14 @@ class Agent:
             world_facts_block=self._build_world_facts_block(),
             player_profile_block=self._build_player_profile_block(),
             affection_block=self._build_affection_block(),
+            mood_block=self._build_mood_block(game_day),
             relevant_memories_block=self._build_relevant_memories_block(query),
             reflections_block=self._build_reflections_block(game_day),
             world_events_block=self._build_world_events_block(),
+            gossip_block=self._build_gossip_block(context),
             location_block=self._build_location_block(context),
             election_block=self._build_election_block(context),
+            quest_block=self._build_quest_block(context),
         )
 
     def _build_recent_history(self) -> List[Dict[str, str]]:
@@ -968,7 +1080,13 @@ class Agent:
             aff = self.affection.snapshot(self.animal_id)
 
         # 5) 让 LLM 写反应文本（不改数值，仅生成台词）
-        sys_prompt = self._build_system_prompt(context, query=f"（玩家送了你 {item.name}）")
+        # 客户端送礼时已先扣掉这件物品再发 context，这里把"在途的这件"算回背包，
+        # 任务块才能正确预判这次送礼是否凑齐 collect 委托并给出道谢/兑奖指引。
+        gift_ctx = dict(context)
+        inv2 = dict(context.get("inventory", {}) or {})
+        inv2[item_id] = int(inv2.get(item_id, 0)) + 1
+        gift_ctx["inventory"] = inv2
+        sys_prompt = self._build_system_prompt(gift_ctx, query=f"（玩家送了你 {item.name}）")
 
         # 给 LLM 明确告知数值方向，让台词与之匹配
         if delta >= 10:
@@ -1155,6 +1273,7 @@ class AgentManager:
         reflection_store: ReflectionStore,
         milestone_store: Optional["MilestoneStore"] = None,
         quest_engine: Optional["QuestEngine"] = None,
+        mood_store: Optional["MoodStore"] = None,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "6"))
         self._agents: Dict[str, Agent] = {
@@ -1162,6 +1281,7 @@ class AgentManager:
                 p, llm, memory, profile, world, affection, gifts,
                 reflection_store, milestone_store=milestone_store,
                 quest_engine=quest_engine,
+                mood_store=mood_store,
                 max_history_turns=max_turns,
             )
             for aid, p in personas.items()

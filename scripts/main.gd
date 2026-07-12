@@ -12,6 +12,7 @@ extends Node2D
 @onready var player: CharacterBody2D = %Player
 @onready var dialog_ui: CanvasLayer = %DialogUI
 @onready var quest_hud: CanvasLayer = get_node_or_null("%QuestHUD")
+@onready var crisis_panel: CanvasLayer = get_node_or_null("CrisisPanel")
 
 var _current_animal: Animal = null
 
@@ -30,6 +31,7 @@ func _ready() -> void:
 	# 后端信号
 	AgentClient.reply_received.connect(_on_reply_received)
 	AgentClient.affection_changed.connect(_on_affection_changed)
+	AgentClient.mood_changed.connect(_on_mood_changed)
 	AgentClient.error_received.connect(_on_error_received)
 	AgentClient.npc_intent_received.connect(_on_npc_intent)
 	AgentClient.npc_gift_received.connect(_on_npc_gift)
@@ -64,6 +66,10 @@ func _on_player_interact(target: Node) -> void:
 	if not (target is Animal):
 		return
 	var animal: Animal = target
+	# 该 NPC 是当前危机当事人 → 打开调解面板（优先于普通对话/busy 判断）
+	if crisis_panel and crisis_panel.has_method("is_party") and crisis_panel.is_party(animal.animal_id):
+		crisis_panel.open_panel()
+		return
 	# 对方正在和别人交谈：拒绝开始对话
 	if animal.is_busy():
 		return
@@ -231,6 +237,13 @@ func _on_affection_changed(animal_id: String, value: int, level: String, delta: 
 			break
 
 
+func _on_mood_changed(animal_id: String, emote: String, level: String) -> void:
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n is Animal and n.animal_id == animal_id:
+			n.set_mood(emote, level)
+			break
+
+
 func _on_npc_intent(initiator_id: String, target_id: String, _intent_text: String) -> void:
 	## 后端推送 NPC 自发意图：initiator 主动走向 target，到达后发起对话
 	if not AgentClient.is_connected_to_server():
@@ -295,6 +308,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_V and event.ctrl_pressed:
 		print("[main] DEBUG: 强制投票结算")
 		AgentClient.request_debug_force_vote()
+	## 调试快捷键：Ctrl+O 立即触发一批对手行动（验证追赶用）。
+	if event is InputEventKey and event.pressed and event.keycode == KEY_O and event.ctrl_pressed:
+		print("[main] DEBUG: 触发对手行动")
+		AgentClient.request_debug_opponent_action()
 
 
 # ---------- 上下文构造 ----------

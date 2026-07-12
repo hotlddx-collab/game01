@@ -57,6 +57,11 @@ SMEAR_PER_ACTION = 6.0     # 对手每次 smear 动作在目标 voter 的 event 
 SMEAR_BACKFIRE = 4.0       # 抹黑玩家铁票（affection≥阈值）时反噬对手自身 event 分
 SMEAR_LOYAL_AFFECTION = 40  # voter 对玩家 affection ≥ 此值视为铁票，smear 反噬
 
+# 任期难度阶梯（陪玩定位）：对手总权重乘此系数，term1 最弱，逐届变强。
+# 直接作用于对手每个 voter 的合计权重 → 第一关开局近乎持平。
+TERM_DIFFICULTY: Dict[int, float] = {1: 0.5, 2: 0.7, 3: 0.85}
+TERM_DIFFICULTY_DEFAULT = 1.0  # term4+ 满难度
+
 # 亲近圈映射（NPC → 亲近 NPC 集合）：用于 loyalty 子项
 # 来源：data/animals/*.json 中的人物关系（schedule 里有"碰面"的算亲近）
 # D3 改为从 persona 自动提取；D2 先硬编保证可工作
@@ -366,8 +371,18 @@ class ElectionStore:
             "event": self._calc_event(voter_id, candidate_id),
             "loyalty": self._calc_loyalty(voter_id, candidate_id),
         }
+        # 任期难度阶梯：对手（非玩家）整体权重按届数打折，term1 最弱
+        if candidate_id != PLAYER_ID:
+            f = self._term_factor(term)
+            if f != 1.0:
+                sub = {k: v * f for k, v in sub.items()}
         total = sum(sub.values())
         return total, sub
+
+    @staticmethod
+    def _term_factor(term: Dict) -> float:
+        tid = int(term.get("term_id", 1))
+        return TERM_DIFFICULTY.get(tid, TERM_DIFFICULTY_DEFAULT)
 
     def _calc_promise(self, voter_id: str, candidate_id: str) -> float:
         """promise 子项。

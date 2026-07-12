@@ -65,6 +65,7 @@ var _nav_agent: NavigationAgent2D = null
 @onready var delta_label: Label = %DeltaLabel
 @onready var interact_hint: Label = %InteractHint
 @onready var emote_label: Label = %EmoteLabel
+@onready var mood_label: Label = %MoodLabel
 
 const NAME_COLORS := {
 	"hate":    Color(1.0, 0.35, 0.35),
@@ -265,14 +266,19 @@ func _advance_waypoint() -> void:
 	_nav_agent.target_position = next_wp
 
 
-## 意图追踪时的直接导航（不走路网）
+## 意图追踪时的直接导航（走向 _intent_target_pos）
+## 优先 NavAgent 绕障；无有效路径时降级直线（对齐 TRAVELING，避免卡死）
 func _follow_nav(delta: float) -> void:
-	if _nav_agent.is_navigation_finished():
-		velocity = Vector2.ZERO
-		return
 	var next: Vector2 = _nav_agent.get_next_path_position()
-	velocity = (next - global_position).normalized() * move_speed * _mv_speed
-	move_and_slide()
+	var dir: Vector2 = next - global_position
+	# NavAgent 没算出有效路径（返回当前位置 / 已判定完成）→ 直接朝目标直线走
+	if dir.length() < 2.0 or _nav_agent.is_navigation_finished():
+		dir = _intent_target_pos - global_position
+	if dir.length() > 2.0:
+		velocity = dir.normalized() * move_speed * _mv_speed
+		move_and_slide()
+	else:
+		velocity = Vector2.ZERO
 
 
 ## 规划路网路径并进入 WAITING 状态（错峰出发）
@@ -562,6 +568,16 @@ func update_affection(value: int, level: String, delta: int) -> void:
 
 func get_affection()       -> int:    return _affection_value
 func get_affection_level() -> String: return _affection_level
+
+## 头顶常驻心情表情。平静时隐藏（避免刷屏），其余档位常驻。
+func set_mood(emote: String, level: String) -> void:
+	if mood_label == null:
+		return
+	if emote == "" or level == "calm":
+		mood_label.visible = false
+		return
+	mood_label.text = emote
+	mood_label.visible = true
 
 func _apply_name_color(level: String) -> void:
 	if name_label == null:

@@ -112,7 +112,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
 offset_top = -68.0
-offset_right = -120.0
+offset_right = -224.0
 offset_bottom = -36.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -121,6 +121,62 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
 theme_override_colors/font_color = Color(0.15, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 16
+
+[node name="GossipButton" type="Button" parent="Panel"]
+unique_name_in_owner = true
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -214.0
+offset_top = -68.0
+offset_right = -118.0
+offset_bottom = -36.0
+text = "🗣 八卦"
+theme_override_font_sizes/font_size = 16
+
+[node name="GossipBar" type="Panel" parent="Panel"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -336.0
+offset_top = -112.0
+offset_right = -24.0
+offset_bottom = -74.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_picker")
+
+[node name="GossipRow" type="HBoxContainer" parent="Panel/GossipBar"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = -6.0
+offset_bottom = -4.0
+theme_override_constants/separation = 6
+
+[node name="InquireButton" type="Button" parent="Panel/GossipBar/GossipRow"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "打听"
+theme_override_font_sizes/font_size = 15
+
+[node name="SpreadButton" type="Button" parent="Panel/GossipBar/GossipRow"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "放话"
+theme_override_font_sizes/font_size = 15
+
+[node name="DebunkButton" type="Button" parent="Panel/GossipBar/GossipRow"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "辟谣"
+theme_override_font_sizes/font_size = 15
 
 [node name="GiftButton" type="Button" parent="Panel"]
 unique_name_in_owner = true

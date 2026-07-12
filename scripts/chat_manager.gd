@@ -84,6 +84,10 @@ func _is_pair_eligible(a: Node, b: Node, now: float) -> bool:
 	if b.has_method("is_busy") and b.is_busy():
 		return false
 
+	# 任何一方正卷入危机调解 → 不触发（避免被拉去闲聊、打断聚集）
+	if a.is_in_group("crisis_party") or b.is_in_group("crisis_party"):
+		return false
+
 	# 距离
 	if (a.global_position - b.global_position).length() > trigger_distance:
 		return false

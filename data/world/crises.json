@@ -1,0 +1,64 @@
+{
+  "_comment": "危机调解池 - 镇上 NPC 间的纠纷/突发事件，玩家以镇长身份介入断案。事实由本模板定死，LLM 只补台词与反应。",
+  "_format": "{ title, parties:[npc_id..], scene(展示用地点标签), summary(事件经过), min_day(达到该游戏日才可能触发), weight(抽取权重), cooldown_days(解决后冷却), options:[{ id, label, requires:{item,count}(可空), effects:{npc_id:delta..}, tag, town_mood(可空) }] }",
+
+  "acorn_theft": {
+    "title": "橡果失窃案",
+    "parties": ["traveler_lan", "pirate_lao"],
+    "scene": "广场",
+    "summary": "小蓝存在树洞里的一堆橡果不翼而飞，他一口咬定是老咸家那只嘴馋的章鱼干的；老咸却觉得空口无凭，是小蓝自己没数清。两人在广场吵得不可开交，等你来评理。",
+    "min_day": 1,
+    "weight": 10,
+    "cooldown_days": 3,
+    "options": [
+      { "id": "side_lan", "label": "判老咸看管好章鱼，并赔小蓝几颗橡果",
+        "requires": {}, "effects": { "traveler_lan": 8, "pirate_lao": -6 }, "tag": "公正裁决" },
+      { "id": "side_lao", "label": "章鱼野性难驯，劝小蓝这回算了",
+        "requires": {}, "effects": { "traveler_lan": -6, "pirate_lao": 6 }, "tag": "偏袒一方" },
+      { "id": "compensate", "label": "你自掏 3 颗橡果补给小蓝，平息此事",
+        "requires": { "item": "acorn", "count": 3 }, "effects": { "traveler_lan": 10, "pirate_lao": 4 }, "tag": "破财消灾" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "traveler_lan": -4, "pirate_lao": -2 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "bakery_smell": {
+    "title": "面包店扩建之争",
+    "parties": ["bear_baker", "herbalist_cui"],
+    "scene": "面包店",
+    "summary": "苔老板想扩建面包店、多添一座烤炉招揽人气，可油烟顺风飘进隔壁小翠的药铺，晾着的草药全串了味。苔老板说这是发展镇子，小翠说这是毁她营生，僵持不下。",
+    "min_day": 1,
+    "weight": 8,
+    "cooldown_days": 3,
+    "options": [
+      { "id": "side_baker", "label": "支持扩建，镇子需要更多人气",
+        "requires": {}, "effects": { "bear_baker": 8, "herbalist_cui": -6 }, "tag": "重发展" },
+      { "id": "side_cui", "label": "责令面包店加装烟囱、限定开炉时段",
+        "requires": {}, "effects": { "bear_baker": -6, "herbalist_cui": 8 }, "tag": "护居民" },
+      { "id": "mediate", "label": "各退一步：划定开炉时段，草药挪到上风处",
+        "requires": {}, "effects": { "bear_baker": 4, "herbalist_cui": 4 }, "tag": "老练调解" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "bear_baker": -3, "herbalist_cui": -3 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "lost_prescription": {
+    "title": "丢失的药方",
+    "parties": ["herbalist_cui", "fox_postman"],
+    "scene": "邮局",
+    "summary": "小翠托焰仔送去山顶病人的药方包裹迟迟没到，病人急等着抓药；焰仔喊冤，说自己压根没收到这个包裹。到底是路上弄丢了还是根本没交接，两人各执一词。",
+    "min_day": 2,
+    "weight": 7,
+    "cooldown_days": 3,
+    "options": [
+      { "id": "side_cui", "label": "责令焰仔重送并向小翠道歉",
+        "requires": {}, "effects": { "herbalist_cui": 8, "fox_postman": -6 }, "tag": "偏袒一方" },
+      { "id": "side_fox", "label": "相信焰仔，安抚小翠这是场误会",
+        "requires": {}, "effects": { "herbalist_cui": -6, "fox_postman": 8 }, "tag": "偏袒一方" },
+      { "id": "compensate", "label": "你亲自跑一趟，交出 1 份草药替病人补上",
+        "requires": { "item": "herb", "count": 1 }, "effects": { "herbalist_cui": 8, "fox_postman": 6 }, "tag": "亲力亲为" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "herbalist_cui": -4, "fox_postman": -4 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  }
+}

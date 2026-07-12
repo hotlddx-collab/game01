@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://bpromise01" path="res://scenes/ui/promise_panel.tscn" id="19_pp"]
 [ext_resource type="PackedScene" uid="uid://bdebate01" path="res://scenes/ui/debate_panel.tscn" id="20_db"]
 [ext_resource type="PackedScene" uid="uid://bpower01" path="res://scenes/ui/power_panel.tscn" id="21_pw"]
+[ext_resource type="PackedScene" uid="uid://bcrisis01" path="res://scenes/ui/crisis_panel.tscn" id="22_cr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_eb6dy"]
 size = Vector2(27.642277, 31.714153)
@@ -1025,7 +1026,7 @@ script = ExtResource("17_qhud")
 offset_left = 16.0
 offset_top = 56.0
 offset_right = 380.0
-offset_bottom = 180.0
+offset_bottom = 190.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_qhud")
 
 [node name="VBox" type="VBoxContainer" parent="QuestHUD/Panel" unique_id=917345003]
@@ -1033,14 +1034,15 @@ layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 12.0
-offset_top = 8.0
+offset_top = 10.0
 offset_right = -12.0
-offset_bottom = -8.0
+offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 6
 
 [node name="Title" type="RichTextLabel" parent="QuestHUD/Panel/VBox" unique_id=917345004]
-custom_minimum_size = Vector2(0, 28)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 bbcode_enabled = true
 fit_content = true
@@ -1067,3 +1069,5 @@ unique_name_in_owner = true
 [node name="DebatePanel" parent="." unique_id=1095541009 instance=ExtResource("20_db")]
 
 [node name="PowerPanel" parent="." unique_id=462999425 instance=ExtResource("21_pw")]
+
+[node name="CrisisPanel" parent="." instance=ExtResource("22_cr")]

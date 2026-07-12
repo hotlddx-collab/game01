@@ -32,6 +32,10 @@ ACTION_SMEAR = "smear"
 # 落后玩家超过此分 → 当日行动数 +1，且更倾向抹黑（追赶施压）
 CATCHUP_BEHIND_THRESHOLD = 25.0
 
+# 双向橡皮筋：对手领先玩家时收手（陪玩定位）
+AHEAD_EASE_THRESHOLD = 10.0   # 对手领先超此分 → 收手，当日最多 1 个温和动作
+AHEAD_STOP_THRESHOLD = 25.0   # 对手领先超此分 → 完全等一等，当日 0 动作
+
 # 后端 LLM 失败时的兜底文案（不阻塞主流程）
 FALLBACK_VISIT_TEXTS = [
     "我希望镇上能少一点喧闹，多一点踏实。",
@@ -144,15 +148,26 @@ class OpponentAI:
 
     # ---- 每日动作 ----
 
-    def _daily_action_count(self, day_index: int, behind: float) -> int:
-        """当日行动数：随任期推进递增（临近投票发力），落后时再 +1（追赶施压）。"""
+    def _daily_action_count(self, day_index: int, gap: float) -> int:
+        """当日行动数（双向橡皮筋）。
+
+        gap = 玩家分 − 对手分：>0 玩家领先，<0 对手领先。
+        - 对手领先 > AHEAD_STOP_THRESHOLD → 0（完全等一等）
+        - 对手领先 > AHEAD_EASE_THRESHOLD → 1（收手，温和拉票）
+        - 接近 → 随任期推进 base 1~3
+        - 玩家领先 > CATCHUP_BEHIND_THRESHOLD → base+1（追赶施压）
+        """
+        if gap < -AHEAD_STOP_THRESHOLD:
+            return 0
+        if gap < -AHEAD_EASE_THRESHOLD:
+            return 1
         if day_index <= 2:
             base = 1
         elif day_index <= 4:
             base = 2
         else:
             base = 3
-        if behind > CATCHUP_BEHIND_THRESHOLD:
+        if gap > CATCHUP_BEHIND_THRESHOLD:
             base += 1
         return min(base, 4)
 
@@ -199,28 +214,38 @@ class OpponentAI:
         game_day: int,
         player_score: float = 0.0,
         opponent_score: float = 0.0,
+        force: bool = False,
     ) -> List[Dict]:
-        """生成今日对手的多个动作（强劲追赶）。每日 07:00 调一次。
+        """生成对手的一批动作（强劲追赶）。
 
         行动数随任期推进 + 落后幅度增加；动作类型按比分智能选（visit/promise/smear）。
+        force=False 时同一游戏日只执行一批（防重复）；
+        force=True 跳过该守卫（用于定时多批 / 调试键即时触发）。
         返回动作 dict 列表（可能为空）。
         """
         term_id = int(term["term_id"])
         opponent_id = term["opponent_id"]
 
-        # 当日是否已执行
-        with get_conn() as conn:
-            row = conn.execute(
-                """SELECT COUNT(*) AS c FROM opponent_actions
-                   WHERE term_id = ? AND game_day = ?""",
-                (term_id, game_day),
-            ).fetchone()
-        if row and int(row["c"]) > 0:
-            return []  # 今日已生成过
+        # 当日是否已执行（force 跳过）
+        if not force:
+            with get_conn() as conn:
+                row = conn.execute(
+                    """SELECT COUNT(*) AS c FROM opponent_actions
+                       WHERE term_id = ? AND game_day = ?""",
+                    (term_id, game_day),
+                ).fetchone()
+            if row and int(row["c"]) > 0:
+                return []  # 今日已生成过
 
         day_index = self.election.day_index_in_term(term, game_day)
-        behind = player_score - opponent_score
-        n_actions = self._daily_action_count(day_index, behind)
+        gap = player_score - opponent_score
+        n_actions = self._daily_action_count(day_index, gap)
+        if n_actions <= 0:
+            log.info(
+                "[opponent_ai] term=%d day=%d 分差=%.1f 对手领先收手，0 动作",
+                term_id, game_day, gap,
+            )
+            return []
 
         platform = await self.ensure_platform(term)
         picks = self._pick_targets_by_score(term, opponent_id, n_actions)
@@ -235,8 +260,8 @@ class OpponentAI:
             if action:
                 actions.append(action)
         log.info(
-            "[opponent_ai] term=%d day=%d 落后=%.1f 行动数=%d 动作=%s",
-            term_id, game_day, behind, len(actions),
+            "[opponent_ai] term=%d day=%d 分差=%.1f 行动数=%d 动作=%s",
+            term_id, game_day, gap, len(actions),
             [(a["target_npc"], a["action_type"]) for a in actions],
         )
         return actions

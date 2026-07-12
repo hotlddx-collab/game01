@@ -72,8 +72,7 @@ theme_override_colors/font_outline_color = Color(0.1, 0.1, 0.1, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 22
 
-[node name="InteractHint" type="Label" parent="."]
-unique_name_in_owner = true
+[node name="InteractHint" type="Label" parent="."]unique_name_in_owner = true
 visible = false
 offset_left = -20.0
 offset_top = -82.0
@@ -85,3 +84,16 @@ theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 theme_override_colors/font_outline_color = Color(0.1, 0.1, 0.1, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 18
+
+[node name="MoodLabel" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 40.0
+offset_top = -62.0
+offset_right = 66.0
+offset_bottom = -44.0
+horizontal_alignment = 1
+text = ""
+theme_override_colors/font_outline_color = Color(0.1, 0.1, 0.1, 0.85)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 13
