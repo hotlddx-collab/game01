@@ -41,6 +41,8 @@ func _ready() -> void:
 	AgentClient.opponent_action_received.connect(_on_opponent_action)
 	AgentClient.election_result_received.connect(_on_election_result)
 
+	AudioManager.play_game_bgm()
+
 
 func _process(_delta: float) -> void:
 	# 对话期间，玩家走远 → 自动关闭

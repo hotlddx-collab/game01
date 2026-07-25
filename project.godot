@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="怪物森林"
 config/description="Agent 驱动的 2D 怪物森林游戏（动森风格）"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -28,6 +28,7 @@ AgentClient="*res://scripts/agent_client.gd"
 ChatManager="*res://scripts/chat_manager.gd"
 PlayerInventory="*res://scripts/player_inventory.gd"
 ItemDB="*res://scripts/item_db.gd"
+AudioManager="*res://scripts/audio_manager.gd"
 
 [display]
 
