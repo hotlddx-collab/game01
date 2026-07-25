@@ -38,9 +38,14 @@ signal error_received(message: String)
 @export var auto_reconnect: bool = true
 @export var reconnect_interval: float = 3.0
 
+## 生产服务器（导出版默认连这里；编辑器里仍连本地 127.0.0.1 便于开发）。
+const PROD_SCHEME := "ws"
+const PROD_HOST := "106.14.139.241"
+const PROD_PORT := 8765
+
 ## 运行时可用 user://server.cfg 覆盖连接地址，无需重新导出：
 ##   [server]
-##   url="wss://your-domain/ws"
+##   url="ws://1.2.3.4:8765/ws"
 const _OVERRIDE_PATH := "user://server.cfg"
 var _resolved_url: String = ""
 
@@ -100,7 +105,8 @@ func _try_connect() -> void:
 		push_warning("[AgentClient] connect_to_url failed err=%d" % err)
 
 
-## 解析连接地址：优先读 user://server.cfg 的 [server]/url，否则用导出变量拼装。
+## 解析连接地址：优先读 user://server.cfg 的 [server]/url；
+## 否则编辑器内连本地导出变量地址，导出版连生产服务器。
 func _resolve_url() -> String:
 	if _resolved_url != "":
 		return _resolved_url
@@ -110,7 +116,10 @@ func _resolve_url() -> String:
 		if u != "":
 			_resolved_url = u
 			return _resolved_url
-	_resolved_url = "%s://%s:%d%s" % [scheme, host, port, path]
+	if OS.has_feature("editor"):
+		_resolved_url = "%s://%s:%d%s" % [scheme, host, port, path]
+	else:
+		_resolved_url = "%s://%s:%d%s" % [PROD_SCHEME, PROD_HOST, PROD_PORT, path]
 	return _resolved_url
 
 
