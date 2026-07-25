@@ -69,10 +69,10 @@ func _process(delta: float) -> void:
 
 	match state:
 		WebSocketPeer.STATE_OPEN:
-			if not _connected:
-				_connected = true
-									print("[AgentClient] connected %s" % _resolve_url())
-				connected.emit()
+				if not _connected:
+					_connected = true
+					print("[AgentClient] connected %s" % _resolve_url())
+					connected.emit()
 			# 收包
 			while _ws.get_available_packet_count() > 0:
 				var pkt: PackedByteArray = _ws.get_packet()
