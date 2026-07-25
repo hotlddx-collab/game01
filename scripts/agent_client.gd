@@ -31,11 +31,19 @@ signal crisis_state_received(info: Dictionary)
 signal crisis_result_received(info: Dictionary)
 signal error_received(message: String)
 
+@export var scheme: String = "ws"   # ws（本地）/ wss（云端 TLS）
 @export var host: String = "127.0.0.1"
 @export var port: int = 8765
 @export var path: String = "/ws"
 @export var auto_reconnect: bool = true
 @export var reconnect_interval: float = 3.0
+
+## 运行时可用 user://server.cfg 覆盖连接地址，无需重新导出：
+##   [server]
+##   url="wss://your-domain/ws"
+const _OVERRIDE_PATH := "user://server.cfg"
+var _resolved_url: String = ""
+
 
 var _ws: WebSocketPeer = WebSocketPeer.new()
 var _connected: bool = false
@@ -58,7 +66,7 @@ func _process(delta: float) -> void:
 		WebSocketPeer.STATE_OPEN:
 			if not _connected:
 				_connected = true
-				print("[AgentClient] connected ws://%s:%d%s" % [host, port, path])
+									print("[AgentClient] connected %s" % _resolve_url())
 				connected.emit()
 			# 收包
 			while _ws.get_available_packet_count() > 0:
@@ -81,7 +89,7 @@ func _process(delta: float) -> void:
 
 
 func _try_connect() -> void:
-	var url := "ws://%s:%d%s" % [host, port, path]
+	var url := _resolve_url()
 	if _ever_attempted:
 		print("[AgentClient] reconnecting %s" % url)
 	else:
@@ -90,6 +98,21 @@ func _try_connect() -> void:
 	var err := _ws.connect_to_url(url)
 	if err != OK:
 		push_warning("[AgentClient] connect_to_url failed err=%d" % err)
+
+
+## 解析连接地址：优先读 user://server.cfg 的 [server]/url，否则用导出变量拼装。
+func _resolve_url() -> String:
+	if _resolved_url != "":
+		return _resolved_url
+	var cfg := ConfigFile.new()
+	if cfg.load(_OVERRIDE_PATH) == OK:
+		var u := String(cfg.get_value("server", "url", ""))
+		if u != "":
+			_resolved_url = u
+			return _resolved_url
+	_resolved_url = "%s://%s:%d%s" % [scheme, host, port, path]
+	return _resolved_url
+
 
 
 func is_connected_to_server() -> bool:
