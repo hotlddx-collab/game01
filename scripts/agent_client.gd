@@ -149,6 +149,13 @@ func _get_session_id() -> String:
 
 
 func _gen_uuid() -> String:
+	# 混入高熵源再播种，避免 randi() 确定性序列导致多端撞同一 id
+	seed(hash("%s|%s|%d|%d" % [
+		OS.get_unique_id(),
+		Time.get_datetime_string_from_system(true),
+		Time.get_ticks_usec(),
+		randi(),
+	]))
 	var bytes := PackedByteArray()
 	for i in 16:
 		bytes.append(randi() % 256)
