@@ -48,7 +48,9 @@ class MilestoneStore:
         self._init_table()
 
     def _conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.db_path)
+        # 按会话路由：连接目标由 db.current_db_path（ContextVar）决定
+        import db
+        return sqlite3.connect(str(db.current_db_path.get()))
 
     def _init_table(self) -> None:
         with self._conn() as c:

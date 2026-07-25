@@ -4,11 +4,16 @@ from __future__ import annotations
 import sqlite3
 import threading
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 
 
 DB_PATH = Path(__file__).parent / "town.db"
+
+# 当前连接使用的 DB 文件路径（按会话隔离）。默认指向 town.db，
+# 编辑器单会话开发行为不变；每个玩家连接时切到各自的 data/{sid}.db。
+current_db_path: ContextVar[Path] = ContextVar("current_db_path", default=DB_PATH)
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -219,6 +224,24 @@ CREATE TABLE IF NOT EXISTS rumor_knowledge (
   PRIMARY KEY (rumor_id, animal_id)
 );
 CREATE INDEX IF NOT EXISTS idx_rumor_know_animal ON rumor_knowledge(animal_id);
+
+-- 任务状态（原由 quests.py 自建，并入 schema 以便每个会话库都有）
+CREATE TABLE IF NOT EXISTS quests_state (
+  quest_id       TEXT PRIMARY KEY,
+  state          TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1,
+  accepted_at    INTEGER NOT NULL,
+  completed_at   INTEGER,
+  progress       INTEGER NOT NULL DEFAULT 0
+);
+
+-- 好感里程碑解锁记录（原由 milestones.py 自建）
+CREATE TABLE IF NOT EXISTS milestones_unlocked (
+  animal_id   TEXT NOT NULL,
+  transition  TEXT NOT NULL,
+  unlocked_at INTEGER NOT NULL,
+  PRIMARY KEY (animal_id, transition)
+);
 """
 
 
@@ -237,25 +260,32 @@ def _migrate(conn) -> None:
         conn.execute("ALTER TABLE crisis_state ADD COLUMN deadline_hour INTEGER")
 
 _lock = threading.Lock()
-_initialized = False
+_initialized_paths: set[str] = set()
 
 
-def init_schema() -> None:
-    """启动时调用。建表、迁移。"""
-    global _initialized
+def init_schema(db_path: Optional[Path] = None) -> None:
+    """建表 + 迁移。可指定 db 文件（按会话隔离）；同一路径只初始化一次。"""
+    path = Path(db_path) if db_path is not None else current_db_path.get()
+    key = str(path)
     with _lock:
-        if _initialized:
+        if key in _initialized_paths:
             return
-        with _connect() as conn:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(path), timeout=5.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        try:
             conn.executescript(_SCHEMA_SQL)
             _migrate(conn)
             conn.commit()
-        _initialized = True
+        finally:
+            conn.close()
+        _initialized_paths.add(key)
 
 
 @contextmanager
 def get_conn() -> Iterator[sqlite3.Connection]:
-    """短连接，with 自动提交关闭。"""
+    """短连接，with 自动提交关闭。连接目标由 current_db_path 决定。"""
     conn = _connect()
     try:
         yield conn
@@ -268,7 +298,7 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 
 
 def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH), timeout=5.0, check_same_thread=False)
+    conn = sqlite3.connect(str(current_db_path.get()), timeout=5.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

@@ -119,7 +119,9 @@ def _quest_mark_active_with_promise(qid: str) -> None:
         npc_id = q.get("npc_id", "")
         term = election_store.get_active_term()
         if term and npc_id:
-            day = _last_known_game_day if _last_known_game_day >= 0 else int(term.get("start_day", 0))
+            _s = session_ctx.get()
+            _kd = _s.last_known_game_day if _s else -1
+            day = _kd if _kd >= 0 else int(term.get("start_day", 0))
             # deadline = 任期结束日（start_day + 6 = D7 结算日）
             deadline = int(term["start_day"]) + 6
             promise_store.create(
@@ -139,7 +141,9 @@ def _quest_mark_active_with_promise(qid: str) -> None:
 def _quest_mark_completed_with_promise(qid: str) -> None:
     _orig_mark_completed(qid)
     try:
-        day = _last_known_game_day if _last_known_game_day >= 0 else 0
+        _s = session_ctx.get()
+        _kd = _s.last_known_game_day if _s else -1
+        day = _kd if _kd >= 0 else 0
         promise_store.fulfill_by_quest(qid, day)
     except Exception as e:
         log.warning("[promise] 兑现失败 qid=%s: %s", qid, e)
@@ -189,14 +193,18 @@ crisis_manager = CrisisManager(
 )
 log.info("[crisis] CrisisManager 就绪 危机数=%d", len(crisis_manager.defs))
 
-# 记录上次危机抽取的游戏日，避免同日重复抽
-_last_crisis_spawn_day: int = -1
+# 每个玩家世界的运行时状态（DB 路由 + 每日去重计数器）现随 Session 走，
+# 见 session.py。之前的模块级 _last_* 全局已移入 Session 实例。
+import session as session_mod
+from session import session_ctx
 
-# 记录上次触发反思的游戏日，避免同日重复触发
-_last_reflect_day: int = -1
-_last_election_recompute_day: int = -1
-_last_opponent_action_slot: int = -1   # game_day*100 + game_hour//3，每 3 游戏小时一批
-_last_known_game_day: int = -1   # 任意 time_tick 后更新，供 promise 等模块取当前 day
+session_registry = session_mod.SessionRegistry()
+
+
+def _known_day() -> int:
+    """当前会话记录的最近 game_day（无则 -1）。"""
+    s = session_ctx.get()
+    return s.last_known_game_day if s else -1
 
 
 # ---------- HTTP 健康检查 ----------
@@ -209,7 +217,13 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    log.info("client connected")
+    # 会话隔离：客户端用 ws://host/ws?sid=UUID 上报身份，各自独立世界。
+    # 无 sid（编辑器/旧客户端）沿用默认 town.db。绑定在本连接任务上下文，
+    # 后续所有 await 及 asyncio.create_task 派生的后台任务都继承该会话。
+    sid = ws.query_params.get("sid", "")
+    sess = session_registry.get_or_create(sid)
+    session_mod.bind(sess)
+    log.info("client connected sid=%s db=%s", sid or "<default>", sess.db_path.name)
     try:
         while True:
             raw = await ws.receive_text()
@@ -313,12 +327,13 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         return
 
     context = msg.get("context", {})
-    # 顺手更新 game_day（promise 钩子用）
-    global _last_known_game_day
+    # 顺手更新 game_day（promise 钩子用），记在当前会话
     try:
         gd = int(context.get("game_day", -1))
         if gd >= 0:
-            _last_known_game_day = gd
+            _s = session_ctx.get()
+            if _s:
+                _s.last_known_game_day = gd
     except Exception:
         pass
 
@@ -502,7 +517,7 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
     # 八卦传播：listener 学到 speaker 带出来的话题（变味），并处理"传到当事人"后果
     if gossip_item:
         try:
-            game_day = int(context.get("game_day", _last_known_game_day))
+            game_day = int(context.get("game_day", _known_day()))
             spread = await rumor_manager.propagate(
                 gossip_item["rumor"].id, speaker_id, listener_id, game_day)
             if spread and spread.get("reached_subject"):
@@ -584,7 +599,7 @@ async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
     content = str(msg.get("content", "")).strip()
     sentiment = str(msg.get("sentiment", "neutral"))
     truth = int(msg.get("truth", 0))
-    game_day = int(msg.get("game_day", _last_known_game_day))
+    game_day = int(msg.get("game_day", _known_day()))
     agent = manager.get(animal_id)
     if agent is None or not content:
         await _send_error(ws, "rumor_spread 缺少 animal_id 或 content")
@@ -691,7 +706,7 @@ def _build_election_context(animal_id: str, context: dict) -> dict:
 
     candidate（对手 NPC）→ 知道自己在参选；voter → 知道自己有投票权。
     """
-    game_day = int(context.get("game_day", _last_known_game_day if _last_known_game_day >= 0 else 0))
+    game_day = int(context.get("game_day", _known_day() if _known_day() >= 0 else 0))
     term = election_store.ensure_term_active(game_day)
     opponent_id = term["opponent_id"]
     day_index = election_store.day_index_in_term(term, game_day)
@@ -1164,21 +1179,21 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
 
     消息格式：{"type": "time_tick", "game_day": N, "game_hour": H}
     """
-    global _last_reflect_day, _last_election_recompute_day, _last_opponent_action_slot, _last_known_game_day, _last_crisis_spawn_day
+    sess = session_ctx.get()
     game_day = int(msg.get("game_day", -1))
     game_hour = int(msg.get("game_hour", 0))
 
-    if game_day < 0:
+    if game_day < 0 or sess is None:
         return
 
-    _last_known_game_day = game_day
+    sess.last_known_game_day = game_day
 
     # 激活当日待执行意图（每小时检查一次）
     await _activate_pending_intents(game_day, game_hour, ws)
 
     # 22:00+ 且是新的一天 → 触发反思（非阻塞）
-    if game_hour >= 22 and game_day > _last_reflect_day:
-        _last_reflect_day = game_day
+    if game_hour >= 22 and game_day > sess.last_reflect_day:
+        sess.last_reflect_day = game_day
         asyncio.create_task(manager.run_all_daily_reflections(game_day, intent_store))
         # 八卦每日降温：冷透的话题自动淡出
         try:
@@ -1191,21 +1206,21 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
     # 对手 NPC 动作：每 3 游戏小时一批（醒着时段 7-21、仅 campaign 阶段）
     if 7 <= game_hour <= 21:
         slot = game_day * 100 + (game_hour // 3)
-        if slot > _last_opponent_action_slot:
+        if slot > sess.last_opponent_action_slot:
             try:
                 term = election_store.ensure_term_active(game_day)
                 day_idx = election_store.day_index_in_term(term, game_day)
                 phase = election_store.phase_of(day_idx)
                 if phase == "campaign":
-                    _last_opponent_action_slot = slot
+                    sess.last_opponent_action_slot = slot
                     asyncio.create_task(_run_opponent_daily(term, game_day, ws, force=True))
             except Exception as e:
                 log.warning("[opponent_ai] 触发失败: %s", e)
 
     # 危机调解：每游戏日尝试抽一次（醒着时段，避免同日重复），概率触发
     # 避让选举关键日（辩论日/投票日），不打断选举演出
-    if 8 <= game_hour <= 20 and game_day > _last_crisis_spawn_day:
-        _last_crisis_spawn_day = game_day
+    if 8 <= game_hour <= 20 and game_day > sess.last_crisis_spawn_day:
+        sess.last_crisis_spawn_day = game_day
         try:
             import random as _rnd
             skip_phase = False
@@ -1247,8 +1262,8 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
         log.warning("[crisis] 截止检查失败: %s", e)
 
     # 选举权重重算：每日 22:00+ 重算一次（与反思同时机），并推送状态
-    if game_hour >= 22 and game_day > _last_election_recompute_day:
-        _last_election_recompute_day = game_day
+    if game_hour >= 22 and game_day > sess.last_election_recompute_day:
+        sess.last_election_recompute_day = game_day
         try:
             term = election_store.ensure_term_active(game_day)
             election_store.recompute_and_persist_weights(term, game_day)

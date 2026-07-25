@@ -49,6 +49,11 @@ const PROD_PORT := 8765
 const _OVERRIDE_PATH := "user://server.cfg"
 var _resolved_url: String = ""
 
+## 会话隔离：每个安装生成一个持久 session_id，连接时以 ?sid= 上报，
+## 服务器据此给每个玩家独立世界（各玩各的，共用同一后端 LLM）。
+const _SESSION_PATH := "user://session.cfg"
+var _session_id: String = ""
+
 
 var _ws: WebSocketPeer = WebSocketPeer.new()
 var _connected: bool = false
@@ -110,17 +115,44 @@ func _try_connect() -> void:
 func _resolve_url() -> String:
 	if _resolved_url != "":
 		return _resolved_url
+	var base := ""
 	var cfg := ConfigFile.new()
 	if cfg.load(_OVERRIDE_PATH) == OK:
 		var u := String(cfg.get_value("server", "url", ""))
 		if u != "":
-			_resolved_url = u
-			return _resolved_url
-	if OS.has_feature("editor"):
-		_resolved_url = "%s://%s:%d%s" % [scheme, host, port, path]
-	else:
-		_resolved_url = "%s://%s:%d%s" % [PROD_SCHEME, PROD_HOST, PROD_PORT, path]
+			base = u
+	if base == "":
+		if OS.has_feature("editor"):
+			base = "%s://%s:%d%s" % [scheme, host, port, path]
+		else:
+			base = "%s://%s:%d%s" % [PROD_SCHEME, PROD_HOST, PROD_PORT, path]
+	# 追加会话标识：各玩家独立世界
+	var sep := "&" if base.contains("?") else "?"
+	_resolved_url = "%s%ssid=%s" % [base, sep, _get_session_id()]
 	return _resolved_url
+
+
+## 读取 / 生成持久 session_id（存 user://session.cfg），重连沿用同一 id。
+func _get_session_id() -> String:
+	if _session_id != "":
+		return _session_id
+	var cfg := ConfigFile.new()
+	if cfg.load(_SESSION_PATH) == OK:
+		var sid := String(cfg.get_value("session", "id", ""))
+		if sid != "":
+			_session_id = sid
+			return _session_id
+	_session_id = _gen_uuid()
+	cfg.set_value("session", "id", _session_id)
+	cfg.save(_SESSION_PATH)
+	return _session_id
+
+
+func _gen_uuid() -> String:
+	var bytes := PackedByteArray()
+	for i in 16:
+		bytes.append(randi() % 256)
+	return bytes.hex_encode()
 
 
 
