@@ -18,7 +18,7 @@ class LLMClient:
     ) -> None:
         api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         base_url = base_url or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        self.model = model or os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        self.model = model or os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
 
         if not api_key:
             raise RuntimeError("缺少 DEEPSEEK_API_KEY，请配置 .env")
@@ -32,11 +32,14 @@ class LLMClient:
         temperature: float = 0.9,
     ) -> str:
         """messages 形如 [{role, content}, ...]，返回 assistant 文本。"""
+        # deepseek-v4 系列默认开启推理（reasoning_content 会吃掉 max_tokens，
+        # 导致小额度下正文为空）。游戏对话不需要链式推理 → 关闭 thinking。
         resp = await self._client.chat.completions.create(
             model=self.model,
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
+            extra_body={"thinking": {"type": "disabled"}},
         )
         choice = resp.choices[0]
         return (choice.message.content or "").strip()
