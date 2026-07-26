@@ -29,6 +29,9 @@ signal power_state_received(info: Dictionary)
 signal power_result_received(info: Dictionary)
 signal crisis_state_received(info: Dictionary)
 signal crisis_result_received(info: Dictionary)
+signal mayor_task_state_received(info: Dictionary)
+signal mayor_task_result_received(info: Dictionary)
+signal day_event_received(info: Dictionary)
 signal error_received(message: String)
 
 @export var scheme: String = "ws"   # ws（本地）/ wss（云端 TLS）
@@ -380,6 +383,43 @@ func request_debug_spawn_crisis(template_id: String = "") -> bool:
 	})
 
 
+## 镇长政务任务：查询当前任务
+func request_mayor_task_query() -> bool:
+	return _send({
+		"type": "mayor_task_query",
+		"game_day": WorldClock.get_day(),
+	})
+
+
+## 镇长政务任务：指派某 NPC 执行（method: persuade|reason|threat）
+func request_mayor_task_assign(task_id: int, executor_id: String, method: String) -> bool:
+	return _send({
+		"type": "mayor_task_assign",
+		"game_day": WorldClock.get_day(),
+		"game_hour": WorldClock.get_hour(),
+		"task_id": task_id,
+		"executor_id": executor_id,
+		"method": method,
+	})
+
+
+## 调试：立即刷新一个镇务任务
+func request_debug_spawn_mayor_task() -> bool:
+	return _send({
+		"type": "debug_spawn_mayor_task",
+		"game_day": WorldClock.get_day(),
+		"game_hour": WorldClock.get_hour(),
+	})
+
+
+## GM：让玩家直接成为现任镇长（便于测试镇务玩法）
+func request_debug_make_mayor() -> bool:
+	return _send({
+		"type": "debug_make_mayor",
+		"game_day": WorldClock.get_day(),
+	})
+
+
 func _on_world_hour_changed(hour: int) -> void:
 	## 每个整点都通知后端：07:00 触发对手动作 / 22:00 触发反思+权重重算
 	if _connected:
@@ -528,6 +568,12 @@ func _handle_packet(text: String) -> void:
 			crisis_state_received.emit(data)
 		"crisis_result":
 			crisis_result_received.emit(data)
+		"mayor_task_state":
+			mayor_task_state_received.emit(data)
+		"mayor_task_result":
+			mayor_task_result_received.emit(data)
+		"day_event":
+			day_event_received.emit(data)
 		"error":
 			var m: String = data.get("message", "未知错误")
 			push_warning("[AgentClient] server error: %s" % m)

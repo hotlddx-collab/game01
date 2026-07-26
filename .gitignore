@@ -32,3 +32,9 @@ venv/
 
 # Logs
 *.log
+
+# 导出产物（本地构建，不入库）
+build/
+*.app/
+*.exe
+*.console.exe

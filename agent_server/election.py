@@ -22,9 +22,9 @@ from db import get_conn
 log = logging.getLogger("election")
 
 # ---------- 常量 ----------
-TERM_DAYS = 7
-DEBATE_DAY_INDEX = 6     # 1-indexed within a term
-VOTE_DAY_INDEX = 7
+TERM_DAYS = 4
+DEBATE_DAY_INDEX = 2     # 1-indexed within a term
+VOTE_DAY_INDEX = 4
 
 PLAYER_ID = "player"
 DEFAULT_FIRST_OPPONENT = "bear_baker"
@@ -56,6 +56,10 @@ PROMISE_PER_ACTION = 7.0   # 对手每次 promise 动作给目标 voter 的 prom
 SMEAR_PER_ACTION = 6.0     # 对手每次 smear 动作在目标 voter 的 event 里给玩家扣分
 SMEAR_BACKFIRE = 4.0       # 抹黑玩家铁票（affection≥阈值）时反噬对手自身 event 分
 SMEAR_LOYAL_AFFECTION = 40  # voter 对玩家 affection ≥ 此值视为铁票，smear 反噬
+
+# 玩家/小镇谣言对选举 event 分的影响（话题主角==候选人，且该 voter 已知晓时生效）
+RUMOR_EVENT_PER = 8.0        # 单条已知晓的候选人谣言，满热度(100)时对该 voter 的 event 分最大影响
+RUMOR_SMEAR_BACKFIRE = 0.5   # 护主：抹黑某候选人的铁票选民 → 反向加分系数（越护越挺）
 
 # 任期难度阶梯（陪玩定位）：对手总权重乘此系数，term1 最弱，逐届变强。
 # 直接作用于对手每个 voter 的合计权重 → 第一关开局近乎持平。
@@ -340,6 +344,23 @@ class ElectionStore:
             return "debate"
         return "campaign"
 
+    @staticmethod
+    def day_theme(day_index: int) -> str:
+        """当日主题节点（叠加在 phase 之上，仅用于氛围/引导/D3保证危机）。
+
+        4 天任期：D1 民意集会 / D2 辩论 / D3 突发危机 / D4 投票。
+        注意：D1、D3 的 phase 仍是 campaign（对手照常拉票、正常玩法）。
+        """
+        if day_index >= VOTE_DAY_INDEX:
+            return "vote"
+        if day_index == DEBATE_DAY_INDEX:
+            return "debate"
+        if day_index == 1:
+            return "rally"
+        if day_index == VOTE_DAY_INDEX - 1:
+            return "crisis"
+        return "campaign"
+
     # ---- 权重计算 ----
 
     def voters_of(self, term: Dict) -> List[str]:
@@ -528,6 +549,32 @@ class ElectionStore:
                 elif candidate_id == opponent_id and is_loyal:
                     # 抹黑铁票 → 反噬对手
                     score -= smear_cnt * SMEAR_BACKFIRE
+
+        # ---- 玩家/小镇谣言影响（话题主角==候选人，且该 voter 已知晓）----
+        # 造谣抹黑 = 拉低该候选人在知情选民处的 event 分；夸赞 = 拉高。
+        # 效果按热度缩放，且只作用于「听说过」的选民 → 越传得开影响越大。
+        try:
+            with get_conn() as conn:
+                rrows = conn.execute(
+                    """SELECT r.sentiment AS sentiment, r.heat AS heat
+                       FROM rumor_knowledge k JOIN rumor r ON r.id = k.rumor_id
+                       WHERE k.animal_id = ? AND r.subject_id = ? AND r.status = 'active'
+                         AND r.sentiment IN ('smear', 'praise')""",
+                    (voter_id, candidate_id),
+                ).fetchall()
+        except Exception:
+            rrows = []
+        if rrows:
+            loyal_to_cand = voter_id in LOYALTY_MAP.get(candidate_id, set())
+            for rr in rrows:
+                mag = (int(rr["heat"]) / 100.0) * RUMOR_EVENT_PER
+                if rr["sentiment"] == "praise":
+                    score += mag
+                elif rr["sentiment"] == "smear":
+                    if loyal_to_cand:
+                        score += mag * RUMOR_SMEAR_BACKFIRE  # 护主：抹黑铁票反加分
+                    else:
+                        score -= mag
 
         # clamp
         if score > W_EVENT_MAX:

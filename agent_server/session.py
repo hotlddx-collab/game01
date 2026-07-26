@@ -29,6 +29,7 @@ class Session:
         self.last_opponent_action_slot: int = -1
         self.last_known_game_day: int = -1
         self.last_crisis_spawn_day: int = -1
+        self.last_day_event_day: int = -1
 
 
 # 当前正在处理的会话（供共享单例/闭包读取每日计数器）

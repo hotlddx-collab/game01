@@ -48,6 +48,30 @@ static func all_waypoint_ids() -> Array:
 	return _wps.keys()
 
 
+## 所有路网节点坐标（保证在道路上、可达）
+static func all_waypoint_positions() -> Array[Vector2]:
+	_ensure_loaded()
+	var out: Array[Vector2] = []
+	for id in _wps:
+		out.append(_wps[id])
+	return out
+
+
+## 随机一个路网节点坐标（远离 avoid 优先，可达且在陆地）
+static func random_point(avoid: Vector2 = Vector2.INF, min_dist: float = 0.0) -> Vector2:
+	var pts := all_waypoint_positions()
+	if pts.is_empty():
+		return Vector2.ZERO
+	if avoid != Vector2.INF and min_dist > 0.0:
+		var far: Array[Vector2] = []
+		for p in pts:
+			if p.distance_to(avoid) >= min_dist:
+				far.append(p)
+		if not far.is_empty():
+			pts = far
+	return pts[randi() % pts.size()]
+
+
 # ──────────────────────────────────────
 # 内部实现
 # ──────────────────────────────────────

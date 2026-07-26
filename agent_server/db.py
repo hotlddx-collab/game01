@@ -242,6 +242,21 @@ CREATE TABLE IF NOT EXISTS milestones_unlocked (
   unlocked_at INTEGER NOT NULL,
   PRIMARY KEY (animal_id, transition)
 );
+
+-- 镇长政务任务：现任镇长期间随机刷新，玩家在 NPC 对话里指派执行
+CREATE TABLE IF NOT EXISTS mayor_task (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_type    TEXT NOT NULL,          -- subdue_drunk|repair_sewer|cure_epidemic|clean|archive
+  status       TEXT NOT NULL DEFAULT 'open',   -- open|assigned|resolved
+  target_id    TEXT,                   -- 相关 NPC（酒鬼/病人主角）或空
+  executor_id  TEXT,                   -- 被指派执行者：npc_id | 'player'
+  method       TEXT,                   -- persuade|reason|threat
+  outcome      TEXT,                   -- botch|ok|great
+  spawn_day    INTEGER NOT NULL,
+  created_at   INTEGER NOT NULL,
+  resolved_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_mayor_task_status ON mayor_task(status);
 """
 
 

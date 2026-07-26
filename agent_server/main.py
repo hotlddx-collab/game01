@@ -24,7 +24,7 @@ from world_events import WorldEventStore
 from affection import AffectionStore
 from gifts import GiftStore
 from reflection import ReflectionStore, IntentStore
-from election import ElectionStore
+from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX
 from opponent_ai import OpponentAI
 from promises import PromiseStore
 from debate import DebateManager
@@ -122,8 +122,8 @@ def _quest_mark_active_with_promise(qid: str) -> None:
             _s = session_ctx.get()
             _kd = _s.last_known_game_day if _s else -1
             day = _kd if _kd >= 0 else int(term.get("start_day", 0))
-            # deadline = 任期结束日（start_day + 6 = D7 结算日）
-            deadline = int(term["start_day"]) + 6
+            # deadline = 任期结束日（投票日结算）
+            deadline = int(term["start_day"]) + (VOTE_DAY_INDEX - 1)
             promise_store.create(
                 term_id=int(term["term_id"]),
                 candidate_id="player",
@@ -192,6 +192,20 @@ crisis_manager = CrisisManager(
     llm=llm,
 )
 log.info("[crisis] CrisisManager 就绪 危机数=%d", len(crisis_manager.defs))
+
+# 镇长政务任务系统（现任镇长专属：指挥 NPC 干活）
+from mayor_tasks import MayorTaskManager
+mayor_task_manager = MayorTaskManager(
+    election_store=election_store,
+    affection_store=affection_store,
+    mood_store=mood_store,
+    world_store=world_store,
+    personas=personas,
+    npc_ids=list(manager.all_ids()),
+    llm=llm,
+)
+log.info("[mayor_task] MayorTaskManager 就绪")
+
 
 # 每个玩家世界的运行时状态（DB 路由 + 每日去重计数器）现随 Session 走，
 # 见 session.py。之前的模块级 _last_* 全局已移入 Session 实例。
@@ -318,6 +332,20 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         return
     if msg_type == "debug_spawn_crisis":
         await _handle_debug_spawn_crisis(ws, msg)
+        return
+
+    # 镇长政务任务：查询当前任务 / 指派 NPC 执行 / 调试刷新
+    if msg_type == "mayor_task_query":
+        await _handle_mayor_task_query(ws, msg)
+        return
+    if msg_type == "mayor_task_assign":
+        await _handle_mayor_task_assign(ws, msg)
+        return
+    if msg_type == "debug_spawn_mayor_task":
+        await _handle_debug_spawn_mayor_task(ws, msg)
+        return
+    if msg_type == "debug_make_mayor":
+        await _handle_debug_make_mayor(ws, msg)
         return
 
     animal_id = msg.get("animal_id", "")
@@ -522,6 +550,11 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
                 gossip_item["rumor"].id, speaker_id, listener_id, game_day)
             if spread and spread.get("reached_subject"):
                 await _apply_rumor_consequence(ws, spread, listener_id, game_day)
+            # 谣言又传到一名选民(listener) → 若主角是候选人，其 event 分变化，推送刷新
+            if spread:
+                subj = spread.get("subject_id", "")
+                if subj in set(manager.all_ids()) or subj == "player":
+                    await _broadcast_election_state(ws, game_day)
         except Exception as e:
             log.debug("[rumor] 传播失败: %s", e)
 
@@ -592,8 +625,47 @@ async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
     }, ensure_ascii=False))
 
 
+# 玩家放话情感推断词表（比选举 event 用的更宽，覆盖日常褒贬）
+_RUMOR_SMEAR_WORDS = (
+    "缺斤少两", "坏", "差", "骗", "假", "黑心", "丑", "贪", "懒", "脏", "偷", "抢",
+    "恶", "烂", "臭", "无能", "自私", "虚伪", "欺", "骂", "吵", "破坏", "失约",
+    "麻烦", "丑闻", "醉", "难吃", "缺德", "坑", "不行", "没本事", "小气", "抠",
+    "作弊", "偷懒", "撒谎", "背叛", "阴险", "耍赖",
+)
+_RUMOR_PRAISE_WORDS = (
+    "好", "棒", "优秀", "善良", "慷慨", "能干", "靠谱", "厉害", "帮", "救", "支持",
+    "诚实", "公正", "热心", "大方", "可靠", "有本事", "用心", "漂亮", "美味",
+    "好吃", "勤快", "仗义", "靠得住", "为大家", "负责", "实在", "亲切",
+)
+
+
+def _infer_rumor(content: str, subject_id: str, sentiment: str):
+    """从玩家自由文本推断话题主角 + 情感（客户端只传自由文本时用）。"""
+    # 主角：内容提到某 NPC 名字 → 话题针对该 NPC；否则维持默认（多为 player）
+    if subject_id in ("", "player"):
+        for aid in manager.all_ids():
+            ag = manager.get(aid)
+            if ag and ag.name and ag.name in content:
+                subject_id = aid
+                break
+    # 情感：仅当客户端未显式指定（neutral）时按褒贬词判定
+    if sentiment == "neutral":
+        neg = any(w in content for w in _RUMOR_SMEAR_WORDS)
+        pos = any(w in content for w in _RUMOR_PRAISE_WORDS)
+        if neg and not pos:
+            sentiment = "smear"
+        elif pos and not neg:
+            sentiment = "praise"
+    return subject_id, sentiment
+
+
 async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
-    """玩家放话：把一句话灌给某 NPC，成为新话题的初始知情者（可真可假）。"""
+    """玩家放话：把一句话灌给某 NPC，成为新话题的初始知情者（可真可假）。
+
+    UI 只给自由文本，故服务端从内容里推断：
+      - 主角：提到某 NPC 名字 → 话题主角是该 NPC（可针对候选人）；否则默认玩家自己。
+      - 情感：褒/贬词判 praise / smear，用于影响该主角的选举 event 分。
+    """
     animal_id = msg.get("animal_id", "")
     subject_id = str(msg.get("subject_id", "")) or "player"
     content = str(msg.get("content", "")).strip()
@@ -604,6 +676,7 @@ async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
     if agent is None or not content:
         await _send_error(ws, "rumor_spread 缺少 animal_id 或 content")
         return
+    subject_id, sentiment = _infer_rumor(content, subject_id, sentiment)
     rid = rumor_manager.generate(
         subject_id, content, sentiment=sentiment, truth=truth,
         origin="player", game_day=game_day, initial_knowers=[animal_id], heat=50)
@@ -621,6 +694,13 @@ async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
         "type": "rumor_reply", "animal_id": animal_id, "text": line,
         "spread_ok": True, "rumor_id": rid, "ok": True,
     }, ensure_ascii=False))
+    # 谣言影响候选人 event 分 → 立刻重算推送，让 HUD 反映（当前仅初始知情者生效，
+    # 随后靠 NPC 闲聊扩散到更多选民、影响才变大）
+    if subject_id in set(manager.all_ids()) or subject_id == "player":
+        try:
+            await _broadcast_election_state(ws, game_day)
+        except Exception as e:
+            log.debug("[election] 散谣后推送失败: %s", e)
 
 
 async def _handle_rumor_debunk(ws: WebSocket, msg: dict) -> None:
@@ -648,6 +728,12 @@ async def _handle_rumor_debunk(ws: WebSocket, msg: dict) -> None:
         "type": "rumor_reply", "animal_id": animal_id, "text": line,
         "debunk_ok": True, "rumor_id": rumor_id, "heat": new_heat, "ok": True,
     }, ensure_ascii=False))
+    # 辟谣降热度 → 该候选人 event 分回升，立刻推送刷新 HUD
+    if r.subject_id in set(manager.all_ids()) or r.subject_id == "player":
+        try:
+            await _broadcast_election_state(ws, int(msg.get("game_day", _known_day())))
+        except Exception as e:
+            log.debug("[election] 辟谣后推送失败: %s", e)
 
 
 async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
@@ -725,7 +811,7 @@ def _build_election_context(animal_id: str, context: dict) -> dict:
         "term_no": int(term["term_id"]),
         "opponent_name": opp_name,
         "day_index": day_index,
-        "term_days": 7,
+        "term_days": TERM_DAYS,
         "phase_label": phase_label,
         "is_incumbent": election_store.is_incumbent(int(term["term_id"]), animal_id),
     }
@@ -751,7 +837,7 @@ async def _handle_debug_force_vote(ws: WebSocket, msg: dict) -> None:
     """
     game_day = int(msg.get("game_day", 0))
     term = election_store.ensure_term_active(game_day)
-    needed_day = int(term["start_day"]) + 6  # day_index=7
+    needed_day = int(term["start_day"]) + (VOTE_DAY_INDEX - 1)  # day_index=VOTE_DAY_INDEX
     use_day = max(game_day, needed_day)
     election_store.recompute_and_persist_weights(term, use_day)
     settle = election_store.settle_term_if_due(use_day)
@@ -1061,6 +1147,119 @@ async def _handle_crisis_query(ws: WebSocket, msg: dict) -> None:
     await _push_crisis_state(ws, view)
 
 
+# ---------- 镇长政务任务 ----------
+
+async def _push_mayor_task_state(ws: WebSocket) -> None:
+    view = mayor_task_manager.view()
+    payload = {"type": "mayor_task_state", "ok": True, "active": view is not None}
+    if view is not None:
+        payload["task"] = view
+    await ws.send_text(json.dumps(payload, ensure_ascii=False))
+
+
+def _player_is_mayor() -> bool:
+    try:
+        term = election_store.get_active_term()
+        return bool(term) and election_store.is_incumbent(int(term["term_id"]), "player")
+    except Exception:
+        return False
+
+
+def _player_election_score(game_day: int) -> float:
+    """玩家当前聚合选情分（即时重算），用于镇务前后对比提示。"""
+    try:
+        view = election_store.get_current_term_view(game_day)
+        return float(view.get("scores", {}).get("player", 0.0))
+    except Exception:
+        return 0.0
+
+
+async def _handle_mayor_task_query(ws: WebSocket, msg: dict) -> None:
+    await _push_mayor_task_state(ws)
+
+
+async def _handle_debug_spawn_mayor_task(ws: WebSocket, msg: dict) -> None:
+    game_day = int(msg.get("game_day", _known_day()))
+    if game_day < 0:
+        game_day = 0
+    try:
+        mayor_task_manager.force_spawn(game_day)
+    except Exception as e:
+        log.warning("[mayor_task] debug spawn 失败: %s", e)
+    await _push_mayor_task_state(ws)
+
+
+async def _handle_debug_make_mayor(ws: WebSocket, msg: dict) -> None:
+    """GM：让玩家直接成为当前任期现任镇长（便于测试镇务玩法）。"""
+    game_day = int(msg.get("game_day", _known_day()))
+    if game_day < 0:
+        game_day = 0
+    try:
+        term = election_store.ensure_term_active(game_day)
+        term_id = int(term["term_id"])
+        election_store.set_incumbent(term_id, "player")
+        election_store.refresh_power_points(term_id, "player", game_day)
+        log.info("[gm] 玩家直升现任镇长 term=%d day=%d", term_id, game_day)
+    except Exception as e:
+        log.warning("[gm] make_mayor 失败: %s", e)
+        await _send_error(ws, f"任命失败: {e}")
+        return
+    await ws.send_text(json.dumps({
+        "type": "mayor_task_result",
+        "ok": True,
+        "gm": "make_mayor",
+        "text": "你已就任镇长（GM）。按 Ctrl+M 可立即刷新一个镇务任务。",
+    }, ensure_ascii=False))
+    await _broadcast_election_state(ws, game_day)
+    await _push_mayor_task_state(ws)
+
+
+async def _handle_mayor_task_assign(ws: WebSocket, msg: dict) -> None:
+    task_id = int(msg.get("task_id", 0))
+    executor_id = str(msg.get("executor_id", ""))
+    method = str(msg.get("method", ""))
+    game_day = int(msg.get("game_day", _known_day()))
+    if game_day < 0:
+        game_day = 0
+    game_hour = int(msg.get("game_hour", 10))
+    score_before = _player_election_score(game_day)
+    try:
+        result = await mayor_task_manager.assign(
+            task_id, executor_id, method, game_day, game_hour)
+    except Exception as e:
+        log.warning("[mayor_task] assign 失败: %s", e)
+        await _send_error(ws, f"安排失败: {e}")
+        return
+
+    if result.get("ok") and result.get("accepted"):
+        # 结算已写 world_event → 选举分即时重算，附上前后值供客户端提示
+        score_after = _player_election_score(game_day)
+        result["score_before"] = int(round(score_before))
+        result["score_after"] = int(round(score_after))
+
+    await ws.send_text(json.dumps({"type": "mayor_task_result", **result}, ensure_ascii=False))
+
+    if result.get("ok") and result.get("accepted"):
+        eff = result.get("effects", {}) or {}
+        if eff.get("affection") is not None:
+            await ws.send_text(json.dumps({
+                "type": "reply",
+                "animal_id": eff.get("executor_id", ""),
+                "text": "",
+                "affection": {
+                    "value": eff.get("affection", 0),
+                    "level": eff.get("level", "neutral"),
+                    "delta": eff.get("aff_delta", 0),
+                },
+                "silent": True,
+                "ok": True,
+            }, ensure_ascii=False))
+        # 任务已结算（选举 event 已变）→ 刷新选举分。
+        # 注意：不推 mayor_task_state（否则会立即清空 HUD 追踪）；
+        # 由客户端在表演「处理中 → 结果」全程接管 HUD，演完再清。
+        await _broadcast_election_state(ws, game_day)
+
+
 async def _handle_debug_spawn_crisis(ws: WebSocket, msg: dict) -> None:
     """调试：立即触发一个危机（忽略 min_day/cooldown）。"""
     game_day = int(msg.get("game_day", 0))
@@ -1174,6 +1373,15 @@ async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket, force: b
         log.warning("[opponent_ai] daily action 失败: %s", e)
 
 
+_DAY_THEME_TEXT = {
+    "rally":    {"title": "📣 民意集会日", "hint": "镇民今天最爱串门。多拜访、送礼拉好感，为竞选起势。"},
+    "debate":   {"title": "🎤 广场辩论日", "hint": "今天在广场举行镇长辩论，参加并亮明立场，赢取选民认同。"},
+    "crisis":   {"title": "⚡ 突发危机日", "hint": "镇上出了乱子！妥善调解危机能大幅左右选情。"},
+    "vote":     {"title": "🗳 投票日", "hint": "今天镇民投票，结果即将揭晓，做最后冲刺！"},
+    "campaign": {"title": "🌿 竞选日", "hint": "继续拜访镇民、兑现承诺，稳住声望。"},
+}
+
+
 async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
     """接收客户端游戏时间 tick，每日 22:00 触发反思 + 9-18 激活意图。
 
@@ -1187,6 +1395,25 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
         return
 
     sess.last_known_game_day = game_day
+
+    # 新的一天首个醒来 tick → 推送当日主题节点事件（引导玩家 + 氛围）
+    if game_day > sess.last_day_event_day and game_hour >= 7:
+        sess.last_day_event_day = game_day
+        try:
+            term = election_store.ensure_term_active(game_day)
+            di = election_store.day_index_in_term(term, game_day)
+            theme = election_store.day_theme(di)
+            await ws.send_text(json.dumps({
+                "type": "day_event",
+                "ok": True,
+                "day_index": di,
+                "term_days": TERM_DAYS,
+                "theme": theme,
+                **_DAY_THEME_TEXT.get(theme, _DAY_THEME_TEXT["campaign"]),
+            }, ensure_ascii=False))
+            log.info("[day_event] day=%d di=%d theme=%s", game_day, di, theme)
+        except Exception as e:
+            log.warning("[day_event] 推送失败: %s", e)
 
     # 激活当日待执行意图（每小时检查一次）
     await _activate_pending_intents(game_day, game_hour, ws)
@@ -1224,13 +1451,16 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
         try:
             import random as _rnd
             skip_phase = False
+            prob = 0.75
             try:
                 term = election_store.ensure_term_active(game_day)
                 di = election_store.day_index_in_term(term, game_day)
                 skip_phase = election_store.phase_of(di) in ("debate", "vote")
+                if election_store.day_theme(di) == "crisis":
+                    prob = 1.0  # D3 突发危机日：保证触发一次
             except Exception:
                 pass
-            if not skip_phase and _rnd.random() < 0.75:
+            if not skip_phase and _rnd.random() < prob:
                 view = crisis_manager.maybe_spawn(game_day, game_hour)
                 if view is not None:
                     await _push_crisis_state(ws, view)
@@ -1260,6 +1490,17 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
             await _broadcast_election_state(ws, game_day)
     except Exception as e:
         log.warning("[crisis] 截止检查失败: %s", e)
+
+    # 镇长政务任务：现任镇长期间按节流（醒着/每日额度/冷却）自动刷新
+    try:
+        if _player_is_mayor():
+            v = mayor_task_manager.maybe_spawn(game_day, game_hour)
+            if v is not None:
+                await _push_mayor_task_state(ws)
+                log.info("[mayor_task] day=%d h=%d 刷新任务 %s",
+                         game_day, game_hour, v.get("task_type"))
+    except Exception as e:
+        log.warning("[mayor_task] 刷新失败: %s", e)
 
     # 选举权重重算：每日 22:00+ 重算一次（与反思同时机），并推送状态
     if game_hour >= 22 and game_day > sess.last_election_recompute_day:
@@ -1355,7 +1596,7 @@ async def debug_force_vote(game_day: int = 0):
     若 game_day < D7 应到的 day，函数内部把 day 调整到 day_index>=7。
     """
     term = election_store.ensure_term_active(game_day)
-    needed_day = int(term["start_day"]) + 6  # day_index = 7
+    needed_day = int(term["start_day"]) + (VOTE_DAY_INDEX - 1)  # day_index=VOTE_DAY_INDEX
     use_day = max(game_day, needed_day)
     election_store.recompute_and_persist_weights(term, use_day)
     settle = election_store.settle_term_if_due(use_day)

@@ -161,9 +161,7 @@ class OpponentAI:
             return 0
         if gap < -AHEAD_EASE_THRESHOLD:
             return 1
-        if day_index <= 2:
-            base = 1
-        elif day_index <= 4:
+        if day_index <= 1:
             base = 2
         else:
             base = 3

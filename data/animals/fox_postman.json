@@ -82,12 +82,14 @@
     "loves": [
       "ancient_book",
       "crystal",
-      "letter"
+      "letter",
+      "scroll_fire"
     ],
     "likes": [
       "map_piece",
       "feather",
-      "fish"
+      "fish",
+      "cookie"
     ],
     "dislikes": [
       "bread",
@@ -98,6 +100,10 @@
       "mushroom"
     ]
   },
+  "return_gifts": [
+    "letter",
+    "coin_purse"
+  ],
   "signature_gift": "letter",
   "movement": {
     "speed_factor": 1.25,

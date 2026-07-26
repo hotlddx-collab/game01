@@ -39,7 +39,7 @@ const ITEMS := {
 	"letter": {
 		"name": "信件",
 		"desc": "手写的一封短信，字迹工整，未署名",
-		"icon": "res://res/ninja_adventure/Items/Scroll/Scroll.png",
+		"icon": "res://res/ninja_adventure/Items/Other/Letter.png",
 		"base_value": 4,
 	},
 	# ── 中价值 ────────────────────────────────

@@ -38,6 +38,11 @@ var _player_incumbent: bool = false
 var _player_power: int = 0
 var _player_power_max: int = 0
 
+# ---- 当日主题横幅（运行时构建）----
+var _day_banner: PanelContainer = null
+var _day_banner_label: RichTextLabel = null
+var _day_banner_tween: Tween = null
+
 
 func _id_to_name(npc_id: String) -> String:
 	if npc_id == "" or npc_id == "player":
@@ -54,6 +59,7 @@ func _ready() -> void:
 	hint_label.text = "[color=#888]如果一直看到这条说明 → 检查 agent_server 是否启动[/color]"
 	result_overlay.visible = false
 	result_close_btn.pressed.connect(_on_overlay_close)
+	_build_day_banner()
 
 	if not Engine.has_singleton("AgentClient") and AgentClient == null:
 		push_warning("[ElectionHUD] AgentClient autoload 不存在")
@@ -65,6 +71,8 @@ func _ready() -> void:
 		AgentClient.opponent_action_received.connect(_on_opponent_action)
 		AgentClient.promise_state_received.connect(_on_promise_state)
 		AgentClient.connected.connect(_on_connected)
+	if AgentClient.has_signal("day_event_received"):
+		AgentClient.day_event_received.connect(_on_day_event)
 
 	# 启动后定时尝试拉数据
 	for delay in [0.5, 2.0, 5.0]:
@@ -79,6 +87,79 @@ func _ready() -> void:
 func _on_connected() -> void:
 	AgentClient.request_election_query()
 	AgentClient.request_promise_query()
+
+
+func _build_day_banner() -> void:
+	_day_banner = PanelContainer.new()
+	_day_banner.name = "DayBanner"
+	_day_banner.visible = false
+	_day_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_day_banner)
+	_day_banner.anchor_left = 0.5
+	_day_banner.anchor_right = 0.5
+	_day_banner.anchor_top = 0.0
+	_day_banner.anchor_bottom = 0.0
+	_day_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_day_banner.grow_vertical = Control.GROW_DIRECTION_END
+	_day_banner.offset_top = 118.0
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.08, 0.09, 0.13, 0.92)
+	sb.border_color = Color(0.78, 0.61, 0.31, 1.0)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(10)
+	sb.content_margin_left = 22
+	sb.content_margin_right = 22
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	_day_banner.add_theme_stylebox_override("panel", sb)
+
+	_day_banner_label = RichTextLabel.new()
+	_day_banner_label.bbcode_enabled = true
+	_day_banner_label.fit_content = true
+	_day_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_day_banner_label.scroll_active = false
+	_day_banner_label.custom_minimum_size = Vector2(560, 0)
+	_day_banner_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_banner.add_child(_day_banner_label)
+
+
+func _on_day_event(info: Dictionary) -> void:
+	if _day_banner == null:
+		return
+	var di := int(info.get("day_index", 1))
+	var td := int(info.get("term_days", 4))
+	var title := String(info.get("title", ""))
+	var hint := String(info.get("hint", ""))
+	_day_banner_label.text = "[center][b]%s[/b]  [color=#c69b50]· 第 %d/%d 天[/color]\n[color=#cdd6e6]%s[/color][/center]" % [
+		title, di, td, hint
+	]
+	_show_banner(4.4)
+
+
+## 镇务结果中央横幅（复用 day_banner）
+func flash_mayor_toast(title: String, sub: String) -> void:
+	if _day_banner == null:
+		return
+	var body := "[center][b]%s[/b]" % title
+	if sub != "":
+		body += "\n[color=#cdd6e6]%s[/color]" % sub
+	body += "[/center]"
+	_day_banner_label.text = body
+	_show_banner(4.0)
+
+
+## 显示横幅并在 total 秒后淡出
+func _show_banner(total: float) -> void:
+	_day_banner.visible = true
+	_day_banner.modulate.a = 0.0
+	if _day_banner_tween and _day_banner_tween.is_valid():
+		_day_banner_tween.kill()
+	_day_banner_tween = create_tween()
+	_day_banner_tween.tween_property(_day_banner, "modulate:a", 1.0, 0.4)
+	_day_banner_tween.tween_interval(max(0.5, total - 1.0))
+	_day_banner_tween.tween_property(_day_banner, "modulate:a", 0.0, 0.6)
+	_day_banner_tween.tween_callback(func() -> void: _day_banner.visible = false)
 
 
 func _on_promise_state(info: Dictionary) -> void:
@@ -107,7 +188,7 @@ func _refresh() -> void:
 
 	var term_id := int(_last_view.get("term_id", 1))
 	var day_idx := int(_last_view.get("day_index", 1))
-	var term_days := int(_last_view.get("term_days", 7))
+	var term_days := int(_last_view.get("term_days", 4))
 	var phase := String(_last_view.get("phase", "campaign"))
 	var phase_text := _phase_label(phase)
 	var remaining: int = max(0, term_days - day_idx)

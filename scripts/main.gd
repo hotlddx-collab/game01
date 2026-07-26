@@ -15,6 +15,9 @@ extends Node2D
 @onready var crisis_panel: CanvasLayer = get_node_or_null("CrisisPanel")
 
 var _current_animal: Animal = null
+var _pending_mayor: Dictionary = {}   # executor_id -> 结算 info，等对话关闭后开演
+var _situation: Dictionary = {}       # 当前镇务情境：{task_id,type,markers,spots,target_id}
+var _performing: bool = false         # 正在表演，期间忽略情境拆除推送
 
 
 func _ready() -> void:
@@ -40,6 +43,10 @@ func _ready() -> void:
 	AgentClient.quest_completed_received.connect(_on_quest_completed)
 	AgentClient.opponent_action_received.connect(_on_opponent_action)
 	AgentClient.election_result_received.connect(_on_election_result)
+	if AgentClient.has_signal("mayor_task_result_received"):
+		AgentClient.mayor_task_result_received.connect(_on_mayor_task_result)
+	if AgentClient.has_signal("mayor_task_state_received"):
+		AgentClient.mayor_task_state_received.connect(_on_mayor_task_state)
 
 	AudioManager.play_game_bgm()
 
@@ -132,6 +139,9 @@ func _on_dialog_finished(_animal_id: String) -> void:
 	_current_animal = null
 	# 解锁玩家输入
 	player.input_enabled = true
+	# 若刚安排了镇务任务给这个 NPC → 对话已关、busy 已清 → 现在开演
+	if _pending_mayor.has(_animal_id):
+		call_deferred("_start_mayor_perform", _animal_id)
 
 
 # ---------- 后端回复 ----------
@@ -282,6 +292,329 @@ func _find_animal(animal_id: String) -> Animal:
 	return null
 
 
+# ---------- 镇务任务表演 ----------
+
+func _on_mayor_task_result(info: Dictionary) -> void:
+	## 后端结算完成 → 被指派 NPC 寻路到现场表演（接受时才有）。
+	if not info.get("ok", false) or not info.get("accepted", false):
+		return
+	var exec_id := String(info.get("executor_id", ""))
+	if exec_id == "":
+		return
+	_pending_mayor[exec_id] = info
+	# 若该 NPC 不在对话中（对话已关/换了人）→ 立即开演；否则等对话关闭再开
+	if _current_animal == null or not is_instance_valid(_current_animal) \
+			or _current_animal.animal_id != exec_id:
+		_start_mayor_perform(exec_id)
+
+
+func _start_mayor_perform(exec_id: String) -> void:
+	if not _pending_mayor.has(exec_id):
+		return
+	var info: Dictionary = _pending_mayor[exec_id]
+	_pending_mayor.erase(exec_id)
+	var actor: Animal = _find_animal(exec_id)
+	if actor == null:
+		return
+	_performing = true
+	actor.clear_busy()   # 确保脱离 TALKING_PLAYER，intent 才能驱动移动
+	_perform_mayor_task(actor, info)
+
+
+# ---------- 镇务情境（任务刷新即在世界里布置脏物/病人等）----------
+
+func _on_mayor_task_state(info: Dictionary) -> void:
+	if info.get("active", false):
+		_setup_situation(info.get("task", {}))
+	elif not _performing:
+		# 任务清空且非表演中 → 拆除残留情境
+		_teardown_situation()
+
+
+## 任务刷新时布置情境（幂等：同一 task_id 不重复布置）
+func _setup_situation(task: Dictionary) -> void:
+	if task.is_empty():
+		return
+	var tid := int(task.get("id", 0))
+	if int(_situation.get("task_id", -1)) == tid:
+		return
+	_teardown_situation()
+	var ttype := String(task.get("task_type", ""))
+	var target_id := String(task.get("target_id", ""))
+	var markers: Array = []
+	var spots: Array[Vector2] = []
+	match ttype:
+		"clean":
+			var n := 3 + (randi() % 2)
+			for i in n:
+				var p := _random_road_point()
+				spots.append(p)
+				markers.append(_spawn_marker(p, "🤢"))
+		"repair_sewer":
+			var p := _random_road_point()
+			spots.append(p)
+			markers.append(_spawn_marker(p, "🔧"))
+		"cure_epidemic":
+			var patient := _find_animal(target_id)
+			if is_instance_valid(patient):
+				patient.set_status_effect("🤒", Color(0.7, 1.0, 0.7))
+				patient.set_busy(Animal.BusyState.TALKING_NPC, 0.0)  # 站定示病，便于寻找
+		"subdue_drunk":
+			var drunk := _find_animal(target_id)
+			if is_instance_valid(drunk):
+				drunk.set_status_effect("🍺", Color(1.0, 0.7, 0.7))
+				drunk.set_busy(Animal.BusyState.TALKING_NPC, 0.0)
+	_situation = {
+		"task_id": tid, "type": ttype, "target_id": target_id,
+		"markers": markers, "spots": spots,
+	}
+
+
+func _teardown_situation() -> void:
+	for m in _situation.get("markers", []):
+		_clear_marker(m)
+	var tgt := String(_situation.get("target_id", ""))
+	if tgt != "":
+		var a := _find_animal(tgt)
+		if is_instance_valid(a):
+			a.clear_status_effect()
+			a.clear_busy()
+	_situation = {}
+
+
+func _random_road_point() -> Vector2:
+	# 路网节点必在道路/陆地上、可达；避开玩家脚下太近处
+	var p: Vector2 = PathNetwork.random_point(player.global_position, 60.0)
+	if p == Vector2.ZERO:
+		return player.global_position
+	return p
+
+
+## 世界特效标记（脏物/维修点等），返回节点，用 _clear_marker 移除
+func _spawn_marker(pos: Vector2, emoji: String) -> Node2D:
+	var holder := Node2D.new()
+	holder.z_index = 500
+	var lbl := Label.new()
+	lbl.text = emoji
+	lbl.add_theme_font_size_override("font_size", 28)
+	lbl.position = Vector2(-14, -20)
+	holder.add_child(lbl)
+	add_child(holder)
+	holder.global_position = pos
+	return holder
+
+
+func _clear_marker(node) -> void:
+	if is_instance_valid(node):
+		node.queue_free()
+
+
+## 让 actor 以自发意图走到 pos 并等待到达（到达/超时都会返回）
+func _walk_and_wait(actor: Animal, pos: Vector2) -> void:
+	if not is_instance_valid(actor):
+		return
+	var done := [false]
+	actor.show_emote("🏃", 1.2, 0.0)
+	actor.approach_for_intent(pos, func(): done[0] = true)
+	var guard := 0.0
+	while not done[0] and is_instance_valid(actor):
+		await get_tree().process_frame
+		guard += get_process_delta_time()
+		if guard > 20.0:
+			break
+
+
+func _perform_mayor_task(actor: Animal, info: Dictionary) -> void:
+	var task_type := String(info.get("task_type", ""))
+	var target_id := String(info.get("target_id", ""))
+	var outcome := String(info.get("outcome", "ok"))
+	var injured := bool(info.get("injured", false))
+	var result_line := String(info.get("result_line", ""))
+	if quest_hud and quest_hud.has_method("set_mayor_in_progress"):
+		quest_hud.set_mayor_in_progress(actor.animal_name)
+
+	match task_type:
+		"subdue_drunk":
+			await _perform_subdue(actor, target_id, injured)
+		"cure_epidemic":
+			await _perform_cure(actor, target_id)
+		"archive":
+			await _perform_archive(actor)
+		"repair_sewer":
+			await _perform_repair(actor)
+		"clean":
+			await _perform_clean(actor)
+		_:
+			await _walk_and_wait(actor, _random_road_point())
+
+	# 表演结束 → 清理情境
+	_teardown_situation()
+	_performing = false
+	if not is_instance_valid(actor):
+		return
+	# ── 结果反馈：表情 + 台词 + HUD + 中央横幅 ──
+	if injured:
+		actor.modulate = Color(1.0, 0.6, 0.6)
+		actor.show_emote("💫", 2.5, 0.0)
+	elif outcome == "great":
+		actor.show_emote("✨", 2.5, 0.0)
+	elif outcome == "botch":
+		actor.show_emote("💢", 2.5, 0.0)
+	else:
+		actor.show_emote("👌", 2.0, 0.0)
+	if result_line != "":
+		actor.show_speech_bubble(result_line, 4.0)
+	var sb := int(info.get("score_before", -1))
+	var sa := int(info.get("score_after", -1))
+	if quest_hud and quest_hud.has_method("set_mayor_result"):
+		quest_hud.set_mayor_result(actor.animal_name, outcome, injured, sb, sa)
+	_flash_mayor_banner(actor.animal_name, outcome, injured, sb, sa)
+	await get_tree().create_timer(3.0).timeout
+	if is_instance_valid(actor):
+		actor.modulate = Color(1, 1, 1)
+		actor.clear_busy()
+
+
+## 中央横幅提示镇务结果 + 声望变化（复用 ElectionHUD 横幅）
+func _flash_mayor_banner(exec_name: String, outcome: String, injured: bool, sb: int, sa: int) -> void:
+	var hud := get_node_or_null("ElectionHUD")
+	if hud == null or not hud.has_method("flash_mayor_toast"):
+		return
+	var title := "🏛 镇务圆满解决！"
+	if outcome == "botch":
+		title = "🏛 镇务闹出麻烦…"
+	elif outcome == "ok":
+		title = "🏛 镇务勉强了事"
+	var sub := ""
+	if sb >= 0 and sa >= 0:
+		var d := sa - sb
+		if d > 0:
+			sub = "镇长声望 %d → %d（[color=#8de89a]+%d[/color]）" % [sb, sa, d]
+		elif d < 0:
+			sub = "镇长声望 %d → %d（[color=#ff8a8a]%d[/color]）" % [sb, sa, d]
+		else:
+			sub = "镇长声望暂无明显变化（%d）" % sa
+	if injured:
+		sub += "  ·  %s受了伤" % exec_name
+	hud.flash_mayor_toast(title, sub)
+
+
+# ── 制服酒鬼：走到（已在情境中醉倒的）酒鬼身边打斗 ──
+func _perform_subdue(actor: Animal, drunk_id: String, injured: bool) -> void:
+	var drunk: Animal = _find_animal(drunk_id)
+	var pos: Vector2 = drunk.global_position if is_instance_valid(drunk) else _random_road_point()
+	await _walk_and_wait(actor, pos)
+	if not is_instance_valid(actor):
+		return
+	actor.set_busy(Animal.BusyState.TALKING_NPC, 20.0)
+	if is_instance_valid(drunk):
+		drunk.clear_status_effect()   # 解除持久醉态，才能播打斗 emote
+		drunk.set_busy(Animal.BusyState.TALKING_NPC, 20.0)
+		drunk.modulate = Color(1.0, 0.7, 0.7)
+		drunk.show_speech_bubble("嗝…谁…谁要管我！", 2.0)
+		actor.face_to(drunk.global_position)
+	actor.show_speech_bubble("镇长有令，跟我回去醒醒酒！", 2.0)
+	for i in 3:
+		if not is_instance_valid(actor):
+			return
+		actor.show_emote("⚔️", 0.8, 0.0)
+		if is_instance_valid(drunk):
+			drunk.show_emote("💥", 0.8, 0.0)
+		await get_tree().create_timer(0.7).timeout
+	if not injured and is_instance_valid(drunk):
+		drunk.show_emote("😵", 1.5, 0.0)
+		drunk.show_speech_bubble("好…好吧，我不闹了…", 2.5)
+	if is_instance_valid(drunk):
+		drunk.modulate = Color(1, 1, 1)
+		drunk.clear_busy()
+
+
+# ── 治疗传染病：走到（已在情境中患病的）病人身边治疗 ──
+func _perform_cure(actor: Animal, patient_id: String) -> void:
+	var patient: Animal = _find_animal(patient_id)
+	var pos: Vector2 = patient.global_position if is_instance_valid(patient) else _random_road_point()
+	await _walk_and_wait(actor, pos)
+	if not is_instance_valid(actor):
+		return
+	actor.set_busy(Animal.BusyState.TALKING_NPC, 20.0)
+	if is_instance_valid(patient):
+		actor.face_to(patient.global_position)
+	await _repeat_emote(actor, "💊", 3)
+	if is_instance_valid(patient):
+		patient.clear_status_effect()   # 病愈：解除持久病态
+		patient.show_emote("😌", 2.0, 0.0)
+		patient.show_speech_bubble("咦…好多了，谢谢镇长！", 2.5)
+		patient.clear_busy()
+
+
+# ── 整理档案：进镇长家(home_new)隐身整理再出来 ──
+func _perform_archive(actor: Animal) -> void:
+	var pos := LocationDB.get_pos("home_new")
+	if pos == Vector2.ZERO:
+		pos = player.global_position
+	await _walk_and_wait(actor, pos)
+	if not is_instance_valid(actor):
+		return
+	actor.set_busy(Animal.BusyState.TALKING_NPC, 20.0)
+	actor.show_emote("📚", 1.2, 0.0)
+	actor.show_speech_bubble("进镇长屋整理档案去。", 1.8)
+	await get_tree().create_timer(1.0).timeout
+	if not is_instance_valid(actor):
+		return
+	actor.visible = false   # 进屋
+	await get_tree().create_timer(2.5).timeout
+	if is_instance_valid(actor):
+		actor.visible = true    # 出屋
+
+
+# ── 修下水道：走到情境已布置的维修点修理 ──
+func _perform_repair(actor: Animal) -> void:
+	var spots: Array = _situation.get("spots", [])
+	var pos: Vector2 = spots[0] if spots.size() > 0 else _random_road_point()
+	await _walk_and_wait(actor, pos)
+	if not is_instance_valid(actor):
+		return
+	actor.set_busy(Animal.BusyState.TALKING_NPC, 20.0)
+	actor.face_to(pos)
+	await _repeat_emote(actor, "🔧", 3)
+	for m in _situation.get("markers", []):
+		_clear_marker(m)
+	_situation["markers"] = []
+
+
+# ── 打扫：逐个走到情境已布置的脏物点清扫 ──
+func _perform_clean(actor: Animal) -> void:
+	var spots: Array = _situation.get("spots", [])
+	var markers: Array = _situation.get("markers", [])
+	if spots.is_empty():
+		# 兜底：无情境（异常）则临时生成
+		for i in 3:
+			var p := _random_road_point()
+			spots.append(p)
+			markers.append(_spawn_marker(p, "🤢"))
+	for i in spots.size():
+		if not is_instance_valid(actor):
+			break
+		actor.clear_busy()   # 解除忙碌以便 intent 走向下一处
+		await _walk_and_wait(actor, spots[i])
+		if not is_instance_valid(actor):
+			break
+		actor.set_busy(Animal.BusyState.TALKING_NPC, 8.0)
+		actor.face_to(spots[i])
+		actor.show_emote("🧹", 1.0, 0.0)
+		await get_tree().create_timer(0.9).timeout
+		if i < markers.size():
+			_clear_marker(markers[i])
+
+
+func _repeat_emote(actor: Animal, icon: String, times: int) -> void:
+	for i in times:
+		if not is_instance_valid(actor):
+			return
+		actor.show_emote(icon, 0.9, 0.0)
+		await get_tree().create_timer(0.8).timeout
+
+
 # ---------- 选举信号 ----------
 
 func _on_opponent_action(info: Dictionary) -> void:
@@ -314,6 +647,16 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_O and event.ctrl_pressed:
 		print("[main] DEBUG: 触发对手行动")
 		AgentClient.request_debug_opponent_action()
+	## 调试快捷键：Ctrl+M 立即刷新一个镇务任务（需玩家为现任镇长）。
+	if event is InputEventKey and event.pressed and event.keycode == KEY_M and event.ctrl_pressed:
+		print("[main] DEBUG: 刷新镇务任务")
+		if AgentClient.has_method("request_debug_spawn_mayor_task"):
+			AgentClient.request_debug_spawn_mayor_task()
+	## GM 快捷键：Ctrl+G 让玩家直接成为现任镇长。
+	if event is InputEventKey and event.pressed and event.keycode == KEY_G and event.ctrl_pressed:
+		print("[main] GM: 直升镇长")
+		if AgentClient.has_method("request_debug_make_mayor"):
+			AgentClient.request_debug_make_mayor()
 
 
 # ---------- 上下文构造 ----------

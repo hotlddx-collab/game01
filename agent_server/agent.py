@@ -308,7 +308,7 @@ class Agent:
         role = el.get("role", "voter")
         opp = el.get("opponent_name", "")
         di = el.get("day_index", 0)
-        td = el.get("term_days", 7)
+        td = el.get("term_days", 4)
         phase = el.get("phase_label", "")
         lines = [f"【镇长竞选】当前正在进行第 {el.get('term_no', 1)} 届镇长竞选"
                  f"（第 {di}/{td} 天，{phase}）。"]
@@ -1039,6 +1039,40 @@ class Agent:
             "message": f"（{self.name}感到你们之间已经很熟了，悄悄把一份「{item.name}」塞给了你……）",
         }
 
+    def _maybe_return_gift(
+        self, pref: str, delta: int, game_day: int
+    ) -> Optional[Dict[str, Any]]:
+        """回礼循环：玩家送 NPC 一件他 loves/likes 的礼物、且当天首次 → 回赠一件。
+
+        - 回礼来自 persona.return_gifts（符合本 NPC 身份、地面捡不到、被别的 NPC 喜欢）。
+        - 每游戏日每 NPC 只回一次（防刷），用 profile 'last_return_day' 记录。
+        返回 {item_id, item_name, message} 或 None。
+        """
+        if delta <= 0 or pref not in ("loves", "likes"):
+            return None
+        pool = self.persona.get("return_gifts", []) or []
+        if not pool:
+            return None
+        try:
+            last = int(self.profile.get(self.animal_id, "last_return_day") or -999)
+        except (TypeError, ValueError):
+            last = -999
+        if last == game_day:
+            return None
+        import random
+        item_id = random.choice(pool)
+        item = items_module.get(item_id)
+        if item is None:
+            return None
+        self.profile.set(self.animal_id, "last_return_day", str(game_day))
+        log.info("[return_gift] %s → 玩家: %s (pref=%s day=%d)",
+                 self.animal_id, item_id, pref, game_day)
+        return {
+            "item_id": item_id,
+            "item_name": item.name,
+            "message": f"（{self.name}回赠了你一件「{item.name}」——想想镇上谁会喜欢，转送出去说不定有惊喜……）",
+        }
+
     async def _maybe_reflect(self) -> None:
         try:
             await reflect_if_needed(self.animal_id, self.name, self.memory, self.llm)
@@ -1162,16 +1196,33 @@ class Agent:
         npc_gift = self._check_love_gift(aff)
         if npc_gift:
             result["npc_gift"] = npc_gift
+        else:
+            rg = self._maybe_return_gift(pref, delta, game_day)
+            if rg:
+                result["npc_gift"] = rg
         # 任务推进：玩家送的物品恰好是当前 collect 任务要求的 → progress +1
         self._advance_collect_by_gift(item_id, result)
         return result
 
     def _advance_collect_by_gift(self, item_id: str, result: Dict[str, Any]) -> None:
-        """玩家用 🎁 送礼路径推进 collect 任务进度。
+        """玩家用 🎁 送礼路径推进 collect / deliver 任务。
         gift 路径下物品已在客户端被扣，progress 满即完成（不再二次扣）。"""
         if self.quest_engine is None:
             return
         defs = self.quest_engine.defs
+
+        # deliver：我是某 active deliver 任务的 target，玩家把要送的物品作为礼物交给我 → 完成
+        # （"把信送给老咸"最直觉的操作就是送礼，必须在此路径完成，否则物品被扣却不结算）
+        target_qid = self.quest_engine.store.get_active_with_target(self.animal_id, defs)
+        if target_qid:
+            tq = defs.get(target_qid, {})
+            if tq.get("kind") == "deliver" and tq.get("requires", {}).get("item_id") == item_id:
+                log.info("[quest] gift 送达 deliver %s target=%s item=%s → 完成",
+                         target_qid, self.animal_id, item_id)
+                # gift 路径客户端已扣物品，consume=None（不再二次扣）
+                self._finalize_quest(target_qid, None, result)
+                return
+
         qid = self.quest_engine.store.get_active_for_giver(self.animal_id, defs)
         if not qid:
             log.info("[quest] gift 检查 %s: 该 NPC 无 active 任务，物品=%s 不计 progress",

@@ -38,7 +38,7 @@ _OPPOSITE = {
 }
 
 # 每个 NPC 对玩家辩论的总分上限缩放（接 W_DEBATE_MAX 在 election 里做）
-DEBATE_DAY_OFFSET = 6  # D6 == 任期第 6 天
+DEBATE_DAY_OFFSET = 1  # 辩论日 == 任期第 2 天（day_index=2）
 
 FALLBACK_REBUTTAL = {
     "radical": "改革？说得轻巧，真动起来镇上得乱成什么样！",

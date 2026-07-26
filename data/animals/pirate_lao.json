@@ -77,12 +77,14 @@
     "loves": [
       "fish",
       "ancient_book",
-      "honey"
+      "honey",
+      "coin_purse"
     ],
     "likes": [
       "bread",
       "crystal",
-      "acorn"
+      "acorn",
+      "medi_pack"
     ],
     "dislikes": [
       "flower",
@@ -93,6 +95,10 @@
       "letter"
     ]
   },
+  "return_gifts": [
+    "gold_cup",
+    "gold_key"
+  ],
   "signature_gift": "compass",
   "movement": {
     "speed_factor": 0.8,

@@ -82,7 +82,9 @@
     "likes": [
       "feather",
       "herb",
-      "compass"
+      "compass",
+      "potion_tea",
+      "gold_key"
     ],
     "dislikes": [
       "bread",
@@ -93,6 +95,10 @@
       "cookie"
     ]
   },
+  "return_gifts": [
+    "glow_stone",
+    "scroll_fire"
+  ],
   "signature_gift": "glow_stone",
   "movement": {
     "speed_factor": 1.0,

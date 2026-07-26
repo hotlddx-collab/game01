@@ -19,8 +19,11 @@ fi
 
 # 删档（RESET=0 可跳过，仅重启）
 if [ "${RESET:-1}" != "0" ]; then
+    # 默认库（无 sid 的编辑器/旧客户端）
     rm -f "$SERVER/town.db" "$SERVER/town.db-shm" "$SERVER/town.db-wal"
-    echo "✅ 已清空 town.db / -shm / -wal"
+    # 会话分库：实机客户端按 ?sid= 路由到 data/{sid}.db，才是真正的存档
+    rm -f "$SERVER"/data/*.db "$SERVER"/data/*.db-shm "$SERVER"/data/*.db-wal 2>/dev/null || true
+    echo "✅ 已清空 town.db 及 data/*.db（含 -shm/-wal 会话分库）"
 else
     echo "↩️  保留存档，仅重启"
 fi

@@ -81,6 +81,7 @@ var _delta_tween: Tween = null
 var _emote_tween: Tween = null
 var _last_emote_time: float = 0.0  # 防 emote 刷屏
 var _speaker_pop_tween: Tween = null
+var _status_active: bool = false   # 持久状态效果（病态/醉态），期间屏蔽普通 emote
 
 enum BusyState { FREE, TALKING_PLAYER, TALKING_NPC }
 var _busy_state: int = BusyState.FREE
@@ -90,6 +91,12 @@ const INTENT_ARRIVE_DIST: float = 70.0
 var _intent_active:     bool     = false
 var _intent_target_pos: Vector2  = Vector2.ZERO
 var _intent_callback:   Callable = Callable()
+# 意图寻路：路网航点队列 + 卡死/超时兜底（避免撞障碍永久楔住）
+var _intent_queue:       Array[Vector2] = []
+var _intent_stuck_timer: float = 0.0
+var _intent_last_pos:    Vector2 = Vector2.ZERO
+var _intent_elapsed:     float = 0.0
+const INTENT_MAX_TIME: float = 14.0
 
 
 func _ready() -> void:
@@ -129,13 +136,7 @@ func _physics_process(delta: float) -> void:
 
 	# 自发意图优先（反思驱动走向另一 NPC）
 	if _intent_active:
-		if global_position.distance_to(_intent_target_pos) <= INTENT_ARRIVE_DIST:
-			_intent_active = false
-			_state = State.IDLE
-			if _intent_callback.is_valid():
-				_intent_callback.call()
-		else:
-			_follow_nav(delta)
+		_follow_intent(delta)
 		_update_animation()
 		return
 
@@ -266,19 +267,66 @@ func _advance_waypoint() -> void:
 	_nav_agent.target_position = next_wp
 
 
-## 意图追踪时的直接导航（走向 _intent_target_pos）
-## 优先 NavAgent 绕障；无有效路径时降级直线（对齐 TRAVELING，避免卡死）
-func _follow_nav(delta: float) -> void:
+## 意图追踪：沿路网航点走向 _intent_target_pos。
+## 到达/总超时/彻底卡死 → 强制到达并触发回调，永不楔住。
+func _follow_intent(delta: float) -> void:
+	_intent_elapsed += delta
+	if global_position.distance_to(_intent_target_pos) <= INTENT_ARRIVE_DIST \
+			or _intent_elapsed >= INTENT_MAX_TIME:
+		_finish_intent()
+		return
+
+	# 到达当前航点 → 取下一段（无则朝最终目标）
+	var to_wp: Vector2 = _current_wp_target - global_position
+	if to_wp.length() < arrive_distance:
+		if _intent_queue.is_empty():
+			_current_wp_target = _intent_target_pos
+			_nav_agent.target_position = _current_wp_target
+		else:
+			_advance_intent_wp()
+		return
+
+	# 移动：NavAgent 绕障优先，无有效路径时降级直线
 	var next: Vector2 = _nav_agent.get_next_path_position()
 	var dir: Vector2 = next - global_position
-	# NavAgent 没算出有效路径（返回当前位置 / 已判定完成）→ 直接朝目标直线走
 	if dir.length() < 2.0 or _nav_agent.is_navigation_finished():
-		dir = _intent_target_pos - global_position
+		dir = to_wp
 	if dir.length() > 2.0:
 		velocity = dir.normalized() * move_speed * _mv_speed
 		move_and_slide()
 	else:
 		velocity = Vector2.ZERO
+
+	# 卡死检测：卡住 → 跳过当前航点；无航点可跳 → 强制到达
+	_intent_stuck_timer += delta
+	if global_position.distance_to(_intent_last_pos) > STUCK_DIST:
+		_intent_last_pos = global_position
+		_intent_stuck_timer = 0.0
+	elif _intent_stuck_timer >= STUCK_TIMEOUT:
+		_intent_stuck_timer = 0.0
+		if _intent_queue.is_empty():
+			_finish_intent()
+		else:
+			_advance_intent_wp()
+
+
+func _advance_intent_wp() -> void:
+	if _intent_queue.is_empty():
+		_current_wp_target = _intent_target_pos
+	else:
+		_current_wp_target = _intent_queue.pop_front()
+	_nav_agent.target_position = _current_wp_target
+
+
+func _finish_intent() -> void:
+	_intent_active = false
+	_intent_queue.clear()
+	_state = State.IDLE
+	velocity = Vector2.ZERO
+	if _intent_callback.is_valid():
+		var cb: Callable = _intent_callback
+		_intent_callback = Callable()
+		cb.call()
 
 
 ## 规划路网路径并进入 WAITING 状态（错峰出发）
@@ -500,10 +548,17 @@ func face_to(target_pos: Vector2) -> void:
 
 
 func approach_for_intent(target_pos: Vector2, on_arrive: Callable) -> void:
-	_intent_target_pos = target_pos
-	_intent_callback   = on_arrive
-	_intent_active     = true
-	_nav_agent.target_position = target_pos
+	_intent_target_pos  = target_pos
+	_intent_callback    = on_arrive
+	_intent_active      = true
+	_intent_elapsed     = 0.0
+	_intent_stuck_timer = 0.0
+	_intent_last_pos    = global_position
+	# 走路网航点绕开湖/建筑；find_path 含起止点，去掉起点
+	_intent_queue = PathNetwork.find_path(global_position, target_pos)
+	if not _intent_queue.is_empty():
+		_intent_queue.pop_front()
+	_advance_intent_wp()
 
 
 const SPEECH_BUBBLE_SCENE := preload("res://scenes/ui/speech_bubble.tscn")
@@ -533,6 +588,28 @@ func _pop_speaker() -> void:
 
 func get_placeholder_line() -> String:
 	return "%s（这里以后接 LLM 对话）" % catchphrase
+
+
+## 持久状态效果（病态/醉态）：常显图标 + 染色，直到 clear_status_effect
+func set_status_effect(icon: String, tint: Color) -> void:
+	_status_active = true
+	modulate = tint
+	if emote_label:
+		if _emote_tween and _emote_tween.is_valid():
+			_emote_tween.kill()
+		emote_label.text = icon
+		emote_label.modulate = Color(1, 1, 1, 1.0)
+		emote_label.position = Vector2(-16, -78)
+		emote_label.visible = true
+
+
+func clear_status_effect() -> void:
+	if not _status_active:
+		return
+	_status_active = false
+	modulate = Color(1, 1, 1)
+	if emote_label:
+		emote_label.visible = false
 
 
 func set_interact_hint(active: bool) -> void:
@@ -621,6 +698,8 @@ func _show_delta(delta: int) -> void:
 func show_emote(icon: String, duration: float = 1.8, min_interval: float = 1.5) -> void:
 	if emote_label == null or icon == "":
 		return
+	if _status_active:
+		return  # 持久状态期间不被普通 emote 覆盖
 	# 防刷屏
 	var now: float = Time.get_ticks_msec() / 1000.0
 	if now - _last_emote_time < min_interval:

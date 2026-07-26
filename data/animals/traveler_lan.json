@@ -84,7 +84,9 @@
     "likes": [
       "bread",
       "fish",
-      "letter"
+      "letter",
+      "gold_cup",
+      "glow_stone"
     ],
     "dislikes": [
       "flower",
@@ -95,6 +97,10 @@
       "potion_tea"
     ]
   },
+  "return_gifts": [
+    "map_piece",
+    "pan_flute"
+  ],
   "signature_gift": "map_piece",
   "movement": {
     "speed_factor": 1.1,

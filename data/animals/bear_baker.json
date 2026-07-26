@@ -89,6 +89,10 @@
       "glow_stone"
     ]
   },
+  "return_gifts": [
+    "honey",
+    "cookie"
+  ],
   "movement": {
     "speed_factor": 0.85,
     "restless": 0.5,
