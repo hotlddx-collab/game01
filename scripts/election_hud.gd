@@ -37,6 +37,8 @@ var _promise_max: int = 5
 var _player_incumbent: bool = false
 var _player_power: int = 0
 var _player_power_max: int = 0
+var _incumbent_id: String = ""
+var _day_theme: String = "campaign"
 
 # ---- 当日主题横幅（运行时构建）----
 var _day_banner: PanelContainer = null
@@ -174,6 +176,8 @@ func _on_state(view: Dictionary) -> void:
 	_player_incumbent = bool(view.get("player_incumbent", false))
 	_player_power = int(view.get("player_power", 0))
 	_player_power_max = int(view.get("player_power_max", 0))
+	_incumbent_id = String(view.get("incumbent_id", ""))
+	_day_theme = String(view.get("day_theme", "campaign"))
 	_refresh()
 
 
@@ -189,15 +193,17 @@ func _refresh() -> void:
 	var term_id := int(_last_view.get("term_id", 1))
 	var day_idx := int(_last_view.get("day_index", 1))
 	var term_days := int(_last_view.get("term_days", 4))
-	var phase := String(_last_view.get("phase", "campaign"))
-	var phase_text := _phase_label(phase)
+	var stage_text := _theme_label(_day_theme)
 	var remaining: int = max(0, term_days - day_idx)
 
-	header.text = "🗳 [b]第 %d 届竞选[/b]  ·  D %d/%d  ·  [color=#c69b50]%s[/color]" % [
-		term_id, day_idx, term_days, phase_text
-	]
+	# 第 1 行：政权状态（谁是镇长），第 2 行：进度 + 当日阶段
+	var regime := _regime_line(term_id)
+	var progress := "🗳 [color=#c69b50]第 %d/%d 天 · %s[/color]" % [day_idx, term_days, stage_text]
 	if remaining > 0:
-		header.text += "  [color=#888](还有 %d 天投票)[/color]" % remaining
+		progress += "  [color=#888](距投票 %d 天)[/color]" % remaining
+	else:
+		progress += "  [color=#ffce8a](今日投票)[/color]"
+	header.text = "%s\n%s" % [regime, progress]
 
 	var scores: Dictionary = _last_view.get("scores", {})
 	var p_score := float(scores.get("player", 0.0))
@@ -214,7 +220,7 @@ func _refresh() -> void:
 	opponent_score_lbl.text = "%d" % int(round(o_score))
 
 	hint_label.text = "[color=#cdd6e6]📜 承诺池 [b]%d/%d[/b][/color]   ·   %s" % [
-		_promise_active, _promise_max, _gen_hint(phase, day_idx, p_score, o_score)
+		_promise_active, _promise_max, _gen_hint(day_idx, p_score, o_score)
 	]
 	if _player_incumbent:
 		hint_label.text += "\n[color=#ffd864]🏛 镇长权力 %s/%s（按 K 行使）[/color]" % [
@@ -222,31 +228,49 @@ func _refresh() -> void:
 		]
 
 
-func _phase_label(phase: String) -> String:
-	match phase:
-		"campaign": return "拉票期"
-		"debate": return "辩论日"
-		"vote": return "投票日"
-		_: return phase
-
-
-func _gen_hint(phase: String, _day_idx: int, p: float, o: float) -> String:
-	match phase:
-		"debate":
-			return "[color=#ffd27f]💬 今天是辩论日，记得参加广场辩论。[/color]"
-		"vote":
-			return "[color=#ffd27f]🗳 今天是投票日，结果即将揭晓。[/color]"
-		_:
-			pass
-	var diff := p - o
-	if diff < -20.0:
-		return "[color=#ff8a8a]⚠ 你落后较多，多去拜访 NPC 提升好感。[/color]"
-	elif diff < 0.0:
-		return "[color=#ffce8a]略微落后。送礼物 / 完成承诺能拉回声望。[/color]"
-	elif diff < 20.0:
-		return "[color=#d6e0a0]势均力敌，每一次互动都重要。[/color]"
+## 顶栏第 1 行：按现任镇长身份区分开荒 / 卫冕 / 在野
+func _regime_line(term_id: int) -> String:
+	if _incumbent_id == "":
+		return "🌱 [b]首届镇长竞选[/b]  [color=#c69b50]· 镇长之位空缺[/color]"
+	elif _incumbent_id == "player":
+		return "🏛 [b]现任镇长：你[/b]  [color=#c69b50]· 第 %d 届任期[/color]" % term_id
 	else:
-		return "[color=#8de89a]✓ 优势明显，继续保持。[/color]"
+		return "🏛 [b]现任镇长：%s[/b]  [color=#ff9a9a]· 你要夺回[/color]" % _id_to_name(_incumbent_id)
+
+
+func _theme_label(theme: String) -> String:
+	match theme:
+		"rally": return "📣 集会日"
+		"debate": return "🎤 辩论日"
+		"crisis": return "⚡ 危机日"
+		"vote": return "🗳 投票日"
+		_: return "🌿 竞选日"
+
+
+func _gen_hint(_day_idx: int, p: float, o: float) -> String:
+	if _day_theme == "debate":
+		return "[color=#ffd27f]💬 今天是辩论日，记得参加广场辩论。[/color]"
+	if _day_theme == "vote":
+		return "[color=#ffd27f]🗳 今天是投票日，结果即将揭晓。[/color]"
+	if _day_theme == "crisis":
+		return "[color=#ffd27f]⚡ 镇上出了乱子，妥善调解能左右选情。[/color]"
+	# 无镇长（开荒）/ 有镇长（卫冕/在野）分别给基调提示
+	if _incumbent_id == "":
+		return "[color=#d6e0a0]赢得选举，成为森林第一任镇长。[/color]"
+	var diff := p - o
+	if _incumbent_id == "player":
+		if diff < 0.0:
+			return "[color=#ffce8a]守住镇长位！挑战者 %s 正在追赶。[/color]" % _id_to_name(_opponent_id)
+		return "[color=#8de89a]✓ 稳住民心，守好镇长之位。[/color]"
+	# 在野：夺回
+	if diff < -20.0:
+		return "[color=#ff8a8a]⚠ 落后较多，多拜访 NPC 才能扳倒 %s。[/color]" % _id_to_name(_opponent_id)
+	elif diff < 0.0:
+		return "[color=#ffce8a]略微落后。送礼 / 兑现承诺，夺回镇长位。[/color]"
+	elif diff < 20.0:
+		return "[color=#d6e0a0]势均力敌，每次互动都在拉票。[/color]"
+	else:
+		return "[color=#8de89a]✓ 优势明显，镇长位就在眼前。[/color]"
 
 
 # ============================================================
@@ -347,7 +371,7 @@ func _show_result_banner(info: Dictionary, next_op_id: String) -> void:
 		result_banner.text = (
 			"[center][color=#ee8888][b]😔 你落选了。[/b][/color]\n"
 			+ "[color=#dddddd]%s 当选了本届镇长。%s[/color]\n"
-			+ "[color=#888888](下届挑战谁：%s)[/color][/center]"
+			+ "[color=#888888](下届继续挑战现任镇长：%s)[/color][/center]"
 		) % [op_name, tie_note, next_op_name]
 		if result_status:
 			result_status.text = "[center][color=#ee8888]胜负已分[/color][/center]"

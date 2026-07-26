@@ -31,14 +31,13 @@ import tempfile
 TEST_DB = Path(tempfile.mkdtemp()) / "test_election.db"
 os.environ["TOWN_DB_PATH"] = str(TEST_DB)
 
-# Monkey-patch DB_PATH
+# 隔离到临时 DB（连接目标由 current_db_path ContextVar 决定）
 import db
-db.DB_PATH = TEST_DB
-db._initialized = False
-db.init_schema()
+db.current_db_path.set(TEST_DB)
+db.init_schema(TEST_DB)
 
 from election import (
-    ElectionStore, affection_norm, TERM_DAYS, VOTE_DAY_INDEX,
+    ElectionStore, affection_norm, TERM_DAYS, VOTE_DAY_INDEX, DEBATE_DAY_INDEX,
     PLAYER_ID, DEFAULT_FIRST_OPPONENT, W_AFFECTION_MAX, W_LOYALTY_MAX,
     W_PROMISE_MAX,
 )
@@ -62,10 +61,12 @@ check("首期对手 = bear_baker", term1["opponent_id"] == DEFAULT_FIRST_OPPONEN
 check("首期 day_index=1", es.day_index_in_term(term1, 0) == 1)
 check("首期 phase=campaign", es.phase_of(es.day_index_in_term(term1, 0)) == "campaign")
 
-# day 5 = day_index 6 = debate
-check("day_index=6 phase=debate", es.phase_of(es.day_index_in_term(term1, 5)) == "debate")
-# day 6 = day_index 7 = vote
-check("day_index=7 phase=vote", es.phase_of(es.day_index_in_term(term1, 6)) == "vote")
+# 辩论日 = DEBATE_DAY_INDEX（game_day 从 start_day 起，day_index = game_day-start_day+1）
+check(f"day_index={DEBATE_DAY_INDEX} phase=debate",
+      es.phase_of(es.day_index_in_term(term1, DEBATE_DAY_INDEX - 1)) == "debate")
+# 投票日 = VOTE_DAY_INDEX
+check(f"day_index={VOTE_DAY_INDEX} phase=vote",
+      es.phase_of(es.day_index_in_term(term1, VOTE_DAY_INDEX - 1)) == "vote")
 
 
 # ──────────────────────────────────────────────────────────
@@ -145,6 +146,10 @@ check("视图含 5 voters",
       f"voters={view['voters']}")
 check("scores 字典含 player + 对手",
       set(view["scores"].keys()) == {PLAYER_ID, "bear_baker"})
+check("首届 incumbent_id 为空（无镇长）",
+      view["incumbent_id"] == "", f"got '{view['incumbent_id']}'")
+check("视图含 day_theme（D1=rally）",
+      view.get("day_theme") == "rally", f"got {view.get('day_theme')}")
 
 
 # ──────────────────────────────────────────────────────────
@@ -265,9 +270,8 @@ print("\n=== 10. 模拟对局（v1 平衡）===")
 import db as _db
 import os, tempfile
 TEST_DB2 = os.path.join(tempfile.mkdtemp(), "balance.db")
-_db.DB_PATH = TEST_DB2
-_db._initialized = False
-_db.init_schema()
+_db.current_db_path.set(_db.Path(TEST_DB2))
+_db.init_schema(TEST_DB2)
 
 aff3 = AffectionStore()
 ws3 = WorldEventStore()
@@ -409,9 +413,8 @@ from power import PowerManager, ACTIONS, VISIT_AFFECTION, ANNOUNCE_AFFECTION
 
 # 独立 DB
 TEST_DB_PW = os.path.join(tempfile.mkdtemp(), "power.db")
-db.DB_PATH = TEST_DB_PW
-db._initialized = False
-db.init_schema()
+db.current_db_path.set(db.Path(TEST_DB_PW))
+db.init_schema(TEST_DB_PW)
 
 aff_pw = AffectionStore()
 ws_pw = WorldEventStore()
@@ -480,17 +483,15 @@ check("未知行动 → 失败", not res_unk.get("ok"))
 # 非现任无法行动（用独立 DB 隔离，避免共享活跃任期）
 import tempfile as _tf2
 _DB_NI = os.path.join(_tf2.mkdtemp(), "power_ni.db")
-db.DB_PATH = _DB_NI
-db._initialized = False
-db.init_schema()
+db.current_db_path.set(db.Path(_DB_NI))
+db.init_schema(_DB_NI)
 es_pw2 = ElectionStore(NPCS, AffectionStore(), WorldEventStore())
 term_pw2 = es_pw2.ensure_term_active(0)
 pm2 = PowerManager(es_pw2, AffectionStore(), WorldEventStore(), personas={}, llm=None)
 res_ni = asyncio.run(pm2.perform(term_pw2, 0, "announce"))
 check("非现任行动 → 失败", not res_ni.get("ok"))
 # 切回 power 主测 DB
-db.DB_PATH = TEST_DB_PW
-db._initialized = True
+db.current_db_path.set(db.Path(TEST_DB_PW))
 
 # view 暴露权力字段
 view_pw = es_pw.get_current_term_view(2)
@@ -506,9 +507,8 @@ from election import (
 )
 import tempfile as _tf3
 _DB_OPP = os.path.join(_tf3.mkdtemp(), "opp.db")
-db.DB_PATH = _DB_OPP
-db._initialized = False
-db.init_schema()
+db.current_db_path.set(db.Path(_DB_OPP))
+db.init_schema(_DB_OPP)
 aff_op = AffectionStore()
 ws_op = WorldEventStore()
 es_op = ElectionStore(NPCS, aff_op, ws_op)
@@ -590,8 +590,35 @@ check("优先攻打玩家领先的 voter",
       f"pick={picks[0]}")
 
 # 切回 power 主测 DB（保持原状）
-db.DB_PATH = TEST_DB_PW
-db._initialized = True
+db.current_db_path.set(db.Path(TEST_DB_PW))
+
+
+# ──────────────────────────────────────────────────────────
+# 14. 复仇战：玩家落选 → 下届对手 = 现任镇长 + incumbent_id 追踪
+print("\n=== 14. 复仇战对手 + incumbent_id ===")
+import tempfile as _tf4
+_DB_RE = os.path.join(_tf4.mkdtemp(), "rematch.db")
+db.current_db_path.set(db.Path(_DB_RE))
+db.init_schema(_DB_RE)
+es_re = ElectionStore(NPCS, AffectionStore(), WorldEventStore())
+
+# 上届玩家落选（赢家是 NPC）→ 下届锁定挑战这位现任镇长
+opp_lose = es_re.select_opponent(prev_term={"opponent_id": "fox_postman", "winner_id": "fox_postman"})
+check("玩家落选 → 下届对手 = 现任镇长(NPC)", opp_lose == "fox_postman", f"got {opp_lose}")
+# 上届玩家当选 → 不锁定，轮换出新挑战者（非玩家、可为任意 NPC）
+opp_win = es_re.select_opponent(prev_term={"opponent_id": "bear_baker", "winner_id": "player"})
+check("玩家当选 → 轮换新挑战者(非玩家)", opp_win != "player" and opp_win in NPCS, f"got {opp_win}")
+
+# get_incumbent_id：新建任期无镇长；set_incumbent 后能读回
+term_re = es_re.ensure_term_active(0)
+tid_re = int(term_re["term_id"])
+check("新任期 get_incumbent_id 为空", es_re.get_incumbent_id(tid_re) == "",
+      f"got '{es_re.get_incumbent_id(tid_re)}'")
+es_re.set_incumbent(tid_re, PLAYER_ID)
+check("set_incumbent(player) → get 回 player", es_re.get_incumbent_id(tid_re) == "player")
+es_re.set_incumbent(tid_re, term_re["opponent_id"])
+check("set_incumbent(对手) → get 回对手（复仇战镇长命中候选人）",
+      es_re.get_incumbent_id(tid_re) == term_re["opponent_id"])
 
 
 # ──────────────────────────────────────────────────────────

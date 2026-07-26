@@ -214,6 +214,15 @@ class ElectionStore:
             ).fetchone()
         return bool(row and int(row["is_incumbent"]) == 1)
 
+    def get_incumbent_id(self, term_id: int) -> str:
+        """返回该任期现任镇长的 id（player 或 NPC id）；首届无镇长返回 ""。"""
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT candidate_id FROM candidate_state WHERE term_id = ? AND is_incumbent = 1 LIMIT 1",
+                (term_id,),
+            ).fetchone()
+        return str(row["candidate_id"]) if row else ""
+
     def get_candidate_state(self, term_id: int, candidate_id: str) -> Optional[Dict]:
         with get_conn() as conn:
             row = conn.execute(
@@ -271,6 +280,12 @@ class ElectionStore:
         """
         if prev_term is None:
             return DEFAULT_FIRST_OPPONENT
+
+        # 复仇战：上届玩家落选（赢家是 NPC）→ 下届继续挑战这位现任镇长，
+        # 直到玩家夺回。这样现任镇长恒为本届候选人之一，set_incumbent 才命中。
+        prev_winner = prev_term.get("winner_id")
+        if prev_winner and prev_winner != PLAYER_ID and prev_winner in self.npc_ids:
+            return prev_winner
 
         # 历史对手列表（最新在前）
         with get_conn() as conn:
@@ -694,7 +709,9 @@ class ElectionStore:
             "day_index": day_index,
             "term_days": TERM_DAYS,
             "phase": phase,
+            "day_theme": self.day_theme(day_index),
             "opponent_id": term["opponent_id"],
+            "incumbent_id": self.get_incumbent_id(int(term["term_id"])),
             "candidates": self.candidates_of(term),
             "scores": score,
             "voters": self.voters_of(term),
