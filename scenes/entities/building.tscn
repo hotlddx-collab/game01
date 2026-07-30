@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/building.gd" id="1_building"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_building"]
-font_size = 16
+font_size = 13
 font_color = Color(1, 1, 1, 1)
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)

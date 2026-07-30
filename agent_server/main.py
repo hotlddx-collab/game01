@@ -21,10 +21,12 @@ from db import init_schema
 from memory import MemoryStore
 from profile import PlayerProfile
 from world_events import WorldEventStore
+import items
 from affection import AffectionStore
 from gifts import GiftStore
 from reflection import ReflectionStore, IntentStore
-from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX
+from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX, LOYALTY_MAP
+import belief
 from opponent_ai import OpponentAI
 from promises import PromiseStore
 from debate import DebateManager
@@ -270,6 +272,11 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
     # 玩家偷听
     if msg_type == "eavesdrop":
         await _handle_eavesdrop(ws, msg)
+        return
+
+    # 拾取上报（NPC 或玩家捡到地上道具）→ 写世界事件 + NPC forage 记忆
+    if msg_type == "pickup_report":
+        await _handle_pickup_report(ws, msg)
         return
 
     # 八卦：打听 / 放话 / 辟谣
@@ -550,11 +557,16 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
                 gossip_item["rumor"].id, speaker_id, listener_id, game_day)
             if spread and spread.get("reached_subject"):
                 await _apply_rumor_consequence(ws, spread, listener_id, game_day)
-            # 谣言又传到一名选民(listener) → 若主角是候选人，其 event 分变化，推送刷新
             if spread:
                 subj = spread.get("subject_id", "")
-                if subj in set(manager.all_ids()) or subj == "player":
-                    await _broadcast_election_state(ws, game_day)
+                # 传播链逐人结算：listener 以 speaker 为传谣者再做一次信念判定
+                # （每人每条只判一次，故谣言影响上限 = 全镇人数，不会无限膨胀）
+                r = rumor_store.get(gossip_item["rumor"].id)
+                ev = _judge_and_record(
+                    gossip_item["rumor"].id, listener_id, speaker_id, subj,
+                    r.sentiment if r else "", game_day) if r else []
+                if ev and (subj in set(manager.all_ids()) or subj == "player"):
+                    await _broadcast_election_state(ws, game_day, belief_events=ev)
         except Exception as e:
             log.debug("[rumor] 传播失败: %s", e)
 
@@ -639,24 +651,103 @@ _RUMOR_PRAISE_WORDS = (
 )
 
 
-def _infer_rumor(content: str, subject_id: str, sentiment: str):
+_RUMOR_NEGATORS = ("不", "没", "别", "无", "非", "未", "算不上", "称不上")
+
+
+def _rumor_polarity(content: str) -> int:
+    """按词表计分：正数偏褒、负数偏贬、0 无倾向。
+
+    改用计分而非「命中即定性」，避免贬义句里出现「好/帮」等高频褒义字时
+    被误判或互相抵消（旧实现 neg and not pos 会退回 neutral → 造谣完全失效）。
+    褒义词前若紧跟否定词（如「不好」「没本事」），极性翻转记为贬义。
+    """
+    score = 0
+    for w in _RUMOR_SMEAR_WORDS:
+        idx = content.find(w)
+        while idx >= 0:
+            score -= 2
+            idx = content.find(w, idx + 1)
+    for w in _RUMOR_PRAISE_WORDS:
+        idx = content.find(w)
+        while idx >= 0:
+            prefix = content[max(0, idx - 2):idx]
+            if any(n in prefix for n in _RUMOR_NEGATORS):
+                score -= 2   # 「不好」「没能干」→ 实为贬义
+            else:
+                score += 2
+            idx = content.find(w, idx + 1)
+    return score
+
+
+def _infer_rumor(content: str, subject_id: str, sentiment: str, force_smear: bool = False):
     """从玩家自由文本推断话题主角 + 情感（客户端只传自由文本时用）。"""
     # 主角：内容提到某 NPC 名字 → 话题针对该 NPC；否则维持默认（多为 player）
     if subject_id in ("", "player"):
+        matched = False
         for aid in manager.all_ids():
             ag = manager.get(aid)
             if ag and ag.name and ag.name in content:
                 subject_id = aid
+                matched = True
                 break
-    # 情感：仅当客户端未显式指定（neutral）时按褒贬词判定
+        if not matched and force_smear:
+            # 玩家造谣却没点名（如「他昨晚偷偷见了税吏」）→ 默认指向竞选对手，
+            # 否则 subject 停在 player，抹黑会打到玩家自己身上
+            term = election_store.get_active_term()
+            opp = term.get("opponent_id") if term else ""
+            if opp:
+                subject_id = opp
+    # 情感：仅当客户端未显式指定（neutral）时按褒贬计分判定
     if sentiment == "neutral":
-        neg = any(w in content for w in _RUMOR_SMEAR_WORDS)
-        pos = any(w in content for w in _RUMOR_PRAISE_WORDS)
-        if neg and not pos:
+        pol = _rumor_polarity(content)
+        if pol < 0:
             sentiment = "smear"
-        elif pos and not neg:
+        elif pol > 0:
             sentiment = "praise"
+        elif force_smear:
+            # 玩家主动用「造谣」发出、文本无明显褒贬词（如「他昨晚偷偷见了税吏」）
+            # 也应当作抹黑生效，否则 neutral 会被后续全链过滤掉 → 零影响
+            sentiment = "smear"
     return subject_id, sentiment
+
+
+def _judge_and_record(rumor_id: int, listener_id: str, source_id: str,
+                      subject_id: str, sentiment: str, game_day: int) -> list:
+    """对一位听者做信念判定并落库（每人每条只判一次）。
+
+    返回归因事件列表，供前端在选情分右侧飘字：
+      [{"kind": "believed"/"rejected", "listener": 名字, "source": 名字,
+        "subject_id": ..., "sentiment": ...}]
+    已判定过则返回空列表 → 重复造谣不再产生任何影响。
+    """
+    if sentiment not in ("smear", "praise"):
+        return []
+    if rumor_store.get_belief(rumor_id, listener_id) is not None:
+        return []   # 判定即锁定，不重复结算
+    verdict = belief.judge(
+        listener_id, source_id, subject_id, sentiment,
+        affection_store, LOYALTY_MAP)
+    state = "believed" if verdict["believe"] else "rejected"
+    fresh = rumor_store.set_belief(
+        rumor_id, listener_id, state, source_id=source_id,
+        score=verdict["score"], day=game_day)
+    if not fresh:
+        return []
+    if state == "rejected" and source_id == "player":
+        # 不信 → 玩家造谣有一点社交成本
+        affection_store.adjust(listener_id, belief.REJECT_AFF_PENALTY)
+    lname = rumor_manager.subject_label(listener_id)
+    sname = "你" if source_id == "player" else rumor_manager.subject_label(source_id)
+    log.info("[rumor] belief r=%s %s<-%s %s score=%.1f (%s)",
+             rumor_id, listener_id, source_id, state, verdict["score"], verdict["reason"])
+    return [{
+        "kind": state,
+        "listener": lname,
+        "source": sname,
+        "reason": verdict["reason"],
+        "subject_id": subject_id,
+        "sentiment": sentiment,
+    }]
 
 
 async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
@@ -676,14 +767,26 @@ async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
     if agent is None or not content:
         await _send_error(ws, "rumor_spread 缺少 animal_id 或 content")
         return
-    subject_id, sentiment = _infer_rumor(content, subject_id, sentiment)
+    subject_id, sentiment = _infer_rumor(content, subject_id, sentiment, force_smear=True)
+    # 只让「当面这一位」成为初始知情者，并当场做一次信念判定。
+    # 信 → 才影响选情且永久锁定（重复造同一话题不再叠加）；不信 → 掉一点对玩家好感。
+    # 后续影响靠 NPC 之间闲聊逐人扩散（每人同样只判一次）。
     rid = rumor_manager.generate(
         subject_id, content, sentiment=sentiment, truth=truth,
-        origin="player", game_day=game_day, initial_knowers=[animal_id], heat=50)
-    # NPC 当面反应
+        origin="player", game_day=game_day, initial_knowers=[animal_id], heat=60)
+    belief_events = _judge_and_record(
+        rid, animal_id, "player", subject_id, sentiment, game_day)
+    # NPC 当面反应：语气贴合信 / 不信 / 早已听过
+    if not belief_events:
+        stance = "你早就听过这个说法了，不觉得新鲜，敷衍两句。"
+    elif belief_events[0]["kind"] == "believed":
+        stance = "你信了这个说法，表现出吃惊或恍然大悟。"
+    else:
+        stance = "你不太信这个说法，表现出怀疑甚至有点反感。"
     prompt = (
         f"你是{agent.name}。有人悄悄跟你说了个小道消息：「{content}」\n"
-        "请用你自己的口吻回一句（15 字内），表现出你的态度（好奇/怀疑/吃惊/不屑都行）。只输出这句话。"
+        f"{stance}\n"
+        "请用你自己的口吻回一句（15 字内）。只输出这句话。"
     )
     try:
         line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=50, temperature=0.9)
@@ -693,12 +796,12 @@ async def _handle_rumor_spread(ws: WebSocket, msg: dict) -> None:
     await ws.send_text(json.dumps({
         "type": "rumor_reply", "animal_id": animal_id, "text": line,
         "spread_ok": True, "rumor_id": rid, "ok": True,
+        "belief_events": belief_events,
     }, ensure_ascii=False))
-    # 谣言影响候选人 event 分 → 立刻重算推送，让 HUD 反映（当前仅初始知情者生效，
-    # 随后靠 NPC 闲聊扩散到更多选民、影响才变大）
-    if subject_id in set(manager.all_ids()) or subject_id == "player":
+    # 只有「有人新相信了」才可能改变选情 → 重算推送
+    if belief_events and (subject_id in set(manager.all_ids()) or subject_id == "player"):
         try:
-            await _broadcast_election_state(ws, game_day)
+            await _broadcast_election_state(ws, game_day, belief_events=belief_events)
         except Exception as e:
             log.debug("[election] 散谣后推送失败: %s", e)
 
@@ -734,6 +837,45 @@ async def _handle_rumor_debunk(ws: WebSocket, msg: dict) -> None:
             await _broadcast_election_state(ws, int(msg.get("game_day", _known_day())))
         except Exception as e:
             log.debug("[election] 辟谣后推送失败: %s", e)
+
+
+async def _handle_pickup_report(ws: WebSocket, msg: dict) -> None:
+    """有人（NPC 或玩家）捡到了地上的道具。
+    写一条世界事件（供八卦引用）；若拾取者是 NPC，再写它自己的 forage 记忆。"""
+    actor_id = msg.get("actor_id", "")
+    item_id = msg.get("item_id", "")
+    if not actor_id or not item_id:
+        await _send_error(ws, "pickup_report 缺 actor_id/item_id")
+        return
+
+    item_def = items.get(item_id)
+    item_name = item_def.name if item_def else item_id
+
+    if actor_id == "player":
+        actor_name = "玩家"
+    else:
+        _a = manager.get(actor_id)
+        actor_name = _a.name if _a else actor_id
+
+    world_store.add(
+        actor=actor_id,
+        description=f"{actor_name}在镇上捡到了一个{item_name}",
+    )
+
+    # NPC 拾取 → 写它自己的记忆 + 加进 forage 库存（可被玩家索要）
+    if actor_id != "player":
+        actor = manager.get(actor_id)
+        if actor is not None:
+            actor.memory.add(
+                actor_id,
+                f"我刚在镇上捡到一个{item_name}",
+                type="event",
+                speaker="self",
+                importance=6,
+            )
+            actor.profile.forage_inc(actor_id, item_id, 1)
+
+    await ws.send_text(json.dumps({"type": "ok", "context": "pickup_report"}, ensure_ascii=False))
 
 
 async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
@@ -863,11 +1005,18 @@ async def _handle_debug_force_vote(ws: WebSocket, msg: dict) -> None:
         await _send_error(ws, "强制结算失败：可能任期不存在或已结束")
 
 
-async def _broadcast_election_state(ws: WebSocket, game_day: int) -> None:
-    """主动推送选举状态（time_tick 跨日时调）。"""
+async def _broadcast_election_state(ws: WebSocket, game_day: int,
+                                    belief_events: list | None = None) -> None:
+    """主动推送选举状态（time_tick 跨日时调）。
+
+    belief_events：本次分数变动的归因（谁信了/谁不信），供前端在分数右侧飘字。
+    """
     try:
         view = election_store.get_current_term_view(game_day)
-        await ws.send_text(json.dumps({"type": "election_state", **view, "ok": True}, ensure_ascii=False))
+        payload = {"type": "election_state", **view, "ok": True}
+        if belief_events:
+            payload["belief_events"] = belief_events
+        await ws.send_text(json.dumps(payload, ensure_ascii=False))
     except Exception as e:
         log.warning("[election] 推送失败: %s", e)
 

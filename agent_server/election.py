@@ -58,7 +58,7 @@ SMEAR_BACKFIRE = 4.0       # 抹黑玩家铁票（affection≥阈值）时反噬
 SMEAR_LOYAL_AFFECTION = 40  # voter 对玩家 affection ≥ 此值视为铁票，smear 反噬
 
 # 玩家/小镇谣言对选举 event 分的影响（话题主角==候选人，且该 voter 已知晓时生效）
-RUMOR_EVENT_PER = 8.0        # 单条已知晓的候选人谣言，满热度(100)时对该 voter 的 event 分最大影响
+RUMOR_EVENT_PER = 12.0        # 单条已知晓的候选人谣言，满热度(100)时对该 voter 的 event 分最大影响
 RUMOR_SMEAR_BACKFIRE = 0.5   # 护主：抹黑某候选人的铁票选民 → 反向加分系数（越护越挺）
 
 # 任期难度阶梯（陪玩定位）：对手总权重乘此系数，term1 最弱，逐届变强。
@@ -565,15 +565,16 @@ class ElectionStore:
                     # 抹黑铁票 → 反噬对手
                     score -= smear_cnt * SMEAR_BACKFIRE
 
-        # ---- 玩家/小镇谣言影响（话题主角==候选人，且该 voter 已知晓）----
-        # 造谣抹黑 = 拉低该候选人在知情选民处的 event 分；夸赞 = 拉高。
-        # 效果按热度缩放，且只作用于「听说过」的选民 → 越传得开影响越大。
+        # ---- 玩家/小镇谣言影响（话题主角==候选人，且该 voter「相信」了）----
+        # 只有经过信念判定、写入 rumor_belief 且 state='believed' 的才算数。
+        # 每人每条只判一次 → 重复造谣不会无限叠加，影响上限 = 全镇人数。
         try:
             with get_conn() as conn:
                 rrows = conn.execute(
-                    """SELECT r.sentiment AS sentiment, r.heat AS heat
-                       FROM rumor_knowledge k JOIN rumor r ON r.id = k.rumor_id
-                       WHERE k.animal_id = ? AND r.subject_id = ? AND r.status = 'active'
+                    """SELECT r.sentiment AS sentiment
+                       FROM rumor_belief b JOIN rumor r ON r.id = b.rumor_id
+                       WHERE b.animal_id = ? AND r.subject_id = ?
+                         AND b.state = 'believed' AND r.status = 'active'
                          AND r.sentiment IN ('smear', 'praise')""",
                     (voter_id, candidate_id),
                 ).fetchall()
@@ -582,7 +583,7 @@ class ElectionStore:
         if rrows:
             loyal_to_cand = voter_id in LOYALTY_MAP.get(candidate_id, set())
             for rr in rrows:
-                mag = (int(rr["heat"]) / 100.0) * RUMOR_EVENT_PER
+                mag = RUMOR_EVENT_PER
                 if rr["sentiment"] == "praise":
                     score += mag
                 elif rr["sentiment"] == "smear":

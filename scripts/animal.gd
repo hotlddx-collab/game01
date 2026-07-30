@@ -8,7 +8,7 @@ signal affection_level_changed(prev_level: String, new_level: String)
 ## P1 行为规则：路网寻路 / 错峰出发 / 到达闲逛 / 沿途停顿 / 个性速度差异。
 
 @export_file("*.json") var persona_file: String = ""
-@export var move_speed: float = 80.0
+@export var move_speed: float = 58.0
 @export var arrive_distance: float = 10.0
 
 var animal_id: String = ""
@@ -31,6 +31,21 @@ var _mv_speed:   float = 1.0   # 速度倍率
 var _mv_restless:float = 0.3   # 闲逛频率 0-1
 var _mv_pause:   float = 0.08  # 沿途停顿概率/s
 var _mv_wander:  float = 40.0  # 闲逛半径 px
+
+# ── 拾取（forage）：IDLE 时以 chance 概率去捡附近地上的道具 ──
+var _forage_chance: float = 0.0     # 0=不捡；每次 IDLE 到期触发拾取的概率
+var _forage_radius: float = 160.0   # 扫描地上道具的半径 px
+var _forage_items:  Array = []      # 偏好的 item_id；空=什么都捡
+var _foraging: bool = false         # 正在赶去捡（复用 intent 通道）
+var _roaming: bool = false          # 正在沿路远行漫游（复用 intent 通道）
+var _forage_claimed: ItemPickup = null  # 当前预定的道具（防重复选/超时释放）
+const FORAGE_CLAIM_TIMEOUT: float = 16.0  # claim 超时释放（防 NPC 卡住锁死道具）
+var _forage_cd_until: float = 0.0   # 捡到后进入冷却，到期前不再捡（避免扫空地面）
+const FORAGE_CD: float = 30.0       # 拾取冷却基准秒
+
+# ── 静止分离：NPC 静止时若与同类过近，缓缓软推开（避免站位重叠）──
+const SEP_DIST: float = 24.0        # 触发分离的间距 px
+const SEP_MAX_PUSH: float = 1.8     # 每帧最大位移量 px（小，防抖动/穿墙）
 
 # ── 5 状态机 ──
 enum State { WAITING, TRAVELING, PAUSING, SETTLING, IDLE, WANDERING }
@@ -128,6 +143,7 @@ func _on_velocity_computed(_sv: Vector2) -> void:
 func _physics_process(delta: float) -> void:
 	z_index = int(global_position.y / 4)
 	_update_busy_timeout()
+	_apply_separation(delta)
 
 	if is_busy():
 		velocity = Vector2.ZERO
@@ -214,8 +230,16 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO
 			_idle_timer -= delta
 			if _idle_timer <= 0.0:
-				# 每次到期都以 restless 概率闲逛，否则再等一段
-				if randf() < 0.5 + _mv_restless * 0.5:
+				# 1) 优先去捡附近地上的道具（按个性 chance/偏好；冷却期内不捡）
+				if _forage_chance > 0.0 \
+						and Time.get_ticks_msec() / 1000.0 >= _forage_cd_until \
+						and randf() < _forage_chance and _try_forage():
+					pass
+				# 2) 以 restless 概率沿路远行漫游（跨地图，真"沿路闲逛"）
+				elif randf() < 0.25 + _mv_restless * 0.45:
+					_start_roam()
+				# 3) 再不然原地踱两步
+				elif randf() < 0.5:
 					_start_wander()
 				else:
 					_idle_timer = randf_range(1.5, 3.5)
@@ -244,6 +268,29 @@ func _physics_process(delta: float) -> void:
 	_update_animation()
 
 
+## 静止分离：非移动态时，若与同类过近则施加小位移软推开，避免站位重叠。
+## 只在待机/停顿/对话等静止状态生效；移动交给 NavAgent avoidance。
+func _apply_separation(_delta: float) -> void:
+	var moving := _intent_active or _state == State.TRAVELING \
+		or _state == State.WANDERING or _state == State.WAITING
+	if moving:
+		return
+	var push := Vector2.ZERO
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n == self or not is_instance_valid(n):
+			continue
+		var off: Vector2 = global_position - n.global_position
+		var d := off.length()
+		if d < SEP_DIST and d > 0.01:
+			# 越近推力越大（线性），叠加各方向
+			push += off.normalized() * (SEP_DIST - d) / SEP_DIST
+	if push == Vector2.ZERO:
+		return
+	if push.length() > 1.0:
+		push = push.normalized()
+	global_position += push * SEP_MAX_PUSH
+
+
 ## 闲逛：以当前站立位置为中心随机走几步（不依赖建筑入口坐标）
 func _start_wander() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -256,6 +303,71 @@ func _start_wander() -> void:
 	_nav_agent.target_position = _wander_target
 	_wander_timer = 0.0
 	_state = State.WANDERING
+
+
+## 沿路远行漫游：选一个较远的路网航点，用 approach_for_intent 沿路走过去。
+## 到达（或 14s 超时）后 _finish_intent 会回到 IDLE，自然进入下一轮（可能顺路 forage）。
+func _start_roam() -> void:
+	var dest: Vector2 = PathNetwork.random_point(global_position, 120.0)
+	if dest == Vector2.ZERO:
+		_start_wander()
+		return
+	show_emote("🚶", 1.2, 0.0)
+	_roaming = true
+	approach_for_intent(dest, func(): pass)
+
+
+## 尝试去捡地上的道具：扫描 radius 内 pickup 组，按偏好过滤，选最近未被 claim 的。
+## 找到 → claim + approach_for_intent 赶去拾取，返回 true；否则 false。
+func _try_forage() -> bool:
+	var best: ItemPickup = null
+	var best_d: float = _forage_radius
+	var now: float = Time.get_ticks_msec() / 1000.0
+	for node in get_tree().get_nodes_in_group("pickup"):
+		if not (node is ItemPickup) or not is_instance_valid(node):
+			continue
+		var iid: String = node.item_id
+		# 偏好过滤：items 非空时只捡列表里的
+		if not _forage_items.is_empty() and not (iid in _forage_items):
+			continue
+		# 已被别的 NPC claim 且未超时 → 跳过
+		var claim_until: float = node.get_meta("_forage_claim_until", 0.0)
+		if claim_until > now:
+			continue
+		var d: float = global_position.distance_to(node.global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	if best == null:
+		return false
+	# claim 该道具，赶过去
+	best.set_meta("_forage_claim_until", now + FORAGE_CLAIM_TIMEOUT)
+	_forage_claimed = best
+	_foraging = true
+	show_emote("👀", 1.5, 0.0)
+	var target_id: String = best.item_id
+	approach_for_intent(
+		best.global_position,
+		func(): _on_forage_arrive(target_id)
+	)
+	return true
+
+
+## 到达拾取点：若道具仍在且未被抢先 → 拾取（free + emote + 上报）。
+func _on_forage_arrive(_expect_item: String) -> void:
+	_foraging = false
+	var pickup: ItemPickup = _forage_claimed
+	_forage_claimed = null
+	if pickup == null or not is_instance_valid(pickup):
+		return  # 被玩家/别人抢先拿走了
+	var iid: String = pickup.item_id
+	face_to(pickup.global_position)
+	pickup.queue_free()
+	_forage_cd_until = Time.get_ticks_msec() / 1000.0 + FORAGE_CD + randf_range(-5.0, 8.0)
+	show_emote("😋", 1.8, 0.0)
+	show_speech_bubble("捡到一个%s！" % ItemDB.get_item_name(iid), 3.0)
+	if AgentClient.has_method("report_pickup"):
+		AgentClient.report_pickup(animal_id, iid)
 
 
 ## 按路网路径前进：弹出下一个路径点提交给 NavAgent
@@ -323,6 +435,12 @@ func _finish_intent() -> void:
 	_intent_queue.clear()
 	_state = State.IDLE
 	velocity = Vector2.ZERO
+	# 漫游结束：若已偏离 schedule 岗位太远 → 重规划回岗
+	if _roaming:
+		_roaming = false
+		var home: Vector2 = LocationDB.get_pos(_target_location) if _target_location else Vector2.ZERO
+		if home != Vector2.ZERO and global_position.distance_to(home) > arrive_distance * 6.0:
+			_plan_route_to(home)
 	if _intent_callback.is_valid():
 		var cb: Callable = _intent_callback
 		_intent_callback = Callable()
@@ -366,6 +484,10 @@ func _load_persona() -> void:
 	_mv_restless= float(mv.get("restless",       0.3))
 	_mv_pause   = float(mv.get("pause_chance",   0.08))
 	_mv_wander  = float(mv.get("wander_radius",  40.0))
+	var fg: Dictionary = mv.get("forage", {})
+	_forage_chance = float(fg.get("chance", 0.0))
+	_forage_radius = float(fg.get("radius", 160.0))
+	_forage_items  = fg.get("items", [])
 	_nav_agent.max_speed = move_speed * _mv_speed
 
 	if name_label:
@@ -529,6 +651,8 @@ func clear_busy() -> void:
 	_busy_until  = 0.0
 	_intent_active   = false
 	_intent_callback = Callable()
+	_roaming = false
+	_foraging = false
 	_update_target_by_time()
 
 func face_to(target_pos: Vector2) -> void:

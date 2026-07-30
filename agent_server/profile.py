@@ -1,6 +1,7 @@
 """玩家档案：每只动物对玩家的认知 (animal_id, key) → value。"""
 from __future__ import annotations
 
+import json
 import time
 from typing import Dict, Optional
 
@@ -42,3 +43,24 @@ class PlayerProfile:
             return
         for k, v in facts.items():
             self.set(animal_id, k, v)
+
+    # ── forage 库存：NPC 捡到的道具 {item_id: count}，存 key="forage_bag" 的 JSON ──
+
+    _FORAGE_KEY = "forage_bag"
+
+    def get_forage_bag(self, animal_id: str) -> Dict[str, int]:
+        raw = self.get(animal_id, self._FORAGE_KEY)
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+            return {k: int(v) for k, v in data.items() if int(v) > 0}
+        except (ValueError, TypeError):
+            return {}
+
+    def forage_inc(self, animal_id: str, item_id: str, delta: int = 1) -> None:
+        bag = self.get_forage_bag(animal_id)
+        bag[item_id] = bag.get(item_id, 0) + delta
+        if bag[item_id] <= 0:
+            bag.pop(item_id, None)
+        self.set(animal_id, self._FORAGE_KEY, json.dumps(bag, ensure_ascii=False))

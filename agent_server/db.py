@@ -225,6 +225,19 @@ CREATE TABLE IF NOT EXISTS rumor_knowledge (
 );
 CREATE INDEX IF NOT EXISTS idx_rumor_know_animal ON rumor_knowledge(animal_id);
 
+-- 谁信了哪条八卦：每人每条只判定一次（判定即锁定），决定是否影响选情
+CREATE TABLE IF NOT EXISTS rumor_belief (
+  rumor_id    INTEGER NOT NULL,
+  animal_id   TEXT NOT NULL,
+  state       TEXT NOT NULL,                   -- believed 信 / rejected 不信
+  source_id   TEXT NOT NULL DEFAULT '',        -- 从谁那听来（player / animal_id）
+  score       REAL NOT NULL DEFAULT 0,         -- 当次信任分（调试用）
+  judged_day  INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (rumor_id, animal_id)
+);
+CREATE INDEX IF NOT EXISTS idx_rumor_belief_state ON rumor_belief(animal_id, state);
+
 -- 任务状态（原由 quests.py 自建，并入 schema 以便每个会话库都有）
 CREATE TABLE IF NOT EXISTS quests_state (
   quest_id       TEXT PRIMARY KEY,

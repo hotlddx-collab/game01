@@ -70,7 +70,10 @@ func _on_player_interact(target: Node) -> void:
 		return
 	# 拾取物品
 	if target.is_in_group("pickup") and target.has_method("pickup"):
+		var picked_item: String = target.item_id if "item_id" in target else ""
 		target.pickup()
+		if picked_item != "" and AgentClient.is_connected_to_server():
+			AgentClient.report_pickup("player", picked_item)
 		return
 	if not (target is Animal):
 		return

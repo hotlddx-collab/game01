@@ -97,7 +97,12 @@
     "speed_factor": 0.85,
     "restless": 0.5,
     "pause_chance": 0.08,
-    "wander_radius": 22
+    "wander_radius": 22,
+    "forage": {
+      "chance": 0.45,
+      "radius": 200,
+      "items": ["bread", "berry", "mushroom", "herb", "mint"]
+    }
   },
   "schedule_weekend": [
     {

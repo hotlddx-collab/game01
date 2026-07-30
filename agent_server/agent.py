@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from typing import Dict, Any, List, Optional, Tuple
 
 from llm import LLMClient
@@ -89,8 +90,20 @@ def _contains_quest_words(text: str) -> bool:
     return any(w in text for w in _QUEST_WORDS)
 
 
+def _salvage_text(raw: str) -> str:
+    """畸形 JSON 兜底：尽力抠出 "text":"..." 的值，避免把整串脏 JSON 当台词。
+    抠不到才退回原文。"""
+    m = re.search(r'"text"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+    if m:
+        try:
+            return json.loads('"' + m.group(1) + '"').strip()
+        except (json.JSONDecodeError, ValueError):
+            return m.group(1).strip()
+    return raw
+
+
 def _parse_reply_json(raw: str) -> Tuple[str, Optional[dict]]:
-    """从 LLM 输出中提取 {text, intent?}，容错：解析失败则把 raw 作为 text 返回。"""
+    """从 LLM 输出中提取 {text, intent?}，容错：解析失败则尽力抠出 text 字段。"""
     raw = raw.strip()
     start = raw.find("{")
     end = raw.rfind("}")
@@ -100,7 +113,7 @@ def _parse_reply_json(raw: str) -> Tuple[str, Optional[dict]]:
         data = json.loads(raw[start:end + 1])
         text = str(data.get("text", "")).strip()
         if not text:
-            return raw, None
+            return _salvage_text(raw), None
         intent = data.get("intent")
         if not isinstance(intent, dict):
             return text, None
@@ -112,7 +125,7 @@ def _parse_reply_json(raw: str) -> Tuple[str, Optional[dict]]:
             return text, intent
         return text, None
     except (json.JSONDecodeError, ValueError):
-        return raw, None
+        return _salvage_text(raw), None
 
 
 SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupation}。
@@ -144,6 +157,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是 {name}，一只 {species}，职业是 {occupa
 {relevant_memories_block}
 {reflections_block}
 {world_events_block}
+{forage_block}
 {gossip_block}
 
 【对话规则】
@@ -277,6 +291,18 @@ class Agent:
             loc = f"在{e.location}" if e.location else ""
             lines.append(f"- ({e.game_time or '...'}){actor}{loc}：{e.description[:60]}")
         return "\n【你最近耳闻的镇上动静】\n" + "\n".join(lines)
+
+    def _build_forage_block(self) -> str:
+        """你自己最近捡到的东西——供玩家问起时直接答上。"""
+        mems = self.memory.recent(self.animal_id, n=30)
+        picked = [
+            m for m in mems
+            if m.type == "event" and m.speaker == "self" and "捡到" in m.content
+        ]
+        if not picked:
+            return ""
+        lines = [f"- {m.content[:40]}" for m in picked[:4]]
+        return "\n【你最近捡到的东西】（玩家问起就大方说）\n" + "\n".join(lines)
 
     def _build_location_block(self, context: Dict[str, Any]) -> str:
         """注入地点描述 + 附近还有谁，让对话有"地图感知"。"""
@@ -465,12 +491,13 @@ class Agent:
         ]
         roster_line = f"可用 target_id：{'、'.join(others)}" if others else ""
 
-        # 当前 NPC 可送出的物品（signature_gift + loves）
+        # 当前 NPC 可送出的物品（signature_gift + loves + 自己捡到的野货）
         prefs = self.persona.get("gift_prefs", {}) or {}
         sig = self.persona.get("signature_gift", "")
         giveable_ids = set(prefs.get("loves", []))
         if sig:
             giveable_ids.add(sig)
+        giveable_ids |= set(self.profile.get_forage_bag(self.animal_id).keys())
         valid_ids = [iid for iid in giveable_ids if items_module.get(iid) is not None]
         giveable_line = (
             "你手边有的物品：" +
@@ -519,6 +546,7 @@ class Agent:
             relevant_memories_block=self._build_relevant_memories_block(query),
             reflections_block=self._build_reflections_block(game_day),
             world_events_block=self._build_world_events_block(),
+            forage_block=self._build_forage_block(),
             gossip_block=self._build_gossip_block(context),
             location_block=self._build_location_block(context),
             election_block=self._build_election_block(context),
@@ -965,12 +993,14 @@ class Agent:
 
         decision = _check_gift_request(level, game_day, last_day)
 
-        # 选择实际送出的物品（必须严格在 NPC 可送列表里）
+        # 选择实际送出的物品（可送 = 偏好物 + 签名礼 + 自己捡到的野货）
         prefs = self.persona.get("gift_prefs", {}) or {}
         sig = self.persona.get("signature_gift", "")
+        forage_bag = self.profile.get_forage_bag(self.animal_id)
         giveable = set(prefs.get("loves", []))
         if sig:
             giveable.add(sig)
+        giveable |= set(forage_bag.keys())
         requested_id = str(intent_data.get("item_id", "")).strip()
 
         # 严格校验：LLM 给的 item_id 必须在可送列表里，否则视为"手边没有"
@@ -983,6 +1013,9 @@ class Agent:
             # 同意送
             item = items_module.get(requested_id)
             self.profile.set(self.animal_id, "last_request_gift_day", str(game_day))
+            # 若送出的是自己捡来的野货 → 库存 -1
+            if requested_id in forage_bag:
+                self.profile.forage_inc(self.animal_id, requested_id, -1)
             delta = decision["delta"]
             if delta != 0:
                 aff_after = self.affection.adjust(self.animal_id, delta)

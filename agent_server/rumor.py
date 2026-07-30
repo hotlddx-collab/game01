@@ -198,6 +198,46 @@ class RumorStore:
             })
         return out
 
+    # ---------- rumor_belief（信念判定结果，每人每条只判一次）----------
+
+    def get_belief(self, rumor_id: int, animal_id: str) -> Optional[Dict]:
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM rumor_belief WHERE rumor_id = ? AND animal_id = ?",
+                (rumor_id, animal_id),
+            ).fetchone()
+        if not row:
+            return None
+        return {"state": row["state"], "source_id": row["source_id"],
+                "score": float(row["score"]), "judged_day": int(row["judged_day"])}
+
+    def set_belief(self, rumor_id: int, animal_id: str, state: str,
+                   source_id: str = "", score: float = 0.0, day: int = 0) -> bool:
+        """写入判定结果。已存在则不覆盖（判定即锁定），返回是否为本次新写入。"""
+        now = int(time.time())
+        with get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO rumor_belief
+                   (rumor_id, animal_id, state, source_id, score, judged_day, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(rumor_id, animal_id) DO NOTHING""",
+                (rumor_id, animal_id, state, source_id, score, day, now),
+            )
+            return (cur.rowcount or 0) > 0
+
+    def belief_rows_for(self, voter_id: str, subject_id: str) -> List[Dict]:
+        """某选民对某主角、已判定为「信」的话题（含情感），用于选情结算。"""
+        with get_conn() as conn:
+            rows = conn.execute(
+                """SELECT r.sentiment AS sentiment
+                   FROM rumor_belief b JOIN rumor r ON r.id = b.rumor_id
+                   WHERE b.animal_id = ? AND r.subject_id = ?
+                     AND b.state = 'believed' AND r.status = 'active'
+                     AND r.sentiment IN ('smear', 'praise')""",
+                (voter_id, subject_id),
+            ).fetchall()
+        return [{"sentiment": r["sentiment"]} for r in rows]
+
 
 # ──────────────────────────────────────────────
 # RumorManager：生成 / 传播（变味）

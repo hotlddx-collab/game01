@@ -104,7 +104,12 @@
     "speed_factor": 0.8,
     "restless": 0.5,
     "pause_chance": 0.12,
-    "wander_radius": 22
+    "wander_radius": 22,
+    "forage": {
+      "chance": 0.55,
+      "radius": 220,
+      "items": ["shell", "pearl", "fish", "moonstone", "crystal"]
+    }
   },
   "schedule_weekend": [
     {

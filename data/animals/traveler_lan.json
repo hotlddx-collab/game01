@@ -106,7 +106,12 @@
     "speed_factor": 1.1,
     "restless": 0.8,
     "pause_chance": 0.08,
-    "wander_radius": 35
+    "wander_radius": 35,
+    "forage": {
+      "chance": 0.6,
+      "radius": 240,
+      "items": ["acorn", "rock", "branch", "bark", "resin", "feather"]
+    }
   },
   "schedule_weekend": [
     {

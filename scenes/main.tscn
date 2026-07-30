@@ -252,7 +252,7 @@ scale = Vector2(2.2067645, 0.6463979)
 shape = SubResource("RectangleShape2D_eb6dy")
 
 [node name="MyHome" parent="Buildings" unique_id=1428523267 instance=ExtResource("7_building")]
-z_index = 146
+z_index = 17
 z_as_relative = false
 position = Vector2(1168, 45)
 building_id = "home_new"
@@ -1010,12 +1010,17 @@ item_id = "shell"
 layer = 4
 
 [node name="HintLabel" type="Label" parent="HintLayer" unique_id=816628713]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 800.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -820.0
+offset_top = 24.0
+offset_right = -150.0
 offset_bottom = 48.0
+grow_horizontal = 0
 text = "WASD 移动 / E 对话或拾取 / 对话中点 🎁 送礼 / I 背包"
 label_settings = SubResource("LabelSettings_hint")
+horizontal_alignment = 2
 
 [node name="QuestHUD" type="CanvasLayer" parent="." unique_id=917345001]
 unique_name_in_owner = true
@@ -1024,9 +1029,9 @@ script = ExtResource("17_qhud")
 
 [node name="Panel" type="Panel" parent="QuestHUD" unique_id=917345002]
 offset_left = 16.0
-offset_top = 56.0
-offset_right = 380.0
-offset_bottom = 190.0
+offset_top = 152.0
+offset_right = 400.0
+offset_bottom = 286.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_qhud")
 
 [node name="VBox" type="VBoxContainer" parent="QuestHUD/Panel" unique_id=917345003]
@@ -1064,10 +1069,128 @@ unique_name_in_owner = true
 
 [node name="ElectionHUD" parent="." unique_id=923226805 instance=ExtResource("18_ehud")]
 
+[node name="Panel" parent="ElectionHUD" index="0"]
+offset_right = 336.0
+
+[node name="VBox" parent="ElectionHUD/Panel" index="0"]
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1
+
+[node name="Header" parent="ElectionHUD/Panel/VBox" index="0"]
+layout_mode = 2
+
+[node name="PlayerRow" parent="ElectionHUD/Panel/VBox" index="1"]
+layout_mode = 2
+
+[node name="Name" parent="ElectionHUD/Panel/VBox/PlayerRow" index="0"]
+layout_mode = 2
+
+[node name="Bar" parent="ElectionHUD/Panel/VBox/PlayerRow" index="1"]
+layout_mode = 2
+
+[node name="Score" parent="ElectionHUD/Panel/VBox/PlayerRow" index="2"]
+layout_mode = 2
+
+[node name="OpponentRow" parent="ElectionHUD/Panel/VBox" index="2"]
+layout_mode = 2
+
+[node name="Name" parent="ElectionHUD/Panel/VBox/OpponentRow" index="0"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Bar" parent="ElectionHUD/Panel/VBox/OpponentRow" index="1"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Score" parent="ElectionHUD/Panel/VBox/OpponentRow" index="2"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Hint" parent="ElectionHUD/Panel/VBox" index="3"]
+visible = true
+layout_mode = 2
+
+[node name="ResultOverlay" parent="ElectionHUD" index="1"]
+visible = true
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" parent="ElectionHUD/ResultOverlay" index="0"]
+layout_mode = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+
+[node name="ResultPanel" parent="ElectionHUD/ResultOverlay/Center" index="0"]
+layout_mode = 2
+
+[node name="Margin" parent="ElectionHUD/ResultOverlay/Center/ResultPanel" index="0"]
+layout_mode = 2
+
+[node name="VBox" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin" index="0"]
+layout_mode = 2
+
+[node name="Title" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox" index="0"]
+layout_mode = 2
+
+[node name="Status" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox" index="1"]
+layout_mode = 2
+
+[node name="VotesBox" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox" index="2"]
+layout_mode = 2
+
+[node name="PlayerVote" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox" index="0"]
+layout_mode = 2
+
+[node name="Name" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote" index="0"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Bar" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote" index="1"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Num" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/PlayerVote" index="2"]
+layout_mode = 2
+
+[node name="OpVote" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox" index="1"]
+layout_mode = 2
+
+[node name="Name" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote" index="0"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Bar" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote" index="1"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Num" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/VotesBox/OpVote" index="2"]
+unique_name_in_owner = false
+layout_mode = 2
+
+[node name="Banner" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox" index="3"]
+layout_mode = 2
+
+[node name="BtnCenter" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox" index="4"]
+layout_mode = 2
+
+[node name="CloseBtn" parent="ElectionHUD/ResultOverlay/Center/ResultPanel/Margin/VBox/BtnCenter" index="0"]
+layout_mode = 2
+
 [node name="PromisePanel" parent="." unique_id=1877228994 instance=ExtResource("19_pp")]
 
 [node name="DebatePanel" parent="." unique_id=1095541009 instance=ExtResource("20_db")]
 
 [node name="PowerPanel" parent="." unique_id=462999425 instance=ExtResource("21_pw")]
 
-[node name="CrisisPanel" parent="." instance=ExtResource("22_cr")]
+[node name="CrisisPanel" parent="." unique_id=987987148 instance=ExtResource("22_cr")]
+
+[editable path="ElectionHUD"]

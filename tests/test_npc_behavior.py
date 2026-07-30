@@ -360,6 +360,36 @@ for layer_name in ["lack", "rock"]:
 
 
 # ──────────────────────────────────────────────────────────
+# 8. forage（拾取）配置校验
+# ──────────────────────────────────────────────────────────
+print("\n── 8. forage 拾取配置 ──────────────────────────")
+
+# 场景里实际散落的物品（main.tscn 的 item_spawn_point）
+SPAWNED_ITEMS = {
+    "acorn","ancient_book","bark","berry","branch","bread","crystal","dewdrop",
+    "feather","fish","herb","mint","moonstone","mushroom","pearl","resin","rock","shell",
+}
+
+forage_count = 0
+for npc_id in NPCS:
+    d = json.load(open(f"{BASE}{npc_id}.json"))
+    fg = d.get("movement", {}).get("forage", {})
+    if not fg:
+        continue
+    forage_count += 1
+    nm = d["name"]
+    ch = float(fg.get("chance", 0.0))
+    check(f"{nm} forage.chance 在 (0,1]", 0.0 < ch <= 1.0, f"chance={ch}")
+    check(f"{nm} forage.radius > 0", float(fg.get("radius", 0)) > 0)
+    itms = fg.get("items", [])
+    check(f"{nm} forage.items 非空", len(itms) > 0, f"{len(itms)} 项")
+    bad = [i for i in itms if i not in SPAWNED_ITEMS]
+    check(f"{nm} forage.items 均为真实散落物", not bad, f"未知: {bad}" if bad else "")
+
+check("6 个 NPC 全部配了 forage", forage_count == len(NPCS), f"{forage_count}/{len(NPCS)}")
+
+
+# ──────────────────────────────────────────────────────────
 # 汇总
 # ──────────────────────────────────────────────────────────
 print("\n── 汇总 ───────────────────────────────────────")

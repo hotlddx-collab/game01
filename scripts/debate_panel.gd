@@ -137,7 +137,7 @@ func _show_question() -> void:
 		btn.text = "%s %s" % [STANCE_ICON.get(stance, ""), String(options[stance])]
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.custom_minimum_size = Vector2(560, 44)
-		btn.add_theme_font_size_override("font_size", 16)
+		btn.add_theme_font_size_override("font_size", 13)
 		btn.set_meta("stance", stance)
 		btn.set_meta("opt_text", String(options[stance]))
 		btn.pressed.connect(_on_option_pressed.bind(btn))

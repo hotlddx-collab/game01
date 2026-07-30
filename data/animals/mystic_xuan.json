@@ -104,7 +104,12 @@
     "speed_factor": 1.0,
     "restless": 0.35,
     "pause_chance": 0.05,
-    "wander_radius": 18
+    "wander_radius": 18,
+    "forage": {
+      "chance": 0.4,
+      "radius": 200,
+      "items": ["crystal", "moonstone", "ancient_book", "pearl", "dewdrop"]
+    }
   },
   "schedule_weekend": [
     {

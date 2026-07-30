@@ -227,6 +227,17 @@ func request_gift(animal_id: String, item_id: String, context: Dictionary = {}) 
 	})
 
 
+## 拾取上报：谁（NPC id 或 "player"）捡到了 item_id。
+## 后端据此写 world_event（八卦素材）+ 若是 NPC 则写其 forage 记忆。
+func report_pickup(actor_id: String, item_id: String) -> bool:
+	return _send({
+		"type": "pickup_report",
+		"actor_id": actor_id,
+		"item_id": item_id,
+		"game_day": WorldClock.get_day() if has_node("/root/WorldClock") else 0,
+	})
+
+
 ## 八卦·打听：问 NPC 最近听说了什么
 func request_rumor_inquire(animal_id: String) -> bool:
 	return _send({

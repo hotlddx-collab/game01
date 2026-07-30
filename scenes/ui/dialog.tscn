@@ -69,21 +69,21 @@ offset_right = 400.0
 offset_bottom = 44.0
 text = "说话者"
 theme_override_colors/font_color = Color(0.4, 0.25, 0.15, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 18
 
 [node name="StatusLabel" type="Label" parent="Panel"]
 unique_name_in_owner = true
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -180.0
+offset_left = -340.0
 offset_top = 16.0
-offset_right = -24.0
+offset_right = -20.0
 offset_bottom = 40.0
 horizontal_alignment = 2
 text = ""
 theme_override_colors/font_color = Color(0.55, 0.4, 0.2, 0.8)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 
 [node name="DialogText" type="RichTextLabel" parent="Panel"]
 unique_name_in_owner = true
@@ -102,7 +102,7 @@ scroll_active = true
 scroll_following = true
 clip_contents = true
 theme_override_colors/default_color = Color(0.2, 0.15, 0.1, 1)
-theme_override_font_sizes/normal_font_size = 18
+theme_override_font_sizes/normal_font_size = 13
 
 [node name="InputLine" type="LineEdit" parent="Panel"]
 unique_name_in_owner = true
@@ -120,7 +120,7 @@ placeholder_text = "输入想说的话，回车发送..."
 theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
 theme_override_colors/font_color = Color(0.15, 0.1, 0.05, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 13
 
 [node name="GossipButton" type="Button" parent="Panel"]
 unique_name_in_owner = true
@@ -134,7 +134,7 @@ offset_top = -68.0
 offset_right = -118.0
 offset_bottom = -36.0
 text = "🗣 八卦"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 13
 
 [node name="GossipBar" type="Panel" parent="Panel"]
 unique_name_in_owner = true
@@ -164,19 +164,19 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 size_flags_horizontal = 3
 text = "打听"
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 
 [node name="SpreadButton" type="Button" parent="Panel/GossipBar/GossipRow"]
 unique_name_in_owner = true
 size_flags_horizontal = 3
 text = "造谣"
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 
 [node name="DebunkButton" type="Button" parent="Panel/GossipBar/GossipRow"]
 unique_name_in_owner = true
 size_flags_horizontal = 3
 text = "辟谣"
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 
 [node name="GiftButton" type="Button" parent="Panel"]
 unique_name_in_owner = true
@@ -190,7 +190,7 @@ offset_top = -68.0
 offset_right = -24.0
 offset_bottom = -36.0
 text = "🎁 送礼"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 13
 
 [node name="GiftPicker" type="Panel" parent="Panel"]
 unique_name_in_owner = true
@@ -213,7 +213,7 @@ offset_bottom = 34.0
 anchor_right = 1.0
 text = "选择要送出的礼物"
 theme_override_colors/font_color = Color(0.4, 0.25, 0.15, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 18
 
 [node name="GiftClose" type="Button" parent="Panel/GiftPicker"]
 unique_name_in_owner = true
@@ -259,7 +259,7 @@ offset_bottom = 16.0
 horizontal_alignment = 1
 text = "你的背包是空的——出门捡点东西再来吧"
 theme_override_colors/font_color = Color(0.5, 0.4, 0.3, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 
 [node name="Hint" type="Label" parent="Panel"]
 anchors_preset = 3
@@ -274,4 +274,4 @@ offset_bottom = -8.0
 horizontal_alignment = 2
 text = "[Enter] 发送   [Esc] 关闭"
 theme_override_colors/font_color = Color(0.5, 0.4, 0.3, 0.8)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 13

@@ -1,11 +1,53 @@
+@tool
 extends CanvasLayer
 ## 竞选 HUD - 屏幕顶部中央常驻 + 投票日全屏结算演出
 ##
 ## 数据源：AgentClient.election_state_received（每天 22:00 后端推送 + 06:00 客户端拉取）
 ##         AgentClient.election_result_received（D7 投票日触发演出）
 
+# ---- 布局配置（Inspector 可实时调）----
+@export_group("HUD 布局")
+## 面板左上角屏幕位置
+@export var panel_margin_left: float = 16.0:
+	set(v): panel_margin_left = v; _apply_layout()
+@export var panel_margin_top: float = 16.0:
+	set(v): panel_margin_top = v; _apply_layout()
+## 面板宽高
+@export var panel_width: float = 384.0:
+	set(v): panel_width = v; _apply_layout()
+@export var panel_height: float = 120.0:
+	set(v): panel_height = v; _apply_layout()
+## 面板内四边留白
+@export var pad_left: float = 16.0:
+	set(v): pad_left = v; _apply_layout()
+@export var pad_right: float = 16.0:
+	set(v): pad_right = v; _apply_layout()
+@export var pad_top: float = 12.0:
+	set(v): pad_top = v; _apply_layout()
+@export var pad_bottom: float = 8.0:
+	set(v): pad_bottom = v; _apply_layout()
+## 行与行垂直间距
+@export var row_separation: int = 6:
+	set(v): row_separation = v; _apply_layout()
+## 名字列宽 / 分数列宽 / 进度条最小长度 / 进度条高度
+@export var name_column_width: float = 64.0:
+	set(v): name_column_width = v; _apply_layout()
+@export var score_column_width: float = 36.0:
+	set(v): score_column_width = v; _apply_layout()
+@export var bar_min_length: float = 230.0:
+	set(v): bar_min_length = v; _apply_layout()
+@export var bar_height: float = 16.0:
+	set(v): bar_height = v; _apply_layout()
+## 行内元素水平间距
+@export var row_h_separation: int = 10:
+	set(v): row_h_separation = v; _apply_layout()
+## 字号
+@export var font_size: int = 13:
+	set(v): font_size = v; _apply_layout()
+
 # ---- 常驻 HUD ----
 @onready var panel: Panel = $Panel
+@onready var _vbox: VBoxContainer = $Panel/VBox
 @onready var header: RichTextLabel = %Header
 @onready var player_name_lbl: Label = $Panel/VBox/PlayerRow/Name
 @onready var player_bar: ProgressBar = $Panel/VBox/PlayerRow/Bar
@@ -56,9 +98,13 @@ func _id_to_name(npc_id: String) -> String:
 
 
 func _ready() -> void:
+	_apply_layout()
+	if Engine.is_editor_hint():
+		return
 	# 默认占位文字
 	header.text = "🗳 [b]竞选系统初始化…[/b]  [color=#888](等待后端)[/color]"
-	hint_label.text = "[color=#888]如果一直看到这条说明 → 检查 agent_server 是否启动[/color]"
+	hint_label.text = ""
+	hint_label.visible = false
 	result_overlay.visible = false
 	result_close_btn.pressed.connect(_on_overlay_close)
 	_build_day_banner()
@@ -171,6 +217,9 @@ func _on_promise_state(info: Dictionary) -> void:
 
 
 func _on_state(view: Dictionary) -> void:
+	var had_prev := not _last_view.is_empty()
+	var prev_scores: Dictionary = _last_view.get("scores", {})
+	var prev_opp := _opponent_id
 	_last_view = view
 	_opponent_id = String(view.get("opponent_id", ""))
 	_player_incumbent = bool(view.get("player_incumbent", false))
@@ -179,6 +228,62 @@ func _on_state(view: Dictionary) -> void:
 	_incumbent_id = String(view.get("incumbent_id", ""))
 	_day_theme = String(view.get("day_theme", "campaign"))
 	_refresh()
+	# 分数变动 → 在对应分数右侧飘小字，说明为什么变
+	if not had_prev:
+		return
+	var evs: Array = view.get("belief_events", [])
+	var scores: Dictionary = view.get("scores", {})
+	var dp := int(round(float(scores.get("player", 0.0)) - float(prev_scores.get("player", 0.0))))
+	var do_ := int(round(float(scores.get(_opponent_id, 0.0)) - float(prev_scores.get(prev_opp, 0.0))))
+	if dp != 0:
+		_float_delta(player_score_lbl, dp, _reason_text(evs, "player"))
+	if do_ != 0:
+		_float_delta(opponent_score_lbl, do_, _reason_text(evs, _opponent_id))
+
+
+## 把归因事件压成一句短原因（如「小蓝信了谣言」/「焰仔护主」）
+func _reason_text(evs: Array, subject_id: String) -> String:
+	for e in evs:
+		if not (e is Dictionary):
+			continue
+		if String(e.get("subject_id", "")) != subject_id:
+			continue
+		var listener := String(e.get("listener", "有人"))
+		if String(e.get("kind", "")) == "believed":
+			var s := String(e.get("sentiment", "smear"))
+			return "%s信了%s" % [listener, "夸赞" if s == "praise" else "谣言"]
+		else:
+			return "%s不信(%s)" % [listener, String(e.get("reason", ""))]
+	return ""
+
+
+## 分数右侧小字飘动：上浮 + 淡出，不占布局空间
+func _float_delta(anchor: Control, delta: int, reason: String) -> void:
+	if anchor == null or delta == 0:
+		return
+	var lbl := RichTextLabel.new()
+	lbl.bbcode_enabled = true
+	lbl.fit_content = true
+	lbl.scroll_active = false
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.custom_minimum_size = Vector2(150, 0)
+	var col := "#5fd68a" if delta > 0 else "#ff8a6a"
+	var sign := "+" if delta > 0 else ""
+	var txt := "[color=%s]%s%d[/color]" % [col, sign, delta]
+	if reason != "":
+		txt += " [color=#b8b8b8]%s[/color]" % reason
+	lbl.text = txt
+	lbl.add_theme_font_size_override("normal_font_size", 11)
+	panel.add_child(lbl)
+	# 起点：贴在分数标签右侧（相对 panel 的局部坐标）
+	var start := anchor.global_position - panel.global_position
+	start.x += anchor.size.x + 6.0
+	lbl.position = start
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(lbl, "position:y", start.y - 22.0, 1.4).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0, 1.4).set_delay(0.35)
+	tw.chain().tween_callback(lbl.queue_free)
 
 
 func _on_opponent_action(info: Dictionary) -> void:
@@ -198,11 +303,11 @@ func _refresh() -> void:
 
 	# 第 1 行：政权状态（谁是镇长），第 2 行：进度 + 当日阶段
 	var regime := _regime_line(term_id)
-	var progress := "🗳 [color=#c69b50]第 %d/%d 天 · %s[/color]" % [day_idx, term_days, stage_text]
+	var progress := "🗳 [color=#c69b50]D%d/%d · %s[/color]" % [day_idx, term_days, stage_text]
 	if remaining > 0:
-		progress += "  [color=#888](距投票 %d 天)[/color]" % remaining
+		progress += " [color=#888](投票倒计 %d 天)[/color]" % remaining
 	else:
-		progress += "  [color=#ffce8a](今日投票)[/color]"
+		progress += " [color=#ffce8a](今日投票)[/color]"
 	header.text = "%s\n%s" % [regime, progress]
 
 	var scores: Dictionary = _last_view.get("scores", {})
@@ -219,23 +324,68 @@ func _refresh() -> void:
 	opponent_bar.value = clamp(o_score, 0.0, SCORE_BAR_MAX)
 	opponent_score_lbl.text = "%d" % int(round(o_score))
 
-	hint_label.text = "[color=#cdd6e6]📜 承诺池 [b]%d/%d[/b][/color]   ·   %s" % [
-		_promise_active, _promise_max, _gen_hint(day_idx, p_score, o_score)
-	]
+	# 承诺池已精简移除；镇长权力提示并到进度行右侧
 	if _player_incumbent:
-		hint_label.text += "\n[color=#ffd864]🏛 镇长权力 %s/%s（按 K 行使）[/color]" % [
-			_player_power, _player_power_max
-		]
+		header.text += "  [color=#ffd864]🏛权力%s/%s(K)[/color]" % [_player_power, _player_power_max]
+
+
+## 面板尺寸固定（由 tscn 控制），内容 EXPAND 铺满；保留空壳供旧调用点
+func _resize_panel() -> void:
+	pass
+
+
+## 按 @export 参数应用布局，Inspector 改动即时生效
+func _apply_layout() -> void:
+	if not is_inside_tree():
+		return
+	var p := get_node_or_null("Panel") as Panel
+	if p == null:
+		return
+	p.offset_left = panel_margin_left
+	p.offset_top = panel_margin_top
+	p.offset_right = panel_margin_left + panel_width
+	p.offset_bottom = panel_margin_top + panel_height
+
+	var vb := p.get_node_or_null("VBox") as VBoxContainer
+	if vb == null:
+		return
+	vb.offset_left = pad_left
+	vb.offset_right = -pad_right
+	vb.offset_top = pad_top
+	vb.offset_bottom = -pad_bottom
+	vb.add_theme_constant_override("separation", row_separation)
+
+	var hdr := vb.get_node_or_null("Header") as RichTextLabel
+	if hdr != null:
+		hdr.add_theme_font_size_override("normal_font_size", font_size)
+		hdr.add_theme_font_size_override("bold_font_size", font_size)
+
+	for row_name in ["PlayerRow", "OpponentRow"]:
+		var row := vb.get_node_or_null(row_name) as HBoxContainer
+		if row == null:
+			continue
+		row.add_theme_constant_override("separation", row_h_separation)
+		var nm := row.get_node_or_null("Name") as Label
+		if nm != null:
+			nm.custom_minimum_size = Vector2(name_column_width, 0)
+			nm.add_theme_font_size_override("font_size", font_size)
+		var bar := row.get_node_or_null("Bar") as ProgressBar
+		if bar != null:
+			bar.custom_minimum_size = Vector2(bar_min_length, bar_height)
+		var sc := row.get_node_or_null("Score") as Label
+		if sc != null:
+			sc.custom_minimum_size = Vector2(score_column_width, 0)
+			sc.add_theme_font_size_override("font_size", font_size)
 
 
 ## 顶栏第 1 行：按现任镇长身份区分开荒 / 卫冕 / 在野
 func _regime_line(term_id: int) -> String:
 	if _incumbent_id == "":
-		return "🌱 [b]首届镇长竞选[/b]  [color=#c69b50]· 镇长之位空缺[/color]"
+		return "🌱 [b]首届镇长竞选[/b]"
 	elif _incumbent_id == "player":
-		return "🏛 [b]现任镇长：你[/b]  [color=#c69b50]· 第 %d 届任期[/color]" % term_id
+		return "🏛 [b]现任镇长：你[/b] [color=#c69b50]· 第%d届[/color]" % term_id
 	else:
-		return "🏛 [b]现任镇长：%s[/b]  [color=#ff9a9a]· 你要夺回[/color]" % _id_to_name(_incumbent_id)
+		return "🏛 [b]现任镇长：%s[/b] [color=#ff9a9a]· 夺回[/color]" % _id_to_name(_incumbent_id)
 
 
 func _theme_label(theme: String) -> String:
