@@ -1,8 +1,10 @@
 [gd_resource type="Theme" format=3 uid="uid://cmaintheme01"]
 
 [sub_resource type="SystemFont" id="SystemFont_main"]
-font_names = PackedStringArray("Heiti SC", "PingFang SC", "Apple Color Emoji")
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Heiti SC", "Noto Sans CJK SC", "Source Han Sans SC", "sans-serif")
 font_weight = 600
+subpixel_positioning = 0
+antialiasing = 1
 
 [resource]
 default_font = SubResource("SystemFont_main")
@@ -10,7 +12,7 @@ default_font_size = 18
 Button/colors/font_outline_color = Color(0, 0, 0, 0.85)
 Button/constants/outline_size = 0
 Label/colors/font_outline_color = Color(0, 0, 0, 0.85)
-Label/constants/outline_size = 0
+Label/constants/outline_size = 3
 LineEdit/colors/font_outline_color = Color(0, 0, 0, 0.6)
 LineEdit/constants/outline_size = 0
 RichTextLabel/colors/font_outline_color = Color(0, 0, 0, 0.85)
