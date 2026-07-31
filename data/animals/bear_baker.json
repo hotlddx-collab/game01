@@ -93,6 +93,24 @@
     "honey",
     "cookie"
   ],
+  "quiz": [
+    {
+      "id": "hobby",
+      "question": "我考考你——你猜我一天里最盼着的是啥时候？",
+      "answer": "听别人讲故事",
+      "wrong": ["数钱", "睡懒觉", "跟人吵架"],
+      "clue": "苔老板揉面时总在听旁人闲扯，眼睛都笑成缝了",
+      "hint_topic": "听故事"
+    },
+    {
+      "id": "food",
+      "question": "嗯…那你说说，我最舍不得少放的一样料是啥？",
+      "answer": "蜂蜜",
+      "wrong": ["辣椒", "盐巴", "冰块"],
+      "clue": "苔老板的围裙上总沾着黏黏的金色渍子",
+      "hint_topic": "蜂蜜"
+    }
+  ],
   "movement": {
     "speed_factor": 0.85,
     "restless": 0.5,

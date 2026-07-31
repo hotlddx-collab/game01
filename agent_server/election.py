@@ -66,21 +66,25 @@ RUMOR_SMEAR_BACKFIRE = 0.5   # 护主：抹黑某候选人的铁票选民 → �
 TERM_DIFFICULTY: Dict[int, float] = {1: 0.5, 2: 0.7, 3: 0.85}
 TERM_DIFFICULTY_DEFAULT = 1.0  # term4+ 满难度
 
-# 亲近圈映射（NPC → 亲近 NPC 集合）：用于 loyalty 子项
-# 来源：data/animals/*.json 中的人物关系（schedule 里有"碰面"的算亲近）
-# D3 改为从 persona 自动提取；D2 先硬编保证可工作
-LOYALTY_MAP: Dict[str, set] = {
-    "fox_postman": {"bear_baker", "pirate_lao", "herbalist_cui"},
-    "bear_baker": {"fox_postman", "herbalist_cui"},
-    "herbalist_cui": {"bear_baker", "fox_postman"},
-    "pirate_lao": {"mystic_xuan", "fox_postman"},
-    "mystic_xuan": {"pirate_lao"},
-    "traveler_lan": {"fox_postman"},
-}
+# 亲近圈映射（NPC → 亲近 NPC 集合）：仅用于 election 的 loyalty 子项。
+# 谣言信念判定已改用 relations.py 的连续关系值，此处由其初始表按
+# friend 档（>=30）自动导出，保证两套数据不打架。
+def _derive_loyalty_map() -> Dict[str, set]:
+    from relations import _NORM_TIES
+    m: Dict[str, set] = {}
+    for (a, b), v in _NORM_TIES.items():
+        if v >= 30:
+            m.setdefault(a, set()).add(b)
+            m.setdefault(b, set()).add(a)
+    return m
+
+
+LOYALTY_MAP: Dict[str, set] = _derive_loyalty_map()
 
 # 文本情感关键词（粗）：用于 event 子项扫描 world_events.description
-POSITIVE_WORDS = ("帮", "送", "救", "答应", "支持", "感谢", "保护", "解决", "礼物")
-NEGATIVE_WORDS = ("吵", "骂", "推", "拒绝", "破坏", "失约", "麻烦", "丑闻", "失踪", "醉")
+POSITIVE_WORDS = ("帮忙", "帮了", "送了", "救了", "答应", "支持", "感谢", "保护", "解决", "礼物")
+# 全部用双字以上词条：单字（推/醉/吵）在自然语句里误伤率极高。
+NEGATIVE_WORDS = ("争吵", "辱骂", "推搡", "拒绝", "破坏", "失约", "麻烦", "丑闻", "失踪", "酒醉")
 
 
 # ---------- 工具函数 ----------
@@ -525,6 +529,11 @@ class ElectionStore:
         for ev in events:
             desc = ev.description or ""
             actor = ev.actor or ""
+            # 玩家聊天原文（agent.py 里以「对XX说: …」写入）不参与选情计算：
+            # 单字负面词（推/醉/吵）误伤率极高，玩家随口一句「有点麻烦」就会扣分，
+            # 且 recent 滑窗会让同一句话反复进出 → 分数无故跳变。
+            if actor == PLAYER_ID and desc.startswith("对") and "说:" in desc:
+                continue
             mentions_voter = (voter_id in desc) or any(
                 tok in desc for tok in voter_id.split("_")
             )
@@ -551,19 +560,25 @@ class ElectionStore:
             except Exception:
                 smear_cnt = 0
             if smear_cnt > 0:
-                # voter 是否玩家铁票
-                is_loyal = False
+                # voter 对玩家的忠诚度：用平滑系数替代 >=40 硬阈值。
+                # 硬阈值会造成阶跃——好感刚跨过 40 的那一刻，对手过去所有 smear
+                # 被追溯性反噬，一次性扣 smear_cnt×4，表现为「聊着天对手突然掉分」。
+                loyal_k = 0.0
                 if self.affection_store is not None:
                     try:
-                        is_loyal = self.affection_store.get(voter_id) >= SMEAR_LOYAL_AFFECTION
+                        aff = float(self.affection_store.get(voter_id))
                     except Exception:
-                        is_loyal = False
+                        aff = 0.0
+                    # 好感 25 起开始有反噬，55 达到满额，中间线性过渡
+                    lo, hi = float(SMEAR_LOYAL_AFFECTION) - 15.0, float(SMEAR_LOYAL_AFFECTION) + 15.0
+                    if aff > lo:
+                        loyal_k = min(1.0, (aff - lo) / (hi - lo))
                 if candidate_id == PLAYER_ID:
                     # 抹黑削弱玩家在该 voter 的支持
                     score -= smear_cnt * SMEAR_PER_ACTION
-                elif candidate_id == opponent_id and is_loyal:
-                    # 抹黑铁票 → 反噬对手
-                    score -= smear_cnt * SMEAR_BACKFIRE
+                elif candidate_id == opponent_id and loyal_k > 0.0:
+                    # 抹黑铁票 → 反噬对手（按忠诚度平滑缩放）
+                    score -= smear_cnt * SMEAR_BACKFIRE * loyal_k
 
         # ---- 玩家/小镇谣言影响（话题主角==候选人，且该 voter「相信」了）----
         # 只有经过信念判定、写入 rumor_belief 且 state='believed' 的才算数。

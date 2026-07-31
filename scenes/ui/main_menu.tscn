@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://cmainmenu01"]
+[gd_scene load_steps=8 format=3 uid="uid://cmainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Texture2D" uid="uid://dqr4y47dvqn0b" path="res://assets/ui/menu_bg.png" id="2_menubg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
 bg_color = Color(0.16, 0.3, 0.2, 0.95)
@@ -17,6 +18,28 @@ content_margin_left = 18.0
 content_margin_top = 10.0
 content_margin_right = 18.0
 content_margin_bottom = 10.0
+
+[sub_resource type="Gradient" id="Gradient_top"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.04, 0.09, 0.07, 0.62, 0.04, 0.09, 0.07, 0)
+
+[sub_resource type="GradientTexture2D" id="GradTex_top"]
+gradient = SubResource("Gradient_top")
+width = 8
+height = 256
+fill_from = Vector2(0, 0)
+fill_to = Vector2(0, 1)
+
+[sub_resource type="Gradient" id="Gradient_bottom"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.05, 0.12, 0.08, 0, 0.05, 0.12, 0.08, 0.78)
+
+[sub_resource type="GradientTexture2D" id="GradTex_bottom"]
+gradient = SubResource("Gradient_bottom")
+width = 8
+height = 256
+fill_from = Vector2(0, 0)
+fill_to = Vector2(0, 1)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -36,48 +59,105 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.086, 0.16, 0.12, 1)
 
-[node name="BgGlow" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_top = 0.55
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-color = Color(0.13, 0.24, 0.16, 1)
-
-[node name="Center" type="CenterContainer" parent="."]
+[node name="BgImage" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+expand_mode = 1
+stretch_mode = 6
+texture_filter = 1
+texture = ExtResource("2_menubg")
 
-[node name="VBox" type="VBoxContainer" parent="Center"]
-layout_mode = 2
-theme_override_constants/separation = 18
-alignment = 1
+[node name="TopScrim" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 320.0
+grow_horizontal = 2
+texture = SubResource("GradTex_top")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Title" type="Label" parent="Center/VBox"]
+[node name="BottomScrim" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -300.0
+grow_horizontal = 2
+grow_vertical = 0
+texture = SubResource("GradTex_bottom")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="TitleBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 26.0
+offset_bottom = 250.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+alignment = 0
+
+[node name="Title" type="Label" parent="TitleBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.95, 0.72, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 76
+theme_override_colors/font_color = Color(0.92, 0.98, 0.78, 1)
+theme_override_colors/font_outline_color = Color(0.04, 0.09, 0.06, 1)
+theme_override_constants/outline_size = 14
+theme_override_font_sizes/font_size = 72
 text = "怪物森林"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Center/VBox"]
+[node name="Subtitle" type="Label" parent="TitleBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68, 0.8, 0.62, 1)
-theme_override_font_sizes/font_size = 18
-text = "· 会聊天、会八卦、有心情的怪物小镇 ·"
+theme_override_colors/font_color = Color(1, 0.96, 0.82, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 24
+text = "· 一场怪物小镇的镇长选举 ·"
 horizontal_alignment = 1
 
-[node name="Gap" type="Control" parent="Center/VBox"]
-custom_minimum_size = Vector2(0, 40)
+[node name="Pitch" type="Label" parent="TitleBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 19
+text = "拉票 · 送礼 · 八卦 · 造谣 —— 用四天赢下人心"
+horizontal_alignment = 1
 
-[node name="StartButton" type="Button" parent="Center/VBox"]
+[node name="Flavor" type="Label" parent="TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.93, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 16
+text = "这里的居民会聊天、会记仇、会把你的话传遍全镇"
+horizontal_alignment = 1
+
+[node name="ButtonBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -186.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 14
+alignment = 2
+
+[node name="StartRow" type="HBoxContainer" parent="ButtonBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="StartButton" type="Button" parent="ButtonBox/StartRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
@@ -88,7 +168,11 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
 theme_override_styles/focus = SubResource("StyleBoxFlat_btn")
 text = "开始游戏"
 
-[node name="QuitButton" type="Button" parent="Center/VBox"]
+[node name="QuitRow" type="HBoxContainer" parent="ButtonBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="QuitButton" type="Button" parent="ButtonBox/QuitRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
@@ -101,14 +185,21 @@ text = "退出"
 
 [node name="Footer" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = 12
+anchors_preset = 3
+anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -36.0
-grow_horizontal = 2
+offset_left = -420.0
+offset_top = -40.0
+offset_right = -24.0
+offset_bottom = -14.0
+grow_horizontal = 0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.5, 0.62, 0.48, 1)
-theme_override_font_sizes/font_size = 13
-text = "WASD 移动 · E 交互 · I 背包"
-horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.84, 0.9, 0.82, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 14
+text = "WASD 移动 · E 交互 · I 背包 · 走近居民聊天拉票"
+horizontal_alignment = 2
+vertical_alignment = 1

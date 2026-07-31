@@ -48,6 +48,10 @@ var _mayor_task: Dictionary = {}     # 当前进行中的镇务任务视图（�
 var _mayor_offered: bool = false     # 本次对话是否已给出安排选项
 var _mayor_assigning: bool = false   # 已点选、等待后端结算
 
+var _quiz_pending: bool = false      # 当前有一道未作答的 NPC 提问
+var _quiz_id: String = ""
+var _quiz_options: Array = []
+
 
 func _ready() -> void:
 	close()
@@ -60,6 +64,8 @@ func _ready() -> void:
 	debunk_button.pressed.connect(_on_debunk_pressed)
 	AgentClient.chat_intent_made.connect(_on_chat_intent_made)
 	AgentClient.rumor_reply_received.connect(_on_rumor_reply)
+	AgentClient.quiz_asked.connect(_on_quiz_asked)
+	AgentClient.quiz_result_received.connect(_on_quiz_result)
 	if AgentClient.has_signal("mayor_task_state_received"):
 		AgentClient.mayor_task_state_received.connect(_on_mayor_state)
 	if AgentClient.has_signal("mayor_task_result_received"):
@@ -127,6 +133,9 @@ func open_chat(animal_id: String, speaker: String) -> void:
 	_last_rumor_id = 0
 	_mayor_offered = false
 	_mayor_assigning = false
+	_quiz_pending = false
+	_quiz_id = ""
+	_quiz_options = []
 	_spread_mode = false
 	input_line.placeholder_text = _default_placeholder
 	panel.show()
@@ -280,6 +289,17 @@ func _append_log(bbcode: String) -> void:
 	_scroll_to_bottom()
 
 
+## 等当前这句 NPC 台词打完再追加内容。
+## 打字机把台词暂存在 _typing_content，完成后才并入 _log_buffer；
+## 若此时直接 _append_log，附加内容会抢先入库、显示在台词上方。
+func _append_log_after_typing(bbcode: String) -> void:
+	while _is_typing and _is_open:
+		await get_tree().process_frame
+	if not _is_open:
+		return          # 期间玩家关了对话，丢弃这段追加
+	_append_log(bbcode)
+
+
 # ---------- 八卦（打听 / 放话 / 辟谣）----------
 
 func _on_gossip_button_pressed() -> void:
@@ -336,6 +356,73 @@ func _on_rumor_reply(info: Dictionary) -> void:
 	if int(info.get("rumor_id", 0)) > 0 and info.get("has_rumor", false):
 		_last_rumor_id = int(info.get("rumor_id", 0))
 	show_npc_line(String(info.get("text", "")))
+	_append_intel(info)
+
+
+## 打听回包里的情报条目：按类型上色，逐条列出
+func _append_intel(info: Dictionary) -> void:
+	var tips = info.get("intel", [])
+	if typeof(tips) != TYPE_ARRAY or tips.is_empty():
+		var hint := String(info.get("intel_hint", ""))
+		if hint != "":
+			_append_log_after_typing("[color=#6a6a5a][i]%s[/i][/color]\n\n" % hint)
+		return
+	var colors := {
+		"gift": "#2a6a2a", "dislike": "#a03020",
+		"attitude": "#2a5a8a", "vote": "#7a3a18", "rumor": "#5a4a2a",
+		"tie_good": "#1f6b5a", "tie_bad": "#8a2f6a",
+	}
+	var line := "[color=#4a3a28][b]📋 打听到的消息[/b][/color]\n"
+	for t in tips:
+		if typeof(t) != TYPE_DICTIONARY:
+			continue
+		var kind := String(t.get("kind", ""))
+		var col: String = colors.get(kind, "#4a3a28")
+		line += "  %s [color=%s]%s[/color]\n" % [
+			String(t.get("icon", "·")), col, String(t.get("text", "")),
+		]
+	var hint2 := String(info.get("intel_hint", ""))
+	if hint2 != "":
+		line += "[color=#6a6a5a][i]%s[/i][/color]\n" % hint2
+	_append_log_after_typing(line + "\n")
+
+
+# ---------- NPC 问答（考一考玩家是否了解自己）----------
+
+func _on_quiz_asked(animal_id: String, quiz_id: String, question: String, options: Array) -> void:
+	if animal_id != _animal_id or not _is_open or _quiz_pending:
+		return
+	_quiz_pending = true
+	_quiz_id = quiz_id
+	_quiz_options = options
+	show_npc_line(question)
+	var line := "[color=#4a3a28][b]❓ 你怎么答？[/b][/color]\n"
+	for i in options.size():
+		line += "  [url=quiz:%d][color=#2a5a8a]【%s】[/color][/url]\n" % [i, String(options[i])]
+	_append_log_after_typing(line + "\n")
+
+
+func _on_quiz_result(info: Dictionary) -> void:
+	if String(info.get("animal_id", "")) != _animal_id or not _is_open:
+		return
+	_quiz_pending = false
+	_quiz_id = ""
+	_quiz_options = []
+	input_line.editable = true
+	gift_button.disabled = false
+	gossip_button.disabled = false
+	status_label.text = ""
+	if info.get("already", false):
+		await _append_log_after_typing("[color=#6a6a5a][i]这题已经答过了。[/i][/color]\n\n")
+		return
+	var delta := int(info.get("delta", 0))
+	if info.get("correct", false):
+		await _append_log_after_typing("[color=#2a6a2a][b]✅ 答对了！[/b]好感 +%d[/color]\n\n" % delta)
+	else:
+		await _append_log_after_typing("[color=#a03020][b]❌ 答错了。[/b]正确答案：%s（好感 %d）[/color]\n\n" % [
+			String(info.get("answer", "")), delta,
+		])
+	show_npc_line(String(info.get("text", "")))
 
 
 # ---------- 镇务任务（现任镇长：安排 NPC 干活）----------
@@ -374,6 +461,21 @@ func _maybe_offer_mayor_task() -> void:
 
 func _on_meta_clicked(meta) -> void:
 	var s := String(meta)
+	if s.begins_with("quiz:"):
+		if not _quiz_pending:
+			return
+		var idx := int(s.substr(5))
+		if idx < 0 or idx >= _quiz_options.size():
+			return
+		var choice := String(_quiz_options[idx])
+		_quiz_pending = false
+		_append_log("[b][color=#205080]你：[/color][/b]%s\n\n" % choice)
+		input_line.editable = false
+		gift_button.disabled = true
+		gossip_button.disabled = true
+		status_label.text = "等待回应..."
+		AgentClient.send_quiz_answer(_animal_id, _quiz_id, choice)
+		return
 	if not s.begins_with("mayor:"):
 		return
 	if not _mayor_offered or _mayor_assigning or _mayor_task.is_empty():

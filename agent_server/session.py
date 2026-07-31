@@ -29,6 +29,10 @@ class Session:
         self.last_opponent_action_slot: int = -1
         self.last_known_game_day: int = -1
         self.last_crisis_spawn_day: int = -1
+        # 危机改为按时段槽位抽取（day*100 + hour//4），一天可出多起
+        self.last_crisis_spawn_slot: int = -1
+        # 辩论日各场开场推送（day*100 + hour）
+        self.last_debate_push_slot: int = -1
         self.last_day_event_day: int = -1
 
 

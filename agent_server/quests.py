@@ -23,6 +23,10 @@ QUESTS_FILE = PROJECT_ROOT / "data" / "world" / "quests.json"
 
 LEVEL_ORDER = {"hate": 0, "cold": 1, "neutral": 2, "warm": 3, "like": 4, "love": 5}
 
+# 同一 NPC 最近完成的这么多个任务，短期内不再重复派发（候选池被清空时才破例）
+COOLDOWN_SLOTS = 3
+
+
 
 class QuestStore:
     """每个任务的状态记录（单玩家场景，无 player_id 字段）。
@@ -126,6 +130,22 @@ class QuestStore:
                 (int(time.time()), quest_id),
             )
 
+    def recent_completed(self, giver_id: str, defs: Dict, limit: int) -> List[str]:
+        """该 NPC 最近完成过的 quest_id（新→旧），用于派发时避开刚做过的。"""
+        with self._conn() as c:
+            cur = c.execute(
+                "SELECT quest_id FROM quests_state WHERE state='completed' "
+                "ORDER BY completed_at DESC"
+            )
+            out: List[str] = []
+            for (qid,) in cur.fetchall():
+                if defs.get(qid, {}).get("npc_id") != giver_id:
+                    continue
+                out.append(qid)
+                if len(out) >= limit:
+                    break
+            return out
+
 
 class QuestEngine:
     """加载 quests.json，提供任务匹配/完成判定。"""
@@ -179,7 +199,19 @@ class QuestEngine:
             candidates.append(qid)
         if not candidates:
             return None
+        # 去重冷却：避开该 NPC 最近做过的 N 个模板，除非候选池已被冷却清空。
+        # 不这么做的话，可重复任务少的 NPC（如老咸只有一个 collect）会反复派同一件事。
+        cooling = set(self.store.recent_completed(giver_id, self._defs, COOLDOWN_SLOTS))
+        fresh = [q for q in candidates if q not in cooling]
+        if fresh:
+            return random.choice(fresh)
+        # 全在冷却中 → 取冷却队列里最旧的那个（离上次最久）
+        order = self.store.recent_completed(giver_id, self._defs, len(candidates))
+        for qid in reversed(order):
+            if qid in candidates:
+                return qid
         return random.choice(candidates)
+
 
     # ---------- 完成判定 ----------
 

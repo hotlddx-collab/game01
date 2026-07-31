@@ -270,6 +270,16 @@ CREATE TABLE IF NOT EXISTS mayor_task (
   resolved_at  INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_mayor_task_status ON mayor_task(status);
+
+-- NPC 之间的亲疏关系：连续值 [-100, 100]，取代原先的布尔好友集合。
+-- 无序对（a < b 规范化存储），初值来自 relations.py 的 INITIAL_TIES。
+CREATE TABLE IF NOT EXISTS npc_relation (
+  a_id       TEXT NOT NULL,
+  b_id       TEXT NOT NULL,
+  value      INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (a_id, b_id)
+);
 """
 
 

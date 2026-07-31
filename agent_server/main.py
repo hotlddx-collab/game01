@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -27,9 +28,14 @@ from gifts import GiftStore
 from reflection import ReflectionStore, IntentStore
 from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX, LOYALTY_MAP
 import belief
+import intel
+import quiz
 from opponent_ai import OpponentAI
 from promises import PromiseStore
-from debate import DebateManager
+from debate import (
+    DebateManager, DEBATE_SESSIONS_PER_DAY,
+    DEBATE_QUESTIONS_PER_SESSION, DEBATE_SESSION_HOURS,
+)
 from power import PowerManager, ACTIONS as POWER_ACTIONS
 
 
@@ -54,6 +60,9 @@ memory_store = MemoryStore()
 profile_store = PlayerProfile()
 world_store = WorldEventStore()
 affection_store = AffectionStore()
+from relations import RelationStore
+import relations
+relation_store = RelationStore()
 gift_store = GiftStore()
 from mood import MoodStore
 mood_store = MoodStore()
@@ -279,6 +288,11 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         await _handle_pickup_report(ws, msg)
         return
 
+    # NPC 问答作答
+    if msg_type == "quiz_answer":
+        await _handle_quiz_answer(ws, msg)
+        return
+
     # 八卦：打听 / 放话 / 辟谣
     if msg_type == "rumor_inquire":
         await _handle_rumor_inquire(ws, msg)
@@ -462,6 +476,22 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         if k in result:
             payload[k] = result[k]
 
+    # NPC 反问玩家：好感逼近里程碑门槛时，考一考「你真的了解我吗」
+    if msg_type in ("chat", "greet", "gift"):
+        try:
+            _aff_now = int(result.get("affection", {}).get("value",
+                           affection_store.get(animal_id)))
+            _q = quiz.should_ask(animal_id, agent.persona, _aff_now, profile_store)
+            if _q:
+                payload["quiz"] = {
+                    "quiz_id": _q["quiz_id"],
+                    "question": _q["question"],
+                    "options": _q["options"],
+                }
+                log.info("[quiz] %s 发问 %s (aff=%d)", animal_id, _q["quiz_id"], _aff_now)
+        except Exception as e:
+            log.debug("[quiz] 触发失败: %s", e)
+
     # 对话驱动意图：NPC 答应去找某人 → 写 intent_store + 回包通知客户端
     intent_data = result.get("intent")
     if intent_data and intent_data.get("agreed") and intent_data.get("target_id"):
@@ -549,6 +579,12 @@ async def _handle_npc_chat(ws: WebSocket, msg: dict) -> None:
         await _send_error(ws, f"LLM 错误: {e}")
         return
 
+    # 关系演化：聊过天就慢慢熟络（关系差的人聊多了也会缓和）
+    try:
+        relation_store.adjust(speaker_id, listener_id, relations.D_CHAT)
+    except Exception as e:
+        log.debug("[relation] 互聊演化失败: %s", e)
+
     # 八卦传播：listener 学到 speaker 带出来的话题（变味），并处理"传到当事人"后果
     if gossip_item:
         try:
@@ -603,38 +639,185 @@ async def _apply_rumor_consequence(ws: WebSocket, spread: dict, subject_id: str,
     log.info("[rumor] consequence subject=%s sent=%s mood%+d aff%+d", subject_id, sentiment, mood_delta, aff_delta)
 
 
-async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
-    """玩家向 NPC 打听：ta 把知道的最热话题用自己的口吻讲给玩家。"""
+async def _handle_quiz_answer(ws: WebSocket, msg: dict) -> None:
+    """玩家回答 NPC 的提问：答对好感涨、答错略降，NPC 各自给一句反应。"""
     animal_id = msg.get("animal_id", "")
     agent = manager.get(animal_id)
     if agent is None:
         await _send_error(ws, "未知 animal_id")
         return
-    known = rumor_store.known_by(animal_id, min_heat=1)
-    if not known:
+    quiz_id = str(msg.get("quiz_id", ""))
+    chosen = str(msg.get("choice", ""))
+    verdict = quiz.judge(animal_id, agent.persona, quiz_id, chosen, profile_store)
+
+    if verdict["already"]:
         await ws.send_text(json.dumps({
-            "type": "rumor_reply", "animal_id": animal_id,
-            "text": "最近？没听说啥新鲜事儿。", "has_rumor": False, "ok": True,
+            "type": "quiz_result", "animal_id": animal_id,
+            "correct": False, "already": True, "ok": True,
+            "text": "这题咱们聊过啦。",
         }, ensure_ascii=False))
         return
-    top = known[0]
-    subject = rumor_manager.subject_label(top["rumor"].subject_id)
-    prompt = (
-        f"你是{agent.name}。有人凑过来问你「最近镇上有什么新鲜事」。\n"
-        f"你正好听说了关于{subject}的一件事：「{top['version']}」\n"
-        "请用你自己的口吻，压低声音八卦一句（20 字内），把这事透露给对方。只输出这句话。"
-    )
+
+    aff = affection_store.adjust(animal_id, verdict["delta"])
+
+    if verdict["correct"]:
+        prompt = (
+            f"你是{agent.name}。你刚考了对方一个关于你自己的问题，"
+            f"对方答对了（答案是「{verdict['answer']}」）。\n"
+            "用你的口吻说一句又惊又喜的话（20 字内），"
+            "表示没想到对方这么了解你。只输出这句话。"
+        )
+        fallback = "……你居然真知道。"
+    else:
+        prompt = (
+            f"你是{agent.name}。你刚考了对方一个关于你自己的问题，"
+            f"对方答错了，正确答案是「{verdict['answer']}」。\n"
+            "用你的口吻说一句有点失落但不生气的话（20 字内），"
+            "顺带把正确答案说出来。只输出这句话。"
+        )
+        fallback = "唉…不是啦，是%s。" % verdict["answer"]
+
     try:
         line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=60, temperature=0.9)
         line = line.strip().strip("「」\"'").splitlines()[0][:50]
     except Exception:
-        line = top["version"]
+        line = fallback
+
     await ws.send_text(json.dumps({
-        "type": "rumor_reply", "animal_id": animal_id, "text": line,
-        "has_rumor": True, "rumor_id": top["rumor"].id,
-        "subject_id": top["rumor"].subject_id, "sentiment": top["rumor"].sentiment,
-        "ok": True,
+        "type": "quiz_result", "animal_id": animal_id,
+        "correct": verdict["correct"], "answer": verdict["answer"],
+        "delta": verdict["delta"], "already": False,
+        "affection": aff, "text": line, "ok": True,
     }, ensure_ascii=False))
+    log.info("[quiz] %s 作答 %s → %s (aff%+d)",
+             animal_id, quiz_id, "对" if verdict["correct"] else "错", verdict["delta"])
+
+
+def _npc_vote_pref(voter_id: str, game_day: int) -> tuple[str, str]:
+    """该 NPC 当前更倾向投给谁：返回 (candidate_id, 可读名)。取不到返回 ('','')。"""
+    try:
+        view = election_store.get_current_term_view(game_day)
+    except Exception:
+        return "", ""
+    best_id, best_w = "", None
+    for row in view.get("latest_weights", []):
+        if row.get("voter_id") != voter_id:
+            continue
+        w = float(row.get("weight", 0.0))
+        if best_w is None or w > best_w:
+            best_w, best_id = w, str(row.get("candidate_id", ""))
+    if not best_id:
+        return "", ""
+    if best_id == "player":
+        return best_id, "你"
+    tgt = manager.get(best_id)
+    return best_id, (tgt.name if tgt else best_id)
+
+
+async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
+    """玩家向 NPC 打听：ta 挑一个人，透露对方的喜好/态度/选情，外加最热传闻。
+
+    情报量按「受访者对玩家的好感」分档解锁（见 intel.py）；
+    每个 NPC 每天只肯被打听一次。
+    """
+    animal_id = msg.get("animal_id", "")
+    agent = manager.get(animal_id)
+    if agent is None:
+        await _send_error(ws, "未知 animal_id")
+        return
+    game_day = int(msg.get("game_day", 0) or 0)
+
+    # 每日 CD：同一个 NPC 一天只吐一次料
+    last_day = profile_store.get(animal_id, "last_intel_day")
+    if last_day is not None and str(last_day) == str(game_day):
+        await ws.send_text(json.dumps({
+            "type": "rumor_reply", "animal_id": animal_id,
+            "text": "今天说得够多啦，改天再聊。", "has_rumor": False,
+            "intel": [], "ok": True,
+        }, ensure_ascii=False))
+        return
+
+    speaker_aff = affection_store.get(animal_id)
+
+    # 挑一个今天还没被聊过的对象（优先竞选对手）
+    opponent_id = ""
+    try:
+        opponent_id = str(election_store.get_current_term_view(game_day).get("opponent_id", ""))
+    except Exception:
+        pass
+    asked_today = {
+        a for a in manager.all_ids()
+        if str(profile_store.get(a, "intel_about_day") or "") == str(game_day)
+    }
+    target_id = intel.pick_target(animal_id, manager.all_ids(), opponent_id, asked_today)
+
+    tips: list = []
+    target_name = ""
+    if target_id:
+        target = manager.get(target_id)
+        target_name = target.name if target else target_id
+        vote_id, vote_label = _npc_vote_pref(target_id, game_day)
+        # 目标的人际关系（含可读名），供玩家判断该找谁传话
+        ties = []
+        try:
+            for row in relation_store.neighbors(target_id, manager.all_ids()):
+                _o = manager.get(row["id"])
+                ties.append({**row, "name": _o.name if _o else row["id"]})
+        except Exception as e:
+            log.debug("[relation] 情报组装失败: %s", e)
+        tips = intel.build_tips(
+            target_id, target_name,
+            (target.persona if target else {}),
+            speaker_aff,
+            affection_store.get(target_id),
+            vote_id, vote_label,
+            ties,
+        )
+        profile_store.set(target_id, "intel_about_day", str(game_day))
+
+    # 附带一条最热传闻（原有玩法保留）
+    known = rumor_store.known_by(animal_id, min_heat=1)
+    top = known[0] if known else None
+    if top:
+        tips.append({
+            "icon": "🗣", "kind": "rumor",
+            "text": "还听说：%s" % top["version"],
+        })
+
+    hint = intel.tier_hint(speaker_aff)
+
+    # NPC 开场白：把要说的事用自己的口吻起个头
+    if tips:
+        subject_hint = ("关于%s" % target_name) if target_name else "镇上的事"
+        prompt = (
+            f"你是{agent.name}。有人凑过来向你打听镇上的消息。\n"
+            f"你打算跟对方聊聊{subject_hint}。\n"
+            "请用你自己的口吻说一句压低声音的开场白（20 字内），"
+            "比如「这话我只跟你说啊…」。只输出这句话，不要具体内容。"
+        )
+        try:
+            line = await llm.chat([{"role": "user", "content": prompt}], max_tokens=60, temperature=0.9)
+            line = line.strip().strip("「」\"'").splitlines()[0][:50]
+        except Exception:
+            line = "这话我只跟你说啊……"
+    else:
+        line = "最近？没听说啥新鲜事儿。"
+
+    profile_store.set(animal_id, "last_intel_day", str(game_day))
+
+    payload = {
+        "type": "rumor_reply", "animal_id": animal_id, "text": line,
+        "intel": tips, "intel_hint": hint,
+        "has_rumor": top is not None, "ok": True,
+    }
+    if top:
+        payload.update({
+            "rumor_id": top["rumor"].id,
+            "subject_id": top["rumor"].subject_id,
+            "sentiment": top["rumor"].sentiment,
+        })
+    await ws.send_text(json.dumps(payload, ensure_ascii=False))
+    log.info("[intel] %s → about=%s tips=%d aff=%d", animal_id, target_id, len(tips), speaker_aff)
 
 
 # 玩家放话情感推断词表（比选举 event 用的更宽，覆盖日常褒贬）
@@ -726,7 +909,7 @@ def _judge_and_record(rumor_id: int, listener_id: str, source_id: str,
         return []   # 判定即锁定，不重复结算
     verdict = belief.judge(
         listener_id, source_id, subject_id, sentiment,
-        affection_store, LOYALTY_MAP)
+        affection_store, relation_store)
     state = "believed" if verdict["believe"] else "rejected"
     fresh = rumor_store.set_belief(
         rumor_id, listener_id, state, source_id=source_id,
@@ -736,6 +919,13 @@ def _judge_and_record(rumor_id: int, listener_id: str, source_id: str,
     if state == "rejected" and source_id == "player":
         # 不信 → 玩家造谣有一点社交成本
         affection_store.adjust(listener_id, belief.REJECT_AFF_PENALTY)
+    # 关系演化：听者信了关于某 NPC 的话 → 两人关系随之增损。
+    # 这是玩家「挑拨离间」的落点：谣言不只影响选票，还真的能拆散人。
+    if state == "believed" and subject_id != "player" and listener_id != subject_id:
+        d = relations.D_RUMOR_BELIEVED if sentiment == "smear" else relations.D_RUMOR_PRAISE
+        nv = relation_store.adjust(listener_id, subject_id, d)
+        log.info("[relation] %s↔%s %+d → %d (%s)",
+                 listener_id, subject_id, d, nv, sentiment)
     lname = rumor_manager.subject_label(listener_id)
     sname = "你" if source_id == "player" else rumor_manager.subject_label(source_id)
     log.info("[rumor] belief r=%s %s<-%s %s score=%.1f (%s)",
@@ -818,6 +1008,12 @@ async def _handle_rumor_debunk(ws: WebSocket, msg: dict) -> None:
     new_heat = rumor_store.adjust_heat(rumor_id, -35)
     if new_heat <= 0:
         rumor_store.set_status(rumor_id, "debunked")
+    # 关系修复：替某人澄清坏话 → 听者与当事人的关系回暖
+    if r.subject_id != "player" and r.subject_id != animal_id:
+        try:
+            relation_store.adjust(animal_id, r.subject_id, relations.D_DEBUNK)
+        except Exception as e:
+            log.debug("[relation] 辟谣修复失败: %s", e)
     prompt = (
         f"你是{agent.name}。之前你听说过「{r.content}」，现在有人郑重跟你澄清这是谣传。\n"
         "请用你自己的口吻回一句（15 字内），表现被澄清后的反应。只输出这句话。"
@@ -863,6 +1059,7 @@ async def _handle_pickup_report(ws: WebSocket, msg: dict) -> None:
     )
 
     # NPC 拾取 → 写它自己的记忆 + 加进 forage 库存（可被玩家索要）
+    reply = {"type": "ok", "context": "pickup_report"}
     if actor_id != "player":
         actor = manager.get(actor_id)
         if actor is not None:
@@ -874,8 +1071,15 @@ async def _handle_pickup_report(ws: WebSocket, msg: dict) -> None:
                 importance=6,
             )
             actor.profile.forage_inc(actor_id, item_id, 1)
+            # 观察线索：NPC 在外面活动时，有概率被玩家看出一点它的癖好
+            try:
+                clue = quiz.clue_for(actor.persona)
+                if clue and random.random() < quiz.CLUE_CHANCE:
+                    reply["clue"] = {"animal_id": actor_id, "text": clue}
+            except Exception as e:
+                log.debug("[quiz] 线索生成失败: %s", e)
 
-    await ws.send_text(json.dumps({"type": "ok", "context": "pickup_report"}, ensure_ascii=False))
+    await ws.send_text(json.dumps(reply, ensure_ascii=False))
 
 
 async def _handle_eavesdrop(ws: WebSocket, msg: dict) -> None:
@@ -1065,23 +1269,30 @@ async def _broadcast_promise_state(ws: WebSocket, game_day: int) -> None:
 
 
 async def _handle_debate_start(ws: WebSocket, msg: dict) -> None:
-    """C→S：辩论日开场，拉取 3 道辩题（含 4 象限选项）。
+    """C→S：辩论日开场，拉取当场辩题（含 4 象限选项）。
 
-    入参：{"type":"debate_start","game_day":N}
-    出参：{"type":"debate_questions", term_id, questions:[...], stance_labels, done}
+    入参：{"type":"debate_start","game_day":N,"session":K}
+    出参：{"type":"debate_questions", term_id, session, questions:[...], stance_labels}
+
+    session 为当日第几场（0 起）。辩论日分多场进行，每场换提问者换题，
+    答案跨场累积，故 already_done 只在场次用尽后才为真。
     """
     game_day = int(msg.get("game_day", 0))
+    session = max(0, int(msg.get("session", 0) or 0))
     term = election_store.ensure_term_active(game_day)
     term_id = int(term["term_id"])
-    questions = debate_manager.pick_questions(term, n=3)
+    questions = debate_manager.pick_questions(term, n=DEBATE_QUESTIONS_PER_SESSION,
+                                              session=session)
     payload = {
         "type": "debate_questions",
         "ok": True,
         "term_id": term_id,
+        "session": session,
+        "total_sessions": DEBATE_SESSIONS_PER_DAY,
         "opponent_id": term["opponent_id"],
         "questions": questions,
         "stance_labels": debate_manager.stance_labels,
-        "already_done": debate_manager.has_debated(term_id),
+        "already_done": session >= DEBATE_SESSIONS_PER_DAY,
     }
     await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
@@ -1524,8 +1735,8 @@ async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket, force: b
 
 _DAY_THEME_TEXT = {
     "rally":    {"title": "📣 民意集会日", "hint": "镇民今天最爱串门。多拜访、送礼拉好感，为竞选起势。"},
-    "debate":   {"title": "🎤 广场辩论日", "hint": "今天在广场举行镇长辩论，参加并亮明立场，赢取选民认同。"},
-    "crisis":   {"title": "⚡ 突发危机日", "hint": "镇上出了乱子！妥善调解危机能大幅左右选情。"},
+    "debate":   {"title": "🎤 广场辩论日", "hint": "今天广场上午、下午、傍晚各有一场辩论，场场亮明立场，赢取选民认同。"},
+    "crisis":   {"title": "⚡ 突发危机日", "hint": "镇上今天要出好几档子乱子！妥善调解能大幅左右选情。"},
     "vote":     {"title": "🗳 投票日", "hint": "今天镇民投票，结果即将揭晓，做最后冲刺！"},
     "campaign": {"title": "🌿 竞选日", "hint": "继续拜访镇民、兑现承诺，稳住声望。"},
 }
@@ -1558,6 +1769,7 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
                 "day_index": di,
                 "term_days": TERM_DAYS,
                 "theme": theme,
+                "debate_hours": list(DEBATE_SESSION_HOURS),
                 **_DAY_THEME_TEXT.get(theme, _DAY_THEME_TEXT["campaign"]),
             }, ensure_ascii=False))
             log.info("[day_event] day=%d di=%d theme=%s", game_day, di, theme)
@@ -1593,29 +1805,48 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
             except Exception as e:
                 log.warning("[opponent_ai] 触发失败: %s", e)
 
-    # 危机调解：每游戏日尝试抽一次（醒着时段，避免同日重复），概率触发
-    # 避让选举关键日（辩论日/投票日），不打断选举演出
-    if 8 <= game_hour <= 20 and game_day > sess.last_crisis_spawn_day:
-        sess.last_crisis_spawn_day = game_day
-        try:
-            import random as _rnd
-            skip_phase = False
-            prob = 0.75
+    # 辩论日各场开场时刻：主动推一次 election_state，触发客户端开场。
+    # 否则前端只能等玩家做点什么才收到推送，第二、三场可能永远等不来。
+    if game_hour in DEBATE_SESSION_HOURS:
+        slot = game_day * 100 + game_hour
+        if slot > sess.last_debate_push_slot:
             try:
                 term = election_store.ensure_term_active(game_day)
                 di = election_store.day_index_in_term(term, game_day)
-                skip_phase = election_store.phase_of(di) in ("debate", "vote")
-                if election_store.day_theme(di) == "crisis":
-                    prob = 1.0  # D3 突发危机日：保证触发一次
-            except Exception:
-                pass
-            if not skip_phase and _rnd.random() < prob:
-                view = crisis_manager.maybe_spawn(game_day, game_hour)
-                if view is not None:
-                    await _push_crisis_state(ws, view)
-                    log.info("[crisis] day=%d h=%d 触发危机 %s", game_day, game_hour, view.get("template_id"))
-        except Exception as e:
-            log.warning("[crisis] 抽取失败: %s", e)
+                if election_store.phase_of(di) == "debate":
+                    sess.last_debate_push_slot = slot
+                    await _broadcast_election_state(ws, game_day)
+                    log.info("[debate] day=%d h=%d 推送开场", game_day, game_hour)
+            except Exception as e:
+                log.warning("[debate] 开场推送失败: %s", e)
+
+    # 危机调解：按时段槽位尝试抽取，一天可出多起（同时只存在一起，
+    # 上一起处理完才可能出下一起）。避让选举关键日，不打断选举演出。
+    if 8 <= game_hour <= 19:
+        # 每 4 游戏小时一个抽取槽：8-11 / 12-15 / 16-19，共 3 槽
+        crisis_slot = game_day * 100 + (game_hour // 4)
+        if crisis_slot > sess.last_crisis_spawn_slot:
+            sess.last_crisis_spawn_slot = crisis_slot
+            try:
+                import random as _rnd
+                skip_phase = False
+                prob = 0.3
+                try:
+                    term = election_store.ensure_term_active(game_day)
+                    di = election_store.day_index_in_term(term, game_day)
+                    skip_phase = election_store.phase_of(di) in ("debate", "vote")
+                    if election_store.day_theme(di) == "crisis":
+                        # 突发危机日：每槽高概率出事，一天连出 2~3 起
+                        prob = 0.85
+                except Exception:
+                    pass
+                if not skip_phase and _rnd.random() < prob:
+                    view = crisis_manager.maybe_spawn(game_day, game_hour)
+                    if view is not None:
+                        await _push_crisis_state(ws, view)
+                        log.info("[crisis] day=%d h=%d 触发危机 %s", game_day, game_hour, view.get("template_id"))
+            except Exception as e:
+                log.warning("[crisis] 抽取失败: %s", e)
 
     # 危机软性截止：超时未处理 → 自动按「不管」结算 + 广播
     try:

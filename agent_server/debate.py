@@ -40,6 +40,13 @@ _OPPOSITE = {
 # 每个 NPC 对玩家辩论的总分上限缩放（接 W_DEBATE_MAX 在 election 里做）
 DEBATE_DAY_OFFSET = 1  # 辩论日 == 任期第 2 天（day_index=2）
 
+# 辩论日分多场进行：一整天只辩一次太单薄，拆成上午/下午/傍晚三场，
+# 每场换提问者换题，答案跨场累积求平均。
+DEBATE_SESSIONS_PER_DAY = 3
+DEBATE_QUESTIONS_PER_SESSION = 2
+# 各场开场时刻（游戏小时）
+DEBATE_SESSION_HOURS = (9, 14, 18)
+
 FALLBACK_REBUTTAL = {
     "radical": "改革？说得轻巧，真动起来镇上得乱成什么样！",
     "conservative": "守着老样子？那要镇长做什么，谁都会喊不折腾。",
@@ -94,10 +101,12 @@ class DebateManager:
 
     # ---- 抽题 ----
 
-    def pick_questions(self, term: Dict, n: int = 3) -> List[Dict]:
-        """按 term_id 作种子，确定性地抽 n 个提问者及其问题。
+    def pick_questions(self, term: Dict, n: int = 3, session: int = 0) -> List[Dict]:
+        """按 term_id + session 作种子，确定性地抽 n 个提问者及其问题。
 
         提问者优先选「非玩家挚友」（affection<50），保证立场张力；不足再放宽。
+        session 为当日第几场（0 起）：不同场次换种子，换提问者也换题，
+        避免一天两三场问出同一批问题。
         返回 [{asker_id, asker_name, q, options:{stance:text}, stance_pref}]
         """
         term_id = int(term["term_id"])
@@ -115,7 +124,7 @@ class DebateManager:
                 return False
 
         preferred = [c for c in candidates if not is_close(c)]
-        rng = random.Random(term_id * 1009 + 7)
+        rng = random.Random(term_id * 1009 + 7 + session * 131)
         askers: List[str]
         if len(preferred) >= n:
             askers = rng.sample(preferred, n)
@@ -147,12 +156,18 @@ class DebateManager:
         - 玩家：按每个 voter 偏好象限对玩家所有回答求平均亲和度。
         - 对手：用对手固定立场（其偏好象限）对每个 voter 求亲和度（恒定基线，制造张力）。
         写入 debate_scores 表（含两个候选人）。返回明细。
+
+        一天可开多场：本场答案与此前各场累计后一起求平均，
+        故后一场不会覆盖前一场，而是继续修正玩家的整体形象。
         """
         term_id = int(term["term_id"])
         opponent_id = term["opponent_id"]
         opponent_stance = self.stance_pref(opponent_id)
         voters = self.election.voters_of(term)
         chosen_stances = [s for s in answers.values() if s in STANCES]
+        # 累积历史场次的回答（存在 detail_json 里）
+        prior = self._prior_answers(term_id)
+        chosen_stances = prior + chosen_stances
         n_answers = len(chosen_stances)
 
         player_scores: Dict[str, float] = {}
@@ -195,6 +210,23 @@ class DebateManager:
             "details": details,
             "n_answers": n_answers,
         }
+
+    @staticmethod
+    def _prior_answers(term_id: int) -> List[str]:
+        """取本任期此前各场辩论玩家已给出的立场，用于跨场累积求平均。"""
+        with get_conn() as conn:
+            row = conn.execute(
+                """SELECT detail_json FROM debate_scores
+                   WHERE term_id = ? AND candidate_id = 'player' LIMIT 1""",
+                (term_id,),
+            ).fetchone()
+        if not row or not row["detail_json"]:
+            return []
+        try:
+            return [s for s in json.loads(row["detail_json"]).get("player_answers", [])
+                    if s in STANCES]
+        except Exception:
+            return []
 
     @staticmethod
     def get_score(term_id: int, voter_id: str, candidate_id: str = "player") -> Optional[float]:

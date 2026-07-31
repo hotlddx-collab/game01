@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import re
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -626,6 +627,22 @@ class Agent:
             result["npc_gift"] = npc_gift
         return result
 
+    def _rel_hint(self, context: Dict[str, Any], other_name: str) -> str:
+        """把两人的亲疏关系写进 prompt，让语气有冷热差别。"""
+        label = context.get("rel_label", "")
+        if not label:
+            return ""
+        v = int(context.get("rel_value", 0) or 0)
+        if v >= 30:
+            tone = "你跟 ta 交情不浅，说话可以随意、亲近，甚至开玩笑。"
+        elif v <= -20:
+            tone = "你跟 ta 素来不对付，语气要冷淡、敷衍，甚至带点刺。"
+        elif v <= -5:
+            tone = "你对 ta 有点看不顺眼，态度别太热络。"
+        else:
+            tone = "你跟 ta 只是普通熟人，客气就好。"
+        return f"你和 ta 的关系：{label}。{tone}\n"
+
     async def speak_to_npc(self, listener_name: str, listener_species: str, context: Dict[str, Any]) -> str:
         """speaker (self) 主动跟另一只 NPC 说一句话。
 
@@ -635,10 +652,19 @@ class Agent:
         sys_prompt = self._build_system_prompt(context, query=f"（你和{listener_name}碰到了）")
         user_msg = (
             f"你刚和「{listener_name}」（{listener_species}）在{context.get('location_label', '某处')}撞见。\n"
+            f"{self._rel_hint(context, listener_name)}"
             "请用 1 句话主动开口——可以是寒暄、八卦、抱怨、好奇、聊天气等等，"
             "符合你的性格和说话风格。\n"
             "直接输出你说的话，不要加旁白或动作描述。"
         )
+        # 偷听埋点：有概率让 NPC 把自己的爱好带进闲聊，玩家路过能听到线索
+        try:
+            import quiz as _quiz
+            topics = _quiz.hint_topics(self.persona)
+            if topics and random.random() < _quiz.HINT_CHANCE:
+                user_msg += f"\n这次请自然地把「{random.choice(topics)}」聊进去，别硬套。"
+        except Exception:
+            pass
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": sys_prompt},
             {"role": "user", "content": user_msg},
@@ -668,6 +694,7 @@ class Agent:
         sys_prompt = self._build_system_prompt(context, query=f"（你在和{other_name}聊天）")
         user_msg = (
             f"你正和「{other_name}」（{other_species}）在{context.get('location_label', '某处')}聊天。\n"
+            f"{self._rel_hint(context, other_name)}"
             f"ta 刚对你说：\"{other_line}\"\n"
             "请用 1 句话回应——可以接话、附和、调侃、争论、转移话题等等，"
             "符合你的性格和说话风格。\n"
@@ -1457,6 +1484,14 @@ class AgentManager:
         listener_name = listener.name
         speaker_species = speaker.persona.get("species", "怪物")
         listener_species = listener.persona.get("species", "怪物")
+
+        # 亲疏注入：让台词的热络/冷淡程度反映两人真实关系
+        try:
+            import relations as _rel
+            _rv = _rel.RelationStore().get(speaker_id, listener_id)
+            context = {**context, "rel_label": _rel.label_of(_rv), "rel_value": _rv}
+        except Exception:
+            pass
 
         last_line: str = ""
         for i in range(turns):

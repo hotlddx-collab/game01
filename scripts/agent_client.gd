@@ -14,6 +14,9 @@ signal npc_gift_received(animal_id: String, item_id: String, item_name: String, 
 signal affection_changed(animal_id: String, value: int, level: String, delta: int)
 signal mood_changed(animal_id: String, emote: String, level: String)
 signal rumor_reply_received(info: Dictionary)
+signal quiz_asked(animal_id: String, quiz_id: String, question: String, options: Array)
+signal quiz_result_received(info: Dictionary)
+signal observation_clue(animal_id: String, text: String)
 signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
 signal quest_offer_received(animal_id: String, quest_id: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String, item_id: String, required: int)
 signal quest_completed_received(animal_id: String, quest_id: String, title: String, kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int)
@@ -240,9 +243,23 @@ func report_pickup(actor_id: String, item_id: String) -> bool:
 
 ## 八卦·打听：问 NPC 最近听说了什么
 func request_rumor_inquire(animal_id: String) -> bool:
+	var day: int = 0
+	if has_node("/root/WorldClock"):
+		day = WorldClock.get_day()
 	return _send({
 		"type": "rumor_inquire",
 		"animal_id": animal_id,
+		"game_day": day,
+	})
+
+
+## 问答·作答：把玩家选的选项回传给 NPC 判定
+func send_quiz_answer(animal_id: String, quiz_id: String, choice: String) -> bool:
+	return _send({
+		"type": "quiz_answer",
+		"animal_id": animal_id,
+		"quiz_id": quiz_id,
+		"choice": choice,
 	})
 
 
@@ -301,11 +318,12 @@ func request_promise_query() -> bool:
 	})
 
 
-## 辩论日：拉取 3 道辩题（含 4 象限选项）
-func request_debate_start() -> bool:
+## 辩论日：拉取当场辩题（含 4 象限选项）。session = 当日第几场（0 起）
+func request_debate_start(session: int = 0) -> bool:
 	return _send({
 		"type": "debate_start",
 		"game_day": WorldClock.get_day(),
+		"session": session,
 	})
 
 
@@ -543,6 +561,17 @@ func _handle_packet(text: String) -> void:
 					String(qc.get("consume_item", "")),
 					int(qc.get("consume_count", 0)),
 				)
+			# NPC 反问玩家
+			var qz = data.get("quiz", null)
+			if typeof(qz) == TYPE_DICTIONARY and qz.has("quiz_id"):
+				quiz_asked.emit(
+					aid,
+					String(qz.get("quiz_id", "")),
+					String(qz.get("question", "")),
+					qz.get("options", []),
+				)
+		"quiz_result":
+			quiz_result_received.emit(data)
 		"npc_chat_reply":
 			npc_chat_received.emit(
 				data.get("speaker_id", ""),
@@ -590,6 +619,11 @@ func _handle_packet(text: String) -> void:
 			push_warning("[AgentClient] server error: %s" % m)
 			error_received.emit(m)
 		"ok":
-			pass
+			var clue = data.get("clue", null)
+			if typeof(clue) == TYPE_DICTIONARY and clue.has("text"):
+				observation_clue.emit(
+					String(clue.get("animal_id", "")),
+					String(clue.get("text", "")),
+				)
 		_:
 			push_warning("[AgentClient] unknown msg type: %s" % msg_type)

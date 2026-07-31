@@ -97,6 +97,24 @@
       "potion_tea"
     ]
   },
+  "quiz": [
+    {
+      "id": "hobby",
+      "question": "诶诶诶！我考考你——你猜我最喜欢干什么？",
+      "answer": "到处跑到处看",
+      "wrong": ["待在家里", "记账算钱", "一个人发呆"],
+      "clue": "小蓝的行囊从来没解开过，随时准备上路",
+      "hint_topic": "旅行"
+    },
+    {
+      "id": "treasure",
+      "question": "那你说说，我包里最宝贝的是啥玩意儿？",
+      "answer": "残破的地图",
+      "wrong": ["金币", "干粮", "雨伞"],
+      "clue": "小蓝夜里常摊开一张破地图，对着缺角的地方发呆",
+      "hint_topic": "地图"
+    }
+  ],
   "return_gifts": [
     "map_piece",
     "pan_flute"

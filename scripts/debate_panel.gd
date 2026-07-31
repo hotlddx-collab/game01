@@ -33,6 +33,9 @@ var _opponent_id: String = ""
 var _index: int = 0
 var _answers: Dictionary = {}          # {index(int): stance(String)}
 var _done_terms: Dictionary = {}       # 已辩论过的 term_id，避免重复弹
+var _done_sessions: Dictionary = {}    # 已开过的场次 "term:session"，避免重开
+var _pending_session: int = 0          # 本次请求的场次
+var _total_sessions: int = 3
 var _current_term_id: int = -1
 var _waiting_rebut: bool = false
 
@@ -71,17 +74,34 @@ func _typing_in_textbox() -> bool:
 	return f is LineEdit or f is TextEdit
 
 
+## 辩论日分多场：上午/下午/傍晚各一场，到点才开，避免整天只辩一次太单薄
+const DEBATE_SESSION_HOURS := [9, 14, 18]
+const DEBATE_CLOSE_HOUR := 21
+
+
 func _on_election_state(view: Dictionary) -> void:
-	## 进入辩论阶段（D6）→ 自动拉辩题（若本任期未辩论）。
+	## 辩论日（D2）→ 到场次时刻自动拉辩题。
 	var phase := String(view.get("phase", ""))
 	var tid := int(view.get("term_id", -1))
 	if phase != "debate":
 		return
-	if _done_terms.has(tid):
-		return
 	if backdrop.visible:
 		return
-	AgentClient.request_debate_start()
+	var h := WorldClock.get_hour()
+	if h >= DEBATE_CLOSE_HOUR:
+		return
+	# 按当前时刻算「该开第几场」，已开过的场次不再重开
+	var due := -1
+	for i in DEBATE_SESSION_HOURS.size():
+		if h >= int(DEBATE_SESSION_HOURS[i]):
+			due = i
+	if due < 0:
+		return                      # 天还没亮到第一场，不打扰
+	var key := "%d:%d" % [tid, due]
+	if _done_sessions.has(key):
+		return
+	_pending_session = due
+	AgentClient.request_debate_start(due)
 
 
 func _on_questions(info: Dictionary) -> void:
@@ -95,6 +115,8 @@ func _on_questions(info: Dictionary) -> void:
 	_stance_labels = info.get("stance_labels", {})
 	_opponent_id = String(info.get("opponent_id", ""))
 	_current_term_id = int(info.get("term_id", -1))
+	_pending_session = int(info.get("session", _pending_session))
+	_total_sessions = int(info.get("total_sessions", _total_sessions))
 	_index = 0
 	_answers = {}
 	_open()
@@ -103,13 +125,18 @@ func _on_questions(info: Dictionary) -> void:
 
 func _open() -> void:
 	backdrop.visible = true
-	title.text = "[center][b]🎤 镇长辩论会[/b][/center]"
+	title.text = "[center][b]🎤 镇长辩论会  第 %d/%d 场[/b][/center]" % [
+		_pending_session + 1, _total_sessions,
+	]
 
 
 func _close() -> void:
 	backdrop.visible = false
+	# 记下本场已开，同场次不再重弹；后续场次到点仍会开
 	if _current_term_id >= 0:
-		_done_terms[_current_term_id] = true
+		_done_sessions["%d:%d" % [_current_term_id, _pending_session]] = true
+		if _pending_session + 1 >= _total_sessions:
+			_done_terms[_current_term_id] = true
 
 
 func _show_question() -> void:

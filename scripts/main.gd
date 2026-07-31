@@ -43,6 +43,7 @@ func _ready() -> void:
 	AgentClient.quest_completed_received.connect(_on_quest_completed)
 	AgentClient.opponent_action_received.connect(_on_opponent_action)
 	AgentClient.election_result_received.connect(_on_election_result)
+	AgentClient.observation_clue.connect(_on_observation_clue)
 	if AgentClient.has_signal("mayor_task_result_received"):
 		AgentClient.mayor_task_result_received.connect(_on_mayor_task_result)
 	if AgentClient.has_signal("mayor_task_state_received"):
@@ -155,6 +156,15 @@ func _on_reply_received(animal_id: String, text: String) -> void:
 	if _current_animal == null or _current_animal.animal_id != animal_id:
 		return
 	dialog_ui.show_npc_line(text)
+
+
+## 观察线索：NPC 在外面活动时露出的癖好，玩家看见了就能记住（用于日后答题）
+func _on_observation_clue(animal_id: String, text: String) -> void:
+	var npc := _find_animal(animal_id)
+	if npc == null or not is_instance_valid(npc):
+		return
+	npc.show_emote("👀", 2.0, 0.0)
+	npc.show_speech_bubble("（%s）" % text, 4.5)
 
 
 func _on_error_received(message: String) -> void:
