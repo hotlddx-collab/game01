@@ -7,7 +7,7 @@ extends Control
 @onready var start_button: Button = %StartButton
 @onready var quit_button: Button = %QuitButton
 @onready var title_box: VBoxContainer = %TitleBox
-@onready var tag_row: HBoxContainer = %TagRow
+@onready var tag_row: VBoxContainer = %TagRow
 @onready var hook_label: Label = %HookLabel
 
 ## 轮播的悬念文案：每隔几秒换一句，暗示 NPC 真的在背地里活动
