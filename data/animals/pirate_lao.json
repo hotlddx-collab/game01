@@ -84,7 +84,10 @@
       "bread",
       "crystal",
       "acorn",
-      "medi_pack"
+      "medi_pack",
+      "treasure_small",
+      "silver_cup",
+      "noodle"
     ],
     "dislikes": [
       "flower",
@@ -100,7 +103,11 @@
       "id": "hobby",
       "question": "小家伙，考考你——老头子如今最爱干的是啥？",
       "answer": "晒太阳讲故事",
-      "wrong": ["出海冒险", "打架", "数金币"],
+      "wrong": [
+        "出海冒险",
+        "打架",
+        "数金币"
+      ],
       "clue": "老咸每天在广场同一块石头上一坐就是一下午，逮谁跟谁唠",
       "hint_topic": "晒太阳"
     },
@@ -108,14 +115,22 @@
       "id": "past",
       "question": "那你说说，我最想念大海上的什么？",
       "answer": "同船的老伙计",
-      "wrong": ["抢来的金子", "风浪", "咸鱼干"],
+      "wrong": [
+        "抢来的金子",
+        "风浪",
+        "咸鱼干"
+      ],
       "clue": "老咸讲起当年总要提到几个名字，说完就沉默很久",
       "hint_topic": "老伙计"
     }
   ],
   "return_gifts": [
-    "gold_cup",
-    "gold_key"
+    "octopus",
+    "gourd"
+  ],
+  "rare_return_gifts": [
+    "gold_key",
+    "gem_red"
   ],
   "signature_gift": "compass",
   "movement": {
@@ -126,7 +141,13 @@
     "forage": {
       "chance": 0.55,
       "radius": 220,
-      "items": ["shell", "pearl", "fish", "moonstone", "crystal"]
+      "items": [
+        "shell",
+        "pearl",
+        "fish",
+        "moonstone",
+        "crystal"
+      ]
     }
   },
   "schedule_weekend": [
@@ -170,5 +191,8 @@
       "location": "home_pirate",
       "intent": "睡觉"
     }
+  ],
+  "mid_return_gifts": [
+    "compass"
   ]
 }

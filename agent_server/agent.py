@@ -327,7 +327,7 @@ class Agent:
 
         context["election"] 由 main.py 在 chat/greet 路径塞入：
           { role: 'candidate'|'voter', opponent_name, day_index, term_days,
-            phase_label, is_incumbent }
+            days_left, phase_label, standing, my_score, rival_score, is_incumbent }
         """
         el = context.get("election")
         if not isinstance(el, dict) or not el:
@@ -335,18 +335,46 @@ class Agent:
         role = el.get("role", "voter")
         opp = el.get("opponent_name", "")
         di = el.get("day_index", 0)
-        td = el.get("term_days", 4)
+        td = el.get("term_days", 3)
         phase = el.get("phase_label", "")
         lines = [f"【镇长竞选】当前正在进行第 {el.get('term_no', 1)} 届镇长竞选"
                  f"（第 {di}/{td} 天，{phase}）。"]
         if role == "candidate":
+            days_left = int(el.get("days_left", 0))
+            standing = el.get("standing", "close")
+            my_s = el.get("my_score", 0)
+            rv_s = el.get("rival_score", 0)
+
             lines.append(
-                f"你正是这届竞选的候选人之一，对手是「{opp or '玩家'}」。"
-                "你清楚自己在参选，被问到时要承认并表达你的竞选态度（可以是认真、敷衍、或不情愿，按你的性格来），"
-                "绝不能否认自己在参选。"
+                f"★你正是这届竞选的候选人，你的对手就是眼前这个「{opp or '玩家'}」——"
+                "也就是说，你现在正在跟对面这个人抢镇长的位子。"
+            )
+            lines.append(
+                f"当前声望：你 {my_s}，对方 {rv_s}；距离投票日还有 {days_left} 天。"
+            )
+            # 领先/落后决定语气基调
+            if standing == "leading":
+                lines.append(
+                    "你目前领先，语气里可以带点得意和从容，甚至开玩笑说对方赢不了，"
+                    "但别过分嚣张到崩人设。"
+                )
+            elif standing == "trailing":
+                lines.append(
+                    "你目前落后，心里着急，会更主动地为自己辩护、强调你的政见，"
+                    "或者忍不住酸对方几句。"
+                )
+            else:
+                lines.append("目前比分咬得很紧，你对这场竞争很敏感，谁都不肯让。")
+
+            lines.append(
+                "重要：即使玩家没提竞选，你也应当【主动】在对话里流露出竞争意识——"
+                "比如打招呼时点一句选举、拿镇上的事暗暗较劲、试探对方的打算、"
+                "宣传自己当上镇长后要做什么，或半开玩笑地劝对方退选。"
+                "你绝不能表现得像不知道自己在参选，也绝不能否认参选。"
+                "具体分寸按你自己的性格来（豪爽的直接叫板、温和的绵里藏针、市侩的先套近乎）。"
             )
             if el.get("is_incumbent"):
-                lines.append("你是现任镇长，正在争取连任。")
+                lines.append("你是现任镇长，正在争取连任，会强调自己任内的政绩。")
         else:
             lines.append(
                 f"你不是候选人，但你是有投票权的居民。这届由玩家和「{opp}」竞争，"
@@ -590,6 +618,20 @@ class Agent:
             user_msg = (
                 "（一个陌生的玩家刚走近你。你还不知道对方名字，自然地用 1 句话打招呼，"
                 "可以问对方是谁或者直接用'你'。结合当前在做的事和地点。）"
+            )
+
+        # 竞选对手：开场白就该有火药味，让玩家一照面就知道这人在跟自己抢位子
+        _el = context.get("election")
+        if isinstance(_el, dict) and _el.get("role") == "candidate":
+            _st = _el.get("standing", "close")
+            _tone = {
+                "leading": "你眼下声望领先，语气可以从容中带点挑衅。",
+                "trailing": "你眼下声望落后，语气里藏着不服气和急迫。",
+            }.get(_st, "你们比分咬得很紧，语气里有掩不住的较劲。")
+            user_msg += (
+                "\n（补充：走近你的这位正是跟你抢镇长位子的竞争对手。"
+                f"{_tone}这句招呼里要让人听出选举的味道——"
+                "点一句选情、暗暗较劲、或者半开玩笑地挤兑对方，别只是寒暄。）"
             )
 
         messages: List[Dict[str, str]] = [
@@ -1104,14 +1146,18 @@ class Agent:
     ) -> Optional[Dict[str, Any]]:
         """回礼循环：玩家送 NPC 一件他 loves/likes 的礼物、且当天首次 → 回赠一件。
 
-        - 回礼来自 persona.return_gifts（符合本 NPC 身份、地面捡不到、被别的 NPC 喜欢）。
-        - 每游戏日每 NPC 只回一次（防刷），用 profile 'last_return_day' 记录。
+        三层回礼池，都要求「符合本 NPC 身份、地面捡不到、被别的 NPC 喜欢」，
+        按好感档位递进解锁，越熟拿到的东西越硬：
+        - persona.return_gifts      普通层 base 4-6，neutral/warm 就能掉，用于转送起步。
+        - persona.mid_return_gifts  中级层 base 7-9，好感到 like 档解锁。
+        - persona.rare_return_gifts 稀有层 base 10-15，好感到 love 档解锁，高端任务的需求物。
+
+        两条硬规则（防刷好感）：
+        - 回礼绝不能是发放者自己 loves/likes 的东西，否则玩家收了立刻送回去就能无限刷。
+        - 每游戏日每 NPC 只回一次，用 profile 'last_return_day' 记录。
         返回 {item_id, item_name, message} 或 None。
         """
         if delta <= 0 or pref not in ("loves", "likes"):
-            return None
-        pool = self.persona.get("return_gifts", []) or []
-        if not pool:
             return None
         try:
             last = int(self.profile.get(self.animal_id, "last_return_day") or -999)
@@ -1119,19 +1165,58 @@ class Agent:
             last = -999
         if last == game_day:
             return None
+
+        # 按好感档位逐级解锁：like 开中级，love 开稀有。取到哪档就只发哪档，
+        # 让玩家明确感到「关系更进一步，东西也更好了」。
+        tier = "common"
+        pool = list(self.persona.get("return_gifts", []) or [])
+        try:
+            level = self.affection.snapshot(self.animal_id).get("level")
+        except Exception:
+            level = None
+        if level in ("like", "love"):
+            mid = list(self.persona.get("mid_return_gifts", []) or [])
+            if mid:
+                pool, tier = mid, "mid"
+        if level == "love":
+            rare = list(self.persona.get("rare_return_gifts", []) or [])
+            if rare:
+                pool, tier = rare, "rare"
+        pool = self._filter_self_liked(pool)
+        if not pool:
+            return None
+
         import random
         item_id = random.choice(pool)
         item = items_module.get(item_id)
         if item is None:
             return None
         self.profile.set(self.animal_id, "last_return_day", str(game_day))
-        log.info("[return_gift] %s → 玩家: %s (pref=%s day=%d)",
-                 self.animal_id, item_id, pref, game_day)
+        log.info("[return_gift] %s → 玩家: %s (pref=%s day=%d tier=%s)",
+                 self.animal_id, item_id, pref, game_day, tier)
+        if tier == "rare":
+            msg = (f"（{self.name}沉吟片刻，从贴身的地方摸出一件「{item.name}」交给你"
+                   "——这东西外头可找不着，镇上怕是有人正需要它……）")
+        elif tier == "mid":
+            msg = (f"（{self.name}翻了翻自己的箱底，取出一件「{item.name}」递给你"
+                   "——看得出他是真把你当自己人了……）")
+        else:
+            msg = f"（{self.name}回赠了你一件「{item.name}」——想想镇上谁会喜欢，转送出去说不定有惊喜……）"
         return {
             "item_id": item_id,
             "item_name": item.name,
-            "message": f"（{self.name}回赠了你一件「{item.name}」——想想镇上谁会喜欢，转送出去说不定有惊喜……）",
+            "message": msg,
         }
+
+    def _filter_self_liked(self, pool: List[str]) -> List[str]:
+        """剔除本 NPC 自己 loves/likes 的物品。
+
+        否则玩家收到回礼后原样送回去，就能无本万利地反复刷好感。
+        配置层已经避开，这里再兜一道底，防止以后配错。
+        """
+        gp = self.persona.get("gift_prefs", {}) or {}
+        mine = set(gp.get("loves", []) or []) | set(gp.get("likes", []) or [])
+        return [i for i in pool if i not in mine]
 
     async def _maybe_reflect(self) -> None:
         try:

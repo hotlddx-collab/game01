@@ -48,13 +48,20 @@ class Rumor:
     origin: str
     game_day: int
     status: str
+    ## 除主角外被写进内容里的当事人（如「旅人送了小蓝东西」里的小蓝）
+    involved_ids: List[str]
 
     @classmethod
     def from_row(cls, r) -> "Rumor":
+        try:
+            raw = r["involved_ids"] or ""
+        except (KeyError, IndexError):
+            raw = ""
         return cls(
             id=r["id"], subject_id=r["subject_id"], sentiment=r["sentiment"],
             truth=int(r["truth"]), heat=int(r["heat"]), content=r["content"],
             origin=r["origin"] or "", game_day=int(r["game_day"]), status=r["status"],
+            involved_ids=[x for x in raw.split(",") if x],
         )
 
 
@@ -73,15 +80,18 @@ class RumorStore:
         heat: int = 45,
         origin: str = "auto",
         game_day: int = 0,
+        involved_ids: Optional[List[str]] = None,
     ) -> int:
         now = int(time.time())
+        inv = ",".join(x for x in (involved_ids or []) if x and x != "player")
         with get_conn() as conn:
             cur = conn.execute(
                 """INSERT INTO rumor
                    (subject_id, sentiment, truth, heat, content, origin, game_day,
-                    status, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)""",
-                (subject_id, sentiment, truth, heat, content, origin, game_day, now, now),
+                    involved_ids, status, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)""",
+                (subject_id, sentiment, truth, heat, content, origin, game_day,
+                 inv, now, now),
             )
             return cur.lastrowid or 0
 
@@ -178,16 +188,29 @@ class RumorStore:
                 (rumor_id, animal_id),
             )
 
-    def known_by(self, animal_id: str, min_heat: int = SPREAD_MIN_HEAT) -> List[Dict]:
-        """该 NPC 知道的、仍算热门的话题（含 ta 的版本），按热度降序。"""
+    def known_by(self, animal_id: str, min_heat: int = SPREAD_MIN_HEAT,
+                 exclude_self_subject: bool = True) -> List[Dict]:
+        """该 NPC 知道的、仍算热门的话题（含 ta 的版本），按热度降序。
+
+        exclude_self_subject：剔除「他自己就是当事人」的话题——不论他是主角
+        （subject_id），还是被写进内容里的另一方（involved_ids）。
+        比如「那位旅人送了小蓝一件贵重东西」，主角是旅人、小蓝是当事人，
+        小蓝当然知道这事，但拿它当八卦讲给旅人听就很蠢。
+        """
+        sql = """SELECT r.*, k.version AS kversion, k.hops AS khops, k.told_count AS ktold
+                 FROM rumor_knowledge k JOIN rumor r ON r.id = k.rumor_id
+                 WHERE k.animal_id = ? AND r.status = 'active' AND r.heat >= ?"""
+        args: list = [animal_id, min_heat]
+        if exclude_self_subject:
+            # involved_ids 是逗号分隔的 id 串，两端补逗号后做子串匹配，
+            # 避免 'lan' 命中 'traveler_lan' 这类前后缀误伤。
+            sql += (" AND r.subject_id != ?"
+                    " AND instr(',' || IFNULL(r.involved_ids,'') || ',', ?) = 0")
+            args.append(animal_id)
+            args.append("," + animal_id + ",")
+        sql += " ORDER BY r.heat DESC"
         with get_conn() as conn:
-            rows = conn.execute(
-                """SELECT r.*, k.version AS kversion, k.hops AS khops, k.told_count AS ktold
-                   FROM rumor_knowledge k JOIN rumor r ON r.id = k.rumor_id
-                   WHERE k.animal_id = ? AND r.status = 'active' AND r.heat >= ?
-                   ORDER BY r.heat DESC""",
-                (animal_id, min_heat),
-            ).fetchall()
+            rows = conn.execute(sql, tuple(args)).fetchall()
         out = []
         for r in rows:
             out.append({
@@ -290,8 +313,13 @@ class RumorManager:
         game_day: int = 0,
         initial_knowers: Optional[List[str]] = None,
         heat: int = 45,
+        involved_ids: Optional[List[str]] = None,
     ) -> Optional[int]:
-        """创建一条话题并播种初始知情者。auto 来源当日同主角同情感去重。"""
+        """创建一条话题并播种初始知情者。auto 来源当日同主角同情感去重。
+
+        involved_ids：内容里除主角外的当事人。他们照样会知道这事（往往还是
+        初始知情者），但打听/传谣时不会把这条讲出去——自己的事不算八卦。
+        """
         if origin == "auto":
             dup = self.store.similar_today(subject_id, sentiment, game_day)
             if dup:
@@ -300,6 +328,7 @@ class RumorManager:
         rid = self.store.create(
             subject_id, content, sentiment=sentiment, truth=truth,
             heat=heat, origin=origin, game_day=game_day,
+            involved_ids=involved_ids,
         )
         for aid in (initial_knowers or []):
             if aid and aid != subject_id and aid != "player":

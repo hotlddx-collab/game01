@@ -1,0 +1,84 @@
+[gd_scene format=3 uid="uid://cstaminahud01"]
+
+[ext_resource type="Script" path="res://scripts/stamina_hud.gd" id="1_shud"]
+
+[sub_resource type="StyleBoxFlat" id="SB_panel"]
+bg_color = Color(0.1, 0.12, 0.2, 0.86)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.55, 0.7, 0.6)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
+bg_color = Color(0.06, 0.07, 0.11, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.34, 0.42, 0.7)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_fill"]
+bg_color = Color(0.42, 0.78, 0.9, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="StaminaHUD" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1_shud")
+
+[node name="Panel" type="Panel" parent="."]
+offset_left = 16.0
+offset_top = 142.0
+offset_right = 436.0
+offset_bottom = 180.0
+theme_override_styles/panel = SubResource("SB_panel")
+
+[node name="Row" type="HBoxContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 8.0
+offset_right = -14.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Name" type="Label" parent="Panel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 0)
+text = "⚡ 体力"
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="Bar" type="ProgressBar" parent="Panel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 14)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("SB_bar_bg")
+theme_override_styles/fill = SubResource("SB_bar_fill")
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="State" type="Label" parent="Panel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+text = ""
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 13

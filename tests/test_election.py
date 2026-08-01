@@ -148,8 +148,31 @@ check("scores 字典含 player + 对手",
       set(view["scores"].keys()) == {PLAYER_ID, "bear_baker"})
 check("首届 incumbent_id 为空（无镇长）",
       view["incumbent_id"] == "", f"got '{view['incumbent_id']}'")
-check("视图含 day_theme（D1=rally）",
+check("无镇长 D1 主题 = rally（集会日）",
       view.get("day_theme") == "rally", f"got {view.get('day_theme')}")
+
+# 三套三天日程：按「镇上谁当镇长」分岔
+_t5 = es.ensure_term_active(0)
+_tid5 = int(_t5["term_id"])
+_themes = lambda: [es.day_theme(d, _t5) for d in (1, 2, 3)]
+check("无镇长三天 = 集会/辩论/投票",
+      es.mayor_kind(_t5) == "none" and _themes() == ["rally", "debate", "vote"],
+      f"kind={es.mayor_kind(_t5)} {_themes()}")
+es.set_incumbent(_tid5, PLAYER_ID)
+check("玩家镇长三天 = 危机/镇务/投票",
+      es.mayor_kind(_t5) == "player" and _themes() == ["crisis", "governance", "vote"],
+      f"kind={es.mayor_kind(_t5)} {_themes()}")
+check("玩家镇长 D2 phase = governance（不开辩论）",
+      es.phase_of(2, _t5) == "governance", f"got {es.phase_of(2, _t5)}")
+es.set_incumbent(_tid5, _t5["opponent_id"])
+check("NPC 镇长三天 = 八卦/辩论/投票",
+      es.mayor_kind(_t5) == "npc" and _themes() == ["gossip", "debate", "vote"],
+      f"kind={es.mayor_kind(_t5)} {_themes()}")
+check("NPC 镇长 D2 phase = debate（照常辩论）",
+      es.phase_of(2, _t5) == "debate", f"got {es.phase_of(2, _t5)}")
+# 恢复无镇长状态，避免影响后续用例
+with db.get_conn() as _c5:
+    _c5.execute("UPDATE candidate_state SET is_incumbent = 0 WHERE term_id = ?", (_tid5,))
 
 
 # ──────────────────────────────────────────────────────────
@@ -188,6 +211,8 @@ check("day_index=1 不触发结算", no_settle is None)
 # 8. 对手轮换避免连任
 print("\n=== 8. 对手轮换 ===")
 prev_opponents = [DEFAULT_FIRST_OPPONENT, settle["next_opponent_id"]]
+# revenge_at[i] 表示 prev_opponents[i] → [i+1] 这一步是否由「玩家落选」的复仇战决定
+revenge_at = [settle["winner_id"] != PLAYER_ID]
 # 跑几届看是否会继续换人
 import random as _rnd
 _rnd.seed(42)
@@ -198,10 +223,17 @@ for _ in range(3):
     s = es.settle_term_if_due(start_day + 6)
     if s:
         prev_opponents.append(s["next_opponent_id"])
+        revenge_at.append(s["winner_id"] != PLAYER_ID)
 
-# 至少不会连续两个相同
-all_diff = all(prev_opponents[i] != prev_opponents[i+1] for i in range(len(prev_opponents)-1))
-check("连续任期对手不重复",
+# 至少不会连续两个相同。
+# 例外：玩家落选时走「复仇战」分支，下届必然继续挑战同一位现任镇长（设计如此）。
+# 因此只对「玩家胜出」的那些届要求换人。
+all_diff = all(
+    prev_opponents[i] != prev_opponents[i + 1]
+    for i in range(len(prev_opponents) - 1)
+    if not revenge_at[i]
+)
+check("连续任期对手不重复（复仇战除外）",
       all_diff,
       f"对手序列={prev_opponents}")
 
@@ -368,7 +400,7 @@ check("抽题确定（同 term 两次一致）",
 check("提问者不含对手", all(x["asker_id"] != op_d for x in q1))
 check("每题有 4 个象限选项", all(len(x["options"]) == 4 for x in q1))
 
-# 评分：玩家全选某 voter 偏好的象限 → 该 voter 给玩家高分
+# 评分：玩家全选某 voter 偏好的象限 → 该 voter 站到玩家这边
 voters_d = es_d.voters_of(term_d)
 # 取第一个 voter 的偏好象限，玩家三题都选它
 v0 = voters_d[0]
@@ -376,15 +408,19 @@ pref0 = dm.stance_pref(v0)
 answers = {0: pref0, 1: pref0, 2: pref0}
 res = dm.score_and_persist(term_d, answers)
 check("评分写入玩家分", v0 in res["player_scores"])
-check("玩家命中 v0 偏好 → raw=1.0", abs(res["player_scores"][v0] - 1.0) < 1e-6,
+# 阵营站队：v0 每题都站在玩家这边 → 满分 1.0；
+# 若对手也来抢同一象限，该题分摊（各 0.5），故实际落在 (0, 1.0]。
+check("玩家咬定 v0 的象限 → 拿到正分", res["player_scores"][v0] > 0.0,
       f"got {res['player_scores'][v0]}")
+check("三题同一象限 → 连贯性无折扣",
+      abs(float(res["consistency"]) - 1.0) < 1e-6, f"got {res['consistency']}")
 
 # debate 子项接通 weight
 _, sub_v0 = es_d.compute_weight(v0, "player", term_d)
 from election import W_DEBATE_MAX
-check("debate 子项接通玩家 weight（=W_DEBATE_MAX）",
-      abs(sub_v0["debate"] - W_DEBATE_MAX) < 1e-6,
-      f"got {sub_v0['debate']}")
+check("debate 子项接通玩家 weight（正向且不超上限）",
+      0.0 < sub_v0["debate"] <= W_DEBATE_MAX + 1e-6,
+      f"got {sub_v0['debate']} max={W_DEBATE_MAX}")
 
 # 未辩论的新任期 → debate 子项 0（先结束当前 term 再开新的）
 es_d.end_term(int(term_d["term_id"]), end_day=6, winner_id="player", result={})
@@ -396,13 +432,16 @@ check("新任期 term_id 不同于已辩论任期",
 _, sub_e = es_e.compute_weight(es_e.voters_of(term_e)[0], "player", term_e)
 check("未举行辩论 → debate 子项 = 0", sub_e["debate"] == 0.0, f"got {sub_e['debate']}")
 
-# 对手也写入 debate 基线分
+# 对手也写入 debate 基线分。阵营玩法下对手不再是常数——他会挑象限抢票，
+# 故只断言「有分且不超上限」，具体值由逐题站位决定。
 check("对手 debate 分已写入", v0 in res["opponent_scores"])
 _, sub_op = es_d.compute_weight(v0, op_d, term_d)
-expected_op = affinity(dm.stance_pref(op_d), pref0) * W_DEBATE_MAX * es_d._term_factor(term_d)
-check("对手 debate 子项 = 固定立场亲和度 × W_DEBATE_MAX × 难度",
-      abs(sub_op["debate"] - expected_op) < 1e-6,
-      f"got {sub_op['debate']} expect {expected_op}")
+check("对手 debate 子项在合理区间",
+      abs(sub_op["debate"]) <= W_DEBATE_MAX + 1e-6,
+      f"got {sub_op['debate']} max={W_DEBATE_MAX}")
+check("对手逐题站位已记录",
+      len(res.get("opponent_picks", [])) == 3,
+      f"got {res.get('opponent_picks')}")
 
 
 # ──────────────────────────────────────────────────────────

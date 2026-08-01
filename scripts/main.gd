@@ -18,6 +18,7 @@ var _current_animal: Animal = null
 var _pending_mayor: Dictionary = {}   # executor_id -> 结算 info，等对话关闭后开演
 var _situation: Dictionary = {}       # 当前镇务情境：{task_id,type,markers,spots,target_id}
 var _performing: bool = false         # 正在表演，期间忽略情境拆除推送
+var _resting: bool = false            # 正在播休息演出，避免重复触发
 
 
 func _ready() -> void:
@@ -76,6 +77,10 @@ func _on_player_interact(target: Node) -> void:
 		if picked_item != "" and AgentClient.is_connected_to_server():
 			AgentClient.report_pickup("player", picked_item)
 		return
+	# 回家休息
+	if target.is_in_group("rest"):
+		_do_rest()
+		return
 	if not (target is Animal):
 		return
 	var animal: Animal = target
@@ -107,6 +112,54 @@ func _on_player_interact(target: Node) -> void:
 	# 玩家也访问到了 NPC 当前所在地点
 	_track_visit(animal.get_target_location())
 	AgentClient.request_greet(animal.animal_id, _build_context(animal))
+
+
+## 回家休息：黑屏淡入（进屋）→ 停顿 → 淡出（出门），日体力与冲刺条都补满
+func _do_rest() -> void:
+	if _resting:
+		return
+	_resting = true
+	player.input_enabled = false
+
+	var layer := CanvasLayer.new()
+	layer.layer = 90
+	add_child(layer)
+
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 0)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(fade)
+
+	var tip := Label.new()
+	tip.text = "🛏  休息中……"
+	tip.modulate.a = 0.0
+	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tip.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tip.add_theme_font_size_override("font_size", 28)
+	tip.add_theme_color_override("font_color", Color(1, 0.95, 0.8, 1))
+	layer.add_child(tip)
+
+	var tw := create_tween()
+	tw.tween_property(fade, "color:a", 1.0, 0.5)
+	tw.parallel().tween_property(tip, "modulate:a", 1.0, 0.6)
+	await tw.finished
+
+	# 屋里待一会儿，再结算体力
+	await get_tree().create_timer(1.1).timeout
+	if player.has_method("rest"):
+		player.rest()
+
+	var tw2 := create_tween()
+	tw2.tween_property(tip, "modulate:a", 0.0, 0.35)
+	tw2.parallel().tween_property(fade, "color:a", 0.0, 0.6)
+	await tw2.finished
+
+	layer.queue_free()
+	player.input_enabled = true
+	_resting = false
 
 
 func _on_chat_send(animal_id: String, user_text: String) -> void:

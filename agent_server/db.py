@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS rumor (
   heat        INTEGER NOT NULL DEFAULT 50,     -- 热度 0-100
   content     TEXT NOT NULL,                   -- 原始话题一句话
   origin      TEXT NOT NULL DEFAULT '',        -- 来源：player / auto / npc_id
+  involved_ids TEXT NOT NULL DEFAULT '',       -- 除主角外被卷进内容里的 NPC，逗号分隔。
+                                               -- 当事人不该把自己参与的事当八卦讲出去。
   game_day    INTEGER NOT NULL DEFAULT 0,
   status      TEXT NOT NULL DEFAULT 'active',  -- active / faded / debunked
   created_at  INTEGER NOT NULL,
@@ -296,6 +298,10 @@ def _migrate(conn) -> None:
     cr_cols = {row["name"] for row in conn.execute("PRAGMA table_info(crisis_state)").fetchall()}
     if cr_cols and "deadline_hour" not in cr_cols:
         conn.execute("ALTER TABLE crisis_state ADD COLUMN deadline_hour INTEGER")
+    # rumor.involved_ids（话题里被卷进来的当事人，防止 NPC 把自己的事当八卦讲）
+    ru_cols = {row["name"] for row in conn.execute("PRAGMA table_info(rumor)").fetchall()}
+    if ru_cols and "involved_ids" not in ru_cols:
+        conn.execute("ALTER TABLE rumor ADD COLUMN involved_ids TEXT NOT NULL DEFAULT ''")
 
 _lock = threading.Lock()
 _initialized_paths: set[str] = set()

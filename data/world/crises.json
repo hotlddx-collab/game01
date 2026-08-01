@@ -1,13 +1,13 @@
 {
   "_comment": "危机调解池 - 镇上 NPC 间的纠纷/突发事件，玩家以镇长身份介入断案。事实由本模板定死，LLM 只补台词与反应。",
-  "_format": "{ title, parties:[npc_id..], scene(展示用地点标签), summary(事件经过), min_day(达到该游戏日才可能触发), weight(抽取权重), cooldown_days(解决后冷却), options:[{ id, label, requires:{item,count}(可空), effects:{npc_id:delta..}, tag, town_mood(可空) }] }",
+  "_format": "{ title, parties:[npc_id..], scene(展示用地点标签), summary(事件经过), min_day(达到该游戏日才可能触发，注意 game_day 从 0 起算), weight(抽取权重), cooldown_days(解决后冷却), options:[{ id, label, requires:{item,count}(可空), effects:{npc_id:delta..}, tag, town_mood(可空) }] }",
 
   "acorn_theft": {
     "title": "橡果失窃案",
     "parties": ["traveler_lan", "pirate_lao"],
     "scene": "广场",
     "summary": "小蓝存在树洞里的一堆橡果不翼而飞，他一口咬定是老咸家那只嘴馋的章鱼干的；老咸却觉得空口无凭，是小蓝自己没数清。两人在广场吵得不可开交，等你来评理。",
-    "min_day": 1,
+    "min_day": 0,
     "weight": 10,
     "cooldown_days": 3,
     "options": [
@@ -27,7 +27,7 @@
     "parties": ["bear_baker", "herbalist_cui"],
     "scene": "面包店",
     "summary": "苔老板想扩建面包店、多添一座烤炉招揽人气，可油烟顺风飘进隔壁小翠的药铺，晾着的草药全串了味。苔老板说这是发展镇子，小翠说这是毁她营生，僵持不下。",
-    "min_day": 1,
+    "min_day": 0,
     "weight": 8,
     "cooldown_days": 3,
     "options": [
@@ -47,7 +47,7 @@
     "parties": ["herbalist_cui", "fox_postman"],
     "scene": "邮局",
     "summary": "小翠托焰仔送去山顶病人的药方包裹迟迟没到，病人急等着抓药；焰仔喊冤，说自己压根没收到这个包裹。到底是路上弄丢了还是根本没交接，两人各执一词。",
-    "min_day": 2,
+    "min_day": 0,
     "weight": 7,
     "cooldown_days": 3,
     "options": [
@@ -59,6 +59,86 @@
         "requires": { "item": "herb", "count": 1 }, "effects": { "herbalist_cui": 8, "fox_postman": 6 }, "tag": "亲力亲为" },
       { "id": "ignore", "label": "不管，让他们自己解决",
         "requires": {}, "effects": { "herbalist_cui": -4, "fox_postman": -4 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "well_blocked": {
+    "title": "水井堵了",
+    "parties": ["bear_baker", "pirate_lao"],
+    "scene": "广场",
+    "summary": "镇口那眼老井一早就打不上水了，井绳绞上来全是烂树枝。苔老板急着和面，说昨儿见老咸在井边劈柴；老咸拍着胸脯说自己收拾干净了，是上游冲下来的。全镇今天的用水都悬着。",
+    "min_day": 0,
+    "weight": 9,
+    "cooldown_days": 2,
+    "options": [
+      { "id": "side_baker", "label": "责令老咸把井掏干净，往后不许在井边劈柴",
+        "requires": {}, "effects": { "bear_baker": 7, "pirate_lao": -6 }, "tag": "偏袒一方" },
+      { "id": "side_lao", "label": "认定是上游冲下来的，谁也不怪",
+        "requires": {}, "effects": { "bear_baker": -5, "pirate_lao": 7 }, "tag": "偏袒一方" },
+      { "id": "self_fix", "label": "你自己下井掏，掏完顺手用 1 个水壶给苔老板送水",
+        "requires": { "item": "water_pot", "count": 1 }, "effects": { "bear_baker": 10, "pirate_lao": 8 }, "tag": "亲力亲为" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "bear_baker": -4, "pirate_lao": -3 }, "tag": "镇长失职", "town_mood": -2 }
+    ]
+  },
+
+  "letter_misdelivered": {
+    "title": "错送的信",
+    "parties": ["fox_postman", "mystic_xuan"],
+    "scene": "邮局",
+    "summary": "焰仔把一封写给煊赫的信错塞进了别家门缝，等找回来时已被拆过。煊赫气得直哆嗦，说信里的东西外人看不得；焰仔梗着脖子说门牌本来就挂歪了，不能全怪他。",
+    "min_day": 0,
+    "weight": 8,
+    "cooldown_days": 2,
+    "options": [
+      { "id": "side_xuan", "label": "责令焰仔挨家道歉，往后送信当面签收",
+        "requires": {}, "effects": { "mystic_xuan": 8, "fox_postman": -6 }, "tag": "偏袒一方" },
+      { "id": "side_fox", "label": "门牌确实该修，判此事不怪邮差",
+        "requires": {}, "effects": { "mystic_xuan": -5, "fox_postman": 7 }, "tag": "偏袒一方" },
+      { "id": "reseal", "label": "你拿 1 张空白卷轴替他重抄一份，原件当众封存",
+        "requires": { "item": "scroll_blank", "count": 1 }, "effects": { "mystic_xuan": 10, "fox_postman": 6 }, "tag": "亲力亲为" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "mystic_xuan": -4, "fox_postman": -3 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "night_noise": {
+    "title": "深夜的动静",
+    "parties": ["traveler_lan", "mystic_xuan"],
+    "scene": "广场",
+    "summary": "连着三宿，镇子北边半夜传出怪响，小蓝睡不着觉，一口咬定是煊赫又在屋里鼓捣那些邪门玩意；煊赫说自己早歇下了，多半是山里的风。镇上人心惶惶，都盼着有个说法。",
+    "min_day": 0,
+    "weight": 7,
+    "cooldown_days": 2,
+    "options": [
+      { "id": "side_lan", "label": "责令煊赫入夜后停止一切法事",
+        "requires": {}, "effects": { "traveler_lan": 8, "mystic_xuan": -7 }, "tag": "偏袒一方" },
+      { "id": "side_xuan", "label": "判定是山风作祟，劝小蓝安心",
+        "requires": {}, "effects": { "traveler_lan": -5, "mystic_xuan": 7 }, "tag": "偏袒一方" },
+      { "id": "night_watch", "label": "你亲自守一夜查明白，顺手用 1 块夜光石照路",
+        "requires": { "item": "glow_stone", "count": 1 }, "effects": { "traveler_lan": 9, "mystic_xuan": 8 }, "tag": "亲力亲为" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "traveler_lan": -4, "mystic_xuan": -3 }, "tag": "镇长失职", "town_mood": -2 }
+    ]
+  },
+
+  "market_price_row": {
+    "title": "摊位涨价风波",
+    "parties": ["herbalist_cui", "bear_baker"],
+    "scene": "面包店",
+    "summary": "苔老板把面包价钱悄悄提了两成，说是柴火贵了；小翠当场翻脸，说自己的药价几年没动过，这是趁人之危。围观的镇民分成两拨，都等镇长发话定个规矩。",
+    "min_day": 0,
+    "weight": 8,
+    "cooldown_days": 2,
+    "options": [
+      { "id": "side_baker", "label": "成本涨了就该涨价，随行就市",
+        "requires": {}, "effects": { "bear_baker": 8, "herbalist_cui": -6 }, "tag": "重发展" },
+      { "id": "side_cui", "label": "责令面包店把价钱降回去",
+        "requires": {}, "effects": { "bear_baker": -7, "herbalist_cui": 8 }, "tag": "护居民" },
+      { "id": "subsidize", "label": "你出 3 份木柴替他垫上成本，价钱维持不动",
+        "requires": { "item": "branch", "count": 3 }, "effects": { "bear_baker": 9, "herbalist_cui": 8 }, "tag": "破财消灾" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "bear_baker": -3, "herbalist_cui": -4 }, "tag": "镇长失职", "town_mood": -1 }
     ]
   }
 }

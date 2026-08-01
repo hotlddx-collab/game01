@@ -1,16 +1,22 @@
 {
   "_comment": "NPC 任务库 - 3 类任务：collect 收集 / relay 传话 / deliver 送货",
   "_format_collect": "{ kind:'collect', requires:{ item_id, count } } 玩家把 N 个 X 给委托人 → chat 委托人完成",
-  "_format_relay":   "{ kind:'relay',   requires:{ target_npc, message_summary, keywords[] } } 玩家 chat target_npc 时 user_text 命中所有关键词",
+  "_format_relay": "{ kind:'relay',   requires:{ target_npc, message_summary, keywords[] } } 玩家 chat target_npc 时 user_text 命中所有关键词",
   "_format_deliver": "{ kind:'deliver', requires:{ target_npc, item_id, count } } 接受时委托人发物品给玩家 → 玩家 chat target_npc 时背包有该物品",
-
   "bear_baker_collect_herb": {
     "npc_id": "bear_baker",
     "title": "面包配方需要薄荷",
     "desc": "苔老板：'我新研究的薄荷面包还差几片新鲜薄荷，能去森林边帮我采 3 片回来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "mint", "count": 3 },
-    "reward": { "item_id": "bread", "count": 2, "affection": 5 },
+    "requires": {
+      "item_id": "mint",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "bread",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -19,19 +25,33 @@
     "title": "面包配鱼汤",
     "desc": "苔老板：'有客人想要面包配鱼汤，能去河边钓 1 条鱼来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "fish", "count": 1 },
-    "reward": { "item_id": "bread", "count": 3, "affection": 6 },
-    "min_affection_level": "warm",
+    "requires": {
+      "item_id": "fish",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "bread",
+      "count": 3,
+      "affection": 6
+    },
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "bear_baker_collect_honey": {
     "npc_id": "bear_baker",
     "title": "甜面包要用蜂蜜",
-    "desc": "苔老板：'……今天想烤点甜的。能帮我找 2 罐蜂蜜回来吗？慢慢来，不急。'",
+    "desc": "苔老板：'……今天想烤点甜的。蜂蜜外头可不好找，煊赫那边兴许有。能帮我弄 1 罐来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "honey", "count": 2 },
-    "reward": { "item_id": "cookie", "count": 3, "affection": 5 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "honey",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "cookie",
+      "count": 4,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "bear_baker_collect_berry": {
@@ -39,8 +59,15 @@
     "title": "果酱馅要新鲜浆果",
     "desc": "苔老板：'我想试试果酱夹心……能去草丛里摘 5 颗浆果吗？'",
     "kind": "collect",
-    "requires": { "item_id": "berry", "count": 5 },
-    "reward": { "item_id": "bread", "count": 2, "affection": 5 },
+    "requires": {
+      "item_id": "berry",
+      "count": 5
+    },
+    "reward": {
+      "item_id": "bread",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -49,8 +76,15 @@
     "title": "烤炉快没柴了",
     "desc": "苔老板：'烤炉的柴快烧完了……能帮我捡 6 根树枝回来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "branch", "count": 6 },
-    "reward": { "item_id": "bread", "count": 3, "affection": 5 },
+    "requires": {
+      "item_id": "branch",
+      "count": 6
+    },
+    "reward": {
+      "item_id": "bread",
+      "count": 3,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -59,9 +93,17 @@
     "title": "给小翠留的面包",
     "desc": "苔老板：'这是给小翠留的苔藓面包……她今天忙着采药，怕是忘了吃饭。你替我送去好吗？'",
     "kind": "deliver",
-    "requires": { "target_npc": "herbalist_cui", "item_id": "bread", "count": 1 },
-    "reward": { "item_id": "cookie", "count": 2, "affection": 6 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "target_npc": "herbalist_cui",
+      "item_id": "bread",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "cookie",
+      "count": 2,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "bear_baker_relay_lao": {
@@ -72,20 +114,35 @@
     "requires": {
       "target_npc": "pirate_lao",
       "message_summary": "苔老板给你留着面包，让你去拿",
-      "keywords": ["苔老板", "面包", "留"]
+      "keywords": [
+        "苔老板",
+        "面包",
+        "留"
+      ]
     },
-    "reward": { "item_id": "honey", "count": 1, "affection": 5 },
+    "reward": {
+      "item_id": "bread",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": false
   },
-
   "fox_postman_deliver_letter_to_lao": {
     "npc_id": "fox_postman",
     "title": "替我送封信给老咸",
     "desc": "焰仔：'这封信麻烦你送给老咸。我抽屉里翻出一封塞给你。'",
     "kind": "deliver",
-    "requires": { "target_npc": "pirate_lao", "item_id": "letter", "count": 1 },
-    "reward": { "item_id": "feather", "count": 2, "affection": 4 },
+    "requires": {
+      "target_npc": "pirate_lao",
+      "item_id": "letter",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "feather",
+      "count": 2,
+      "affection": 4
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -94,18 +151,32 @@
     "title": "邮局门口要修了",
     "desc": "焰仔：'邮局门口的木栏松了，能去森林边捡 5 根树枝回来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "branch", "count": 5 },
-    "reward": { "item_id": "letter", "count": 1, "affection": 5 },
-    "min_affection_level": "warm",
+    "requires": {
+      "item_id": "branch",
+      "count": 5
+    },
+    "reward": {
+      "item_id": "letter",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "fox_postman_collect_feather": {
     "npc_id": "fox_postman",
-    "title": "封蜡要配羽毛笔",
-    "desc": "焰仔：'哈！我那支羽毛笔秃了。去给老子捡 4 根羽毛回来——好看点的！'",
+    "title": "封蜡不够用了",
+    "desc": "焰仔：'哈！封蜡见底了。去给老子刮 2 块树脂回来——古树上自己滴下来的那种！'",
     "kind": "collect",
-    "requires": { "item_id": "feather", "count": 4 },
-    "reward": { "item_id": "scroll_blank", "count": 2, "affection": 5 },
+    "requires": {
+      "item_id": "resin",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "scroll_blank",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -114,8 +185,15 @@
     "title": "封信要用树脂",
     "desc": "焰仔：'封口的火漆用完了，古树上的树脂能顶上。去弄 2 块来，别磨蹭！'",
     "kind": "collect",
-    "requires": { "item_id": "resin", "count": 2 },
-    "reward": { "item_id": "map_piece", "count": 1, "affection": 6 },
+    "requires": {
+      "item_id": "resin",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "map_piece",
+      "count": 1,
+      "affection": 6
+    },
     "min_affection_level": "warm",
     "repeatable": true
   },
@@ -124,9 +202,17 @@
     "title": "外地寄来的草药单",
     "desc": "焰仔：'外地来的草药单，收件人小翠。我今天跑不动了，你去！'",
     "kind": "deliver",
-    "requires": { "target_npc": "herbalist_cui", "item_id": "letter", "count": 1 },
-    "reward": { "item_id": "cookie", "count": 2, "affection": 5 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "target_npc": "herbalist_cui",
+      "item_id": "letter",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "cookie",
+      "count": 2,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "fox_postman_deliver_book_to_xuan": {
@@ -134,9 +220,17 @@
     "title": "没人认领的古书",
     "desc": "焰仔：'这本破书在邮局压了半年没人认领。煊赫总盯着它看，拿去给他，眼不见心不烦！'",
     "kind": "deliver",
-    "requires": { "target_npc": "mystic_xuan", "item_id": "ancient_book", "count": 1 },
-    "reward": { "item_id": "scroll_fire", "count": 1, "affection": 6 },
-    "min_affection_level": "warm",
+    "requires": {
+      "target_npc": "mystic_xuan",
+      "item_id": "ancient_book",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "scroll_fire",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
     "repeatable": false
   },
   "fox_postman_relay_baker": {
@@ -147,20 +241,34 @@
     "requires": {
       "target_npc": "bear_baker",
       "message_summary": "焰仔让面包早点出炉，他赶早班信",
-      "keywords": ["焰仔", "面包", "早"]
+      "keywords": [
+        "焰仔",
+        "面包",
+        "早"
+      ]
     },
-    "reward": { "item_id": "letter", "count": 2, "affection": 4 },
+    "reward": {
+      "item_id": "letter",
+      "count": 2,
+      "affection": 4
+    },
     "min_affection_level": "neutral",
     "repeatable": false
   },
-
   "herbalist_cui_collect_flower": {
     "npc_id": "herbalist_cui",
     "title": "需要野花做药",
     "desc": "小翠：'今天配安神药需要 4 朵野花，能帮我去采来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "flower", "count": 4 },
-    "reward": { "item_id": "herb", "count": 2, "affection": 5 },
+    "requires": {
+      "item_id": "flower",
+      "count": 4
+    },
+    "reward": {
+      "item_id": "herb",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -172,10 +280,18 @@
     "requires": {
       "target_npc": "fox_postman",
       "message_summary": "小翠下午要去河边采草药，包裹放门口就行",
-      "keywords": ["小翠", "河边", "包裹"]
+      "keywords": [
+        "小翠",
+        "河边",
+        "包裹"
+      ]
     },
-    "reward": { "item_id": "potion_tea", "count": 1, "affection": 4 },
-    "min_affection_level": "neutral",
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 1,
+      "affection": 4
+    },
+    "min_affection_level": "warm",
     "repeatable": false
   },
   "herbalist_cui_collect_mint": {
@@ -183,9 +299,16 @@
     "title": "止咳方子缺薄荷",
     "desc": "小翠：'镇上有人咳嗽好几天了，止咳的方子还差 4 片薄荷叶，能帮我采来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "mint", "count": 4 },
-    "reward": { "item_id": "potion_tea", "count": 2, "affection": 5 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "mint",
+      "count": 4
+    },
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 2,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "herbalist_cui_collect_mushroom": {
@@ -193,8 +316,15 @@
     "title": "认认这些蘑菇",
     "desc": "小翠：'我想比对一下林子里的蘑菇种类，能采 3 朵回来给我看看吗？别自己吃啊！'",
     "kind": "collect",
-    "requires": { "item_id": "mushroom", "count": 3 },
-    "reward": { "item_id": "herb", "count": 3, "affection": 5 },
+    "requires": {
+      "item_id": "mushroom",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "herb",
+      "count": 3,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -203,18 +333,32 @@
     "title": "天亮前的露水",
     "desc": "小翠：'……有个方子非得用天亮前的露水不可。能帮我收 2 滴吗？很难，我知道。'",
     "kind": "collect",
-    "requires": { "item_id": "dewdrop", "count": 2 },
-    "reward": { "item_id": "heart_pot", "count": 1, "affection": 7 },
-    "min_affection_level": "warm",
-    "repeatable": true
+    "requires": {
+      "item_id": "dewdrop",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "heart_pot",
+      "count": 1,
+      "affection": 7
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "herbalist_cui_collect_bark": {
     "npc_id": "herbalist_cui",
     "title": "熬药要古树皮",
     "desc": "小翠：'古树自然脱落的树皮熬药最好，能帮我捡 3 片回来吗？别去剥活树的。'",
     "kind": "collect",
-    "requires": { "item_id": "bark", "count": 3 },
-    "reward": { "item_id": "herb", "count": 2, "affection": 5 },
+    "requires": {
+      "item_id": "bark",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "herb",
+      "count": 2,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -223,9 +367,17 @@
     "title": "老咸的腿疾药",
     "desc": "小翠：'老咸阴雨天腿疼，这包药他从来不肯自己来拿。麻烦你替我送去，看着他收下。'",
     "kind": "deliver",
-    "requires": { "target_npc": "pirate_lao", "item_id": "herb", "count": 1 },
-    "reward": { "item_id": "potion_tea", "count": 2, "affection": 6 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "target_npc": "pirate_lao",
+      "item_id": "herb",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 2,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "herbalist_cui_relay_lan": {
@@ -236,21 +388,35 @@
     "requires": {
       "target_npc": "traveler_lan",
       "message_summary": "小翠提醒你：红杆的草有毒，千万别采",
-      "keywords": ["小翠", "毒", "草"]
+      "keywords": [
+        "小翠",
+        "毒",
+        "草"
+      ]
     },
-    "reward": { "item_id": "medi_pack", "count": 2, "affection": 5 },
-    "min_affection_level": "neutral",
+    "reward": {
+      "item_id": "medi_pack",
+      "count": 2,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": false
   },
-
   "traveler_lan_collect_acorn": {
     "npc_id": "traveler_lan",
     "title": "旅途零食",
     "desc": "小蓝：'下次出门想带点橡果当零嘴，能帮我捡 6 颗橡果吗？'",
     "kind": "collect",
-    "requires": { "item_id": "acorn", "count": 6 },
-    "reward": { "item_id": "compass", "count": 1, "affection": 4 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "acorn",
+      "count": 6
+    },
+    "reward": {
+      "item_id": "compass",
+      "count": 1,
+      "affection": 4
+    },
+    "min_affection_level": "like",
     "repeatable": true
   },
   "traveler_lan_collect_shell": {
@@ -258,9 +424,16 @@
     "title": "湖边的贝壳",
     "desc": "小蓝：'我在收集各地的贝壳！湖边那种螺旋的最好看，能帮我捡 3 个吗？'",
     "kind": "collect",
-    "requires": { "item_id": "shell", "count": 3 },
-    "reward": { "item_id": "map_piece", "count": 1, "affection": 5 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "shell",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "map_piece",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "traveler_lan_collect_moonstone": {
@@ -268,18 +441,32 @@
     "title": "夜路要照明",
     "desc": "小蓝：'晚上赶路老摔跤，听说月光石会自己发光。能帮我找 1 块吗？'",
     "kind": "collect",
-    "requires": { "item_id": "moonstone", "count": 1 },
-    "reward": { "item_id": "dice", "count": 2, "affection": 6 },
-    "min_affection_level": "warm",
+    "requires": {
+      "item_id": "moonstone",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "dice",
+      "count": 2,
+      "affection": 6
+    },
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "traveler_lan_collect_water": {
     "npc_id": "traveler_lan",
     "title": "出发前灌满水",
-    "desc": "小蓝：'明天要走远路，能帮我备 2 壶水吗？路上没水可要命的。'",
+    "desc": "小蓝：'明天要走远路，得备壶水。小翠那种密封的陶壶最好使，能帮我讨 1 只来吗？'",
     "kind": "collect",
-    "requires": { "item_id": "water_pot", "count": 2 },
-    "reward": { "item_id": "berry", "count": 4, "affection": 4 },
+    "requires": {
+      "item_id": "water_pot",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "berry",
+      "count": 4,
+      "affection": 4
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -288,10 +475,18 @@
     "title": "给煊赫的地图残片",
     "desc": "小蓝：'这块地图残片上的符号我看不懂，煊赫肯定认识。你帮我送过去问问？'",
     "kind": "deliver",
-    "requires": { "target_npc": "mystic_xuan", "item_id": "map_piece", "count": 1 },
-    "reward": { "item_id": "gem_green", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
-    "repeatable": true
+    "requires": {
+      "target_npc": "mystic_xuan",
+      "item_id": "map_piece",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "gem_green",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "traveler_lan_relay_baker": {
     "npc_id": "traveler_lan",
@@ -301,10 +496,18 @@
     "requires": {
       "target_npc": "bear_baker",
       "message_summary": "小蓝后天出发，想订些耐放的干粮",
-      "keywords": ["小蓝", "干粮", "出发"]
+      "keywords": [
+        "小蓝",
+        "干粮",
+        "出发"
+      ]
     },
-    "reward": { "item_id": "map_piece", "count": 1, "affection": 4 },
-    "min_affection_level": "neutral",
+    "reward": {
+      "item_id": "map_piece",
+      "count": 1,
+      "affection": 4
+    },
+    "min_affection_level": "warm",
     "repeatable": false
   },
   "traveler_lan_relay_lao": {
@@ -315,31 +518,52 @@
     "requires": {
       "target_npc": "pirate_lao",
       "message_summary": "小蓝后天要走了，跟你告别，说会想你",
-      "keywords": ["小蓝", "走", "想"]
+      "keywords": [
+        "小蓝",
+        "走",
+        "想"
+      ]
     },
-    "reward": { "item_id": "map_piece", "count": 1, "affection": 5 },
+    "reward": {
+      "item_id": "map_piece",
+      "count": 1,
+      "affection": 5
+    },
     "min_affection_level": "warm",
     "repeatable": false
   },
-
   "pirate_lao_collect_rock": {
     "npc_id": "pirate_lao",
     "title": "好像看到块奇怪的石头",
     "desc": "老咸：'我河边看到块奇形怪状的石头，能去捡 2 块回来给我看看吗？'",
     "kind": "collect",
-    "requires": { "item_id": "rock", "count": 2 },
-    "reward": { "item_id": "compass", "count": 1, "affection": 4 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "rock",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "compass",
+      "count": 1,
+      "affection": 4
+    },
+    "min_affection_level": "like",
     "repeatable": true
   },
   "pirate_lao_collect_octopus": {
     "npc_id": "pirate_lao",
     "title": "馋那口章鱼了",
-    "desc": "老咸：'嗨呀，忽然馋海里那口鲜味了。帮老头子弄 1 只章鱼来，下酒！'",
+    "desc": "老咸：'嗨呀，忽然馋海里那口鲜味了。小蓝跑船见得多，问他讨 1 只章鱼来，下酒！'",
     "kind": "collect",
-    "requires": { "item_id": "octopus", "count": 1 },
-    "reward": { "item_id": "silver_cup", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "octopus",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "silver_cup",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "like",
     "repeatable": true
   },
   "pirate_lao_collect_fish": {
@@ -347,39 +571,68 @@
     "title": "比比谁钓得多",
     "desc": "老咸：'今天手气不行，一条没上钩。你替我钓 3 条来，别让我在河边丢人。'",
     "kind": "collect",
-    "requires": { "item_id": "fish", "count": 3 },
-    "reward": { "item_id": "gourd", "count": 1, "affection": 5 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "item_id": "fish",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "gourd",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "warm",
     "repeatable": true
   },
   "pirate_lao_collect_gourd": {
     "npc_id": "pirate_lao",
-    "title": "酒葫芦漏了",
-    "desc": "老咸：'我那葫芦裂了口子，酒漏了一路。帮我找 2 个新的来，晒干的那种。'",
+    "title": "给酒壶配个塞子",
+    "desc": "老咸：'我那葫芦裂了口子，得拿螺壳磨个新塞子。去湖边捡 3 个贝壳来。'",
     "kind": "collect",
-    "requires": { "item_id": "gourd", "count": 2 },
-    "reward": { "item_id": "gold_cup", "count": 1, "affection": 6 },
-    "min_affection_level": "warm",
-    "repeatable": true
+    "requires": {
+      "item_id": "shell",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "gold_cup",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "pirate_lao_collect_pearl": {
     "npc_id": "pirate_lao",
     "title": "湖底还有珍珠吗",
     "desc": "老咸：'年轻时我在海里摸过珍珠……你去湖底看看，能摸上来 1 颗算你本事。'",
     "kind": "collect",
-    "requires": { "item_id": "pearl", "count": 1 },
-    "reward": { "item_id": "treasure_small", "count": 1, "affection": 8 },
-    "min_affection_level": "warm",
-    "repeatable": true
+    "requires": {
+      "item_id": "pearl",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "treasure_small",
+      "count": 1,
+      "affection": 8
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "pirate_lao_deliver_cup_to_baker": {
     "npc_id": "pirate_lao",
     "title": "还苔老板的杯子",
     "desc": "老咸：'这银杯是上回从苔老板那儿顺来的……咳，是借的。你替我还回去，别说是我不好意思。'",
     "kind": "deliver",
-    "requires": { "target_npc": "bear_baker", "item_id": "silver_cup", "count": 1 },
-    "reward": { "item_id": "compass", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
+    "requires": {
+      "target_npc": "bear_baker",
+      "item_id": "silver_cup",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "compass",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "like",
     "repeatable": true
   },
   "pirate_lao_relay_cui": {
@@ -390,10 +643,18 @@
     "requires": {
       "target_npc": "herbalist_cui",
       "message_summary": "老咸的腿好多了，谢谢你的药",
-      "keywords": ["老咸", "腿", "药"]
+      "keywords": [
+        "老咸",
+        "腿",
+        "药"
+      ]
     },
-    "reward": { "item_id": "shell", "count": 3, "affection": 5 },
-    "min_affection_level": "neutral",
+    "reward": {
+      "item_id": "silver_cup",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "like",
     "repeatable": false
   },
   "pirate_lao_relay_xuan": {
@@ -404,21 +665,35 @@
     "requires": {
       "target_npc": "mystic_xuan",
       "message_summary": "老咸傍晚要在河边等你",
-      "keywords": ["老咸", "傍晚", "河边"]
+      "keywords": [
+        "老咸",
+        "傍晚",
+        "河边"
+      ]
     },
-    "reward": { "item_id": "treasure_small", "count": 1, "affection": 5 },
-    "min_affection_level": "warm",
+    "reward": {
+      "item_id": "treasure_small",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "love",
     "repeatable": false
   },
-
   "mystic_xuan_collect_crystal": {
     "npc_id": "mystic_xuan",
-    "title": "……需要水晶",
-    "desc": "煊赫：'……我需要水晶，1 块就够。'",
+    "title": "……需要古树皮",
+    "desc": "煊赫：'……古树自然脱落的皮，3 片。要自己落下的，别去剥。'",
     "kind": "collect",
-    "requires": { "item_id": "crystal", "count": 1 },
-    "reward": { "item_id": "glow_stone", "count": 1, "affection": 6 },
-    "min_affection_level": "warm",
+    "requires": {
+      "item_id": "bark",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "gem_green",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
     "repeatable": false
   },
   "mystic_xuan_deliver_book_to_lan": {
@@ -426,38 +701,67 @@
     "title": "把这本古书交给小蓝",
     "desc": "煊赫：'……这本古书你拿着，交给小蓝。她会用得上。'",
     "kind": "deliver",
-    "requires": { "target_npc": "traveler_lan", "item_id": "ancient_book", "count": 1 },
-    "reward": { "item_id": "moonstone", "count": 1, "affection": 5 },
-    "min_affection_level": "warm",
+    "requires": {
+      "target_npc": "traveler_lan",
+      "item_id": "ancient_book",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "moonstone",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "mystic_xuan_collect_glow_stone": {
     "npc_id": "mystic_xuan",
     "title": "……会发光的石头",
-    "desc": "煊赫：'……我在找会自己发光的石头。你若看见，带 2 块给我。'",
+    "desc": "煊赫：'……会自己发光的石头。老咸的旧箱底压着一块，去替我取来。'",
     "kind": "collect",
-    "requires": { "item_id": "glow_stone", "count": 2 },
-    "reward": { "item_id": "scroll_ice", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
-    "repeatable": true
+    "requires": {
+      "item_id": "glow_stone",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "scroll_ice",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "mystic_xuan_collect_moonstone": {
     "npc_id": "mystic_xuan",
-    "title": "……夜里冷光的那种",
-    "desc": "煊赫：'……月光石。1 块。别在白天找，找不到的。'",
+    "title": "……夜里要用的草",
+    "desc": "煊赫：'……薄荷。3 片，新鲜的。夜里熬东西要用。'",
     "kind": "collect",
-    "requires": { "item_id": "moonstone", "count": 1 },
-    "reward": { "item_id": "gem_red", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
-    "repeatable": true
+    "requires": {
+      "item_id": "mint",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "gem_red",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "mystic_xuan_collect_scroll": {
     "npc_id": "mystic_xuan",
     "title": "……还要空白卷轴",
-    "desc": "煊赫：'……我要写点东西。空白卷轴，3 卷。别问写什么。'",
+    "desc": "煊赫：'……我要写点东西。空白卷轴，1 卷。焰仔手上有，去讨。别问写什么。'",
     "kind": "collect",
-    "requires": { "item_id": "scroll_blank", "count": 3 },
-    "reward": { "item_id": "ancient_book", "count": 1, "affection": 5 },
+    "requires": {
+      "item_id": "scroll_blank",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "ancient_book",
+      "count": 1,
+      "affection": 5
+    },
     "min_affection_level": "neutral",
     "repeatable": true
   },
@@ -466,9 +770,16 @@
     "title": "……古树的树脂",
     "desc": "煊赫：'……古树落下的树脂，2 块。它记得很多事。'",
     "kind": "collect",
-    "requires": { "item_id": "resin", "count": 2 },
-    "reward": { "item_id": "crystal", "count": 1, "affection": 7 },
-    "min_affection_level": "warm",
+    "requires": {
+      "item_id": "resin",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "crystal",
+      "count": 1,
+      "affection": 7
+    },
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "mystic_xuan_deliver_stone_to_lao": {
@@ -476,10 +787,18 @@
     "title": "……把萤石给老咸",
     "desc": "煊赫：'……老咸夜里看不清路。这块萤石，你替我给他。别说是我给的。'",
     "kind": "deliver",
-    "requires": { "target_npc": "pirate_lao", "item_id": "glow_stone", "count": 1 },
-    "reward": { "item_id": "gem_green", "count": 1, "affection": 6 },
-    "min_affection_level": "neutral",
-    "repeatable": true
+    "requires": {
+      "target_npc": "pirate_lao",
+      "item_id": "glow_stone",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "gem_green",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "love",
+    "repeatable": false
   },
   "mystic_xuan_relay_cui": {
     "npc_id": "mystic_xuan",
@@ -489,10 +808,324 @@
     "requires": {
       "target_npc": "herbalist_cui",
       "message_summary": "煊赫提醒你夜里别去古树那边采药",
-      "keywords": ["煊赫", "古树", "夜"]
+      "keywords": [
+        "煊赫",
+        "古树",
+        "夜"
+      ]
     },
-    "reward": { "item_id": "glow_stone", "count": 1, "affection": 5 },
+    "reward": {
+      "item_id": "scroll_ice",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "love",
+    "repeatable": false
+  },
+  "pirate_lao_collect_coin_purse": {
+    "npc_id": "pirate_lao",
+    "title": "找一件钱袋",
+    "desc": "老咸：'我那鼓囊囊的钱袋不见了，你要是碰上一只，先替我拿着。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "coin_purse",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "octopus",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "mystic_xuan_collect_compass": {
+    "npc_id": "mystic_xuan",
+    "title": "找一件老罗盘",
+    "desc": "煊赫：'那只指不了北的老罗盘，我想借来看看它到底坏在哪。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "compass",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "fox_postman_collect_cookie": {
+    "npc_id": "fox_postman",
+    "title": "找一件饼干",
+    "desc": "焰仔：'我那炉幸运饼干的方子丢了，你手上要有一块，让我照着琢磨琢磨？'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "cookie",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "scroll_blank",
+      "count": 1,
+      "affection": 6
+    },
     "min_affection_level": "neutral",
+    "repeatable": false
+  },
+  "bear_baker_collect_gem_green": {
+    "npc_id": "bear_baker",
+    "title": "找一件翡翠",
+    "desc": "苔老板：'翡翠那抹绿……我想摆在柜台上镇店。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "gem_green",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "cookie",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "traveler_lan_collect_gem_red": {
+    "npc_id": "traveler_lan",
+    "title": "找一件红宝石",
+    "desc": "小蓝：'那种温热得像有生命的红宝石，我想收一颗。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "gem_red",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "pan_flute",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "traveler_lan_collect_gold_cup": {
+    "npc_id": "traveler_lan",
+    "title": "找一件金杯",
+    "desc": "小蓝：'听说镇上有只金酒杯……我想亲眼瞧瞧那做工。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "gold_cup",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "pan_flute",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "mystic_xuan_collect_gold_key": {
+    "npc_id": "mystic_xuan",
+    "title": "找一件金钥匙",
+    "desc": "煊赫：'古老的金钥匙，究竟能开什么锁？弄一把来，我们一起试试。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "gold_key",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "traveler_lan_collect_gourd": {
+    "npc_id": "traveler_lan",
+    "title": "找一件葫芦",
+    "desc": "小蓝：'晒干的葫芦最适合盛水，帮我讨一只来。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "gourd",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "pan_flute",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "herbalist_cui_collect_heart_pot": {
+    "npc_id": "herbalist_cui",
+    "title": "找一件红心瓶",
+    "desc": "小翠：'那瓶红色的液体，据说能治愈心情……我想试试。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "heart_pot",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "pirate_lao_collect_medi_pack": {
+    "npc_id": "pirate_lao",
+    "title": "找一件药包",
+    "desc": "老咸：'药包用完了，再给我弄一个来备着。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "medi_pack",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "octopus",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "pirate_lao_collect_noodle": {
+    "npc_id": "pirate_lao",
+    "title": "找一件汤面",
+    "desc": "老咸：'今天懒得开火，你要是弄得到一碗热汤面，我拿东西跟你换。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "noodle",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "octopus",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "herbalist_cui_collect_pan_flute": {
+    "npc_id": "herbalist_cui",
+    "title": "找一件排笛",
+    "desc": "小翠：'那支竹排笛的调子我一直忘不掉，你替我寻一支来。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "pan_flute",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "mystic_xuan_collect_potion_tea": {
+    "npc_id": "mystic_xuan",
+    "title": "找一件草药茶",
+    "desc": "煊赫：'嗓子这两天不舒服，来杯草药茶最好使。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "potion_tea",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "fox_postman_collect_scroll_fire": {
+    "npc_id": "fox_postman",
+    "title": "找一件火卷轴",
+    "desc": "焰仔：'火焰卷轴——别问我要干嘛，弄来就是了！'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "scroll_fire",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "scroll_blank",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "neutral",
+    "repeatable": false
+  },
+  "mystic_xuan_collect_scroll_ice": {
+    "npc_id": "mystic_xuan",
+    "title": "找一件冰卷轴",
+    "desc": "煊赫：'寒冰的封印卷轴，我得对着实物才能校对手稿。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "scroll_ice",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "mystic_xuan_collect_scroll_thunder": {
+    "npc_id": "mystic_xuan",
+    "title": "找一件雷卷轴",
+    "desc": "煊赫：'雷卷轴上的符文……我研究了半辈子也没见着实物。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "scroll_thunder",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "bear_baker_collect_silver_key": {
+    "npc_id": "bear_baker",
+    "title": "找一件银钥匙",
+    "desc": "苔老板：'我这有把锁，配得上银钥匙的那种。你替我寻一把来。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "silver_key",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "cookie",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
+    "repeatable": false
+  },
+  "pirate_lao_collect_treasure_small": {
+    "npc_id": "pirate_lao",
+    "title": "找一件小宝箱",
+    "desc": "老咸：'那口上锁的小宝箱，我做梦都想摸一摸。你要是弄得到，我什么都给你！'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "treasure_small",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "octopus",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "warm",
     "repeatable": false
   }
 }

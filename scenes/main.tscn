@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" uid="uid://bdebate01" path="res://scenes/ui/debate_panel.tscn" id="20_db"]
 [ext_resource type="PackedScene" uid="uid://bpower01" path="res://scenes/ui/power_panel.tscn" id="21_pw"]
 [ext_resource type="PackedScene" uid="uid://bcrisis01" path="res://scenes/ui/crisis_panel.tscn" id="22_cr"]
+[ext_resource type="PackedScene" uid="uid://cstaminahud01" path="res://scenes/ui/stamina_hud.tscn" id="30_shud"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_eb6dy"]
 size = Vector2(27.642277, 31.714153)
@@ -260,6 +261,7 @@ display_name = "我的家"
 sprite_texture = ExtResource("12_houses")
 sprite_region = Rect2(0, 0, 64, 48)
 entry_offset = Vector2(0, 24)
+is_rest_spot = true
 
 [node name="StaticBody2D9" type="StaticBody2D" parent="Buildings/MyHome" unique_id=1575066426]
 position = Vector2(-600, -560)
@@ -1029,9 +1031,9 @@ script = ExtResource("17_qhud")
 
 [node name="Panel" type="Panel" parent="QuestHUD" unique_id=917345002]
 offset_left = 16.0
-offset_top = 152.0
+offset_top = 196.0
 offset_right = 400.0
-offset_bottom = 286.0
+offset_bottom = 330.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_qhud")
 
 [node name="VBox" type="VBoxContainer" parent="QuestHUD/Panel" unique_id=917345003]
@@ -1067,20 +1069,18 @@ unique_name_in_owner = true
 
 [node name="ClockHUD" parent="." unique_id=502427576 instance=ExtResource("5_clock")]
 
+[node name="StaminaHUD" parent="." unique_id=1037899181 instance=ExtResource("30_shud")]
+
 [node name="ElectionHUD" parent="." unique_id=923226805 instance=ExtResource("18_ehud")]
 
 [node name="Panel" parent="ElectionHUD" index="0"]
-offset_right = 336.0
+offset_bottom = 128.0
 
 [node name="VBox" parent="ElectionHUD/Panel" index="0"]
 layout_mode = 0
 anchors_preset = 0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
 grow_horizontal = 1
 grow_vertical = 1
 
@@ -1091,6 +1091,7 @@ layout_mode = 2
 layout_mode = 2
 
 [node name="Name" parent="ElectionHUD/Panel/VBox/PlayerRow" index="0"]
+custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 
 [node name="Bar" parent="ElectionHUD/Panel/VBox/PlayerRow" index="1"]
@@ -1104,6 +1105,7 @@ layout_mode = 2
 
 [node name="Name" parent="ElectionHUD/Panel/VBox/OpponentRow" index="0"]
 unique_name_in_owner = false
+custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 
 [node name="Bar" parent="ElectionHUD/Panel/VBox/OpponentRow" index="1"]

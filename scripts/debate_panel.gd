@@ -1,10 +1,14 @@
 extends CanvasLayer
-## 辩论日面板（D6 辩论阶段自动开启 / 调试 Ctrl+B 手动触发）
+## 辩论日面板（在野第二天自动开启 / 调试 Ctrl+B 手动触发）
+##
+## 玩法：阵营站队。每题 4 个立场象限，镇民各自站在自己倾向的象限上（选项里直接标出），
+## 玩家选一个象限、对手同时也选一个抢票：
+##   与你同象限的镇民 → 你得分；被对手抢走的 → 他得分、你反而扣分。
+## 立场来回横跳会被全镇看轻（连贯性折扣），所以不能每题都追着人多的选。
 ##
 ## 流程：
-##   debate_start → 收到 3 道辩题 → 逐题展示，玩家从 4 个立场象限中选 1
-##   选完一题 → 请求对手即时反驳 → 显示反驳 → 下一题
-##   3 题答完 → debate_submit → 显示评分结果 → 关闭
+##   debate_start → 收到 3 道辩题 + 阵营分布 → 逐题选择 → 对手即时反驳
+##   3 题答完 → debate_submit → 复盘（对手站位 / 连贯性 / 倒戈镇民）→ 关闭
 ##
 ## 立场象限固定顺序：radical / conservative / pleasing / pragmatic
 
@@ -30,14 +34,19 @@ const STANCE_ICON := {
 var _questions: Array = []
 var _stance_labels: Dictionary = {}
 var _opponent_id: String = ""
+var _opponent_name: String = ""
 var _index: int = 0
 var _answers: Dictionary = {}          # {index(int): stance(String)}
 var _done_terms: Dictionary = {}       # 已辩论过的 term_id，避免重复弹
 var _done_sessions: Dictionary = {}    # 已开过的场次 "term:session"，避免重开
 var _pending_session: int = 0          # 本次请求的场次
-var _total_sessions: int = 3
+var _total_sessions: int = 2
 var _current_term_id: int = -1
 var _waiting_rebut: bool = false
+## 各象限站了哪些镇民：{stance: [名字, ...]}，供选项按钮标出「选它能拿下谁」
+var _camp_names: Dictionary = {}
+## 已信对手黑料、不会再站到对手那边的镇民名字（八卦日的回报）
+var _smeared_names: Array[String] = []
 
 
 func _ready() -> void:
@@ -74,8 +83,8 @@ func _typing_in_textbox() -> bool:
 	return f is LineEdit or f is TextEdit
 
 
-## 辩论日分多场：上午/下午/傍晚各一场，到点才开，避免整天只辩一次太单薄
-const DEBATE_SESSION_HOURS := [9, 14, 18]
+## 辩论日分两场：上午/下午各一场。阵营站队单场信息量大，故比旧版少一场、每场多一题。
+const DEBATE_SESSION_HOURS := [9, 15]
 const DEBATE_CLOSE_HOUR := 21
 
 
@@ -114,13 +123,35 @@ func _on_questions(info: Dictionary) -> void:
 	_questions = qs
 	_stance_labels = info.get("stance_labels", {})
 	_opponent_id = String(info.get("opponent_id", ""))
+	_opponent_name = String(info.get("opponent_name", ""))
+	if _opponent_name == "":
+		_opponent_name = _id_to_name(_opponent_id)
 	_current_term_id = int(info.get("term_id", -1))
 	_pending_session = int(info.get("session", _pending_session))
 	_total_sessions = int(info.get("total_sessions", _total_sessions))
+	_read_camps(info)
 	_index = 0
 	_answers = {}
 	_open()
 	_show_question()
+
+
+## 解析后端下发的阵营分布，缓存成 {stance: [名字...]} 供选项按钮标注
+func _read_camps(info: Dictionary) -> void:
+	_camp_names = {}
+	var smeared_ids: Array = info.get("smeared_voters", [])
+	var id_to_name: Dictionary = {}
+	for camp in info.get("camps", []):
+		var stance := String(camp.get("stance", ""))
+		var names: Array[String] = []
+		for npc in camp.get("npcs", []):
+			var nm := String(npc.get("name", ""))
+			names.append(nm)
+			id_to_name[String(npc.get("npc_id", ""))] = nm
+		_camp_names[stance] = names
+	_smeared_names = []
+	for nid in smeared_ids:
+		_smeared_names.append(String(id_to_name.get(String(nid), String(nid))))
 
 
 func _open() -> void:
@@ -161,9 +192,18 @@ func _show_question() -> void:
 		if not options.has(stance):
 			continue
 		var btn := Button.new()
-		btn.text = "%s %s" % [STANCE_ICON.get(stance, ""), String(options[stance])]
+		# 选项上直接标出站在该象限的镇民：玩家要能看见「选它能拿下谁」，取舍才成立
+		var camp: Array = _camp_names.get(stance, [])
+		var camp_txt := ""
+		if camp.size() > 0:
+			camp_txt = "\n　└ 站这边的：%s" % ", ".join(camp)
+		else:
+			camp_txt = "\n　└ 无人站这边（谁也拿不到，但保住了立场）"
+		btn.text = "%s %s%s" % [
+			STANCE_ICON.get(stance, ""), String(options[stance]), camp_txt,
+		]
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.custom_minimum_size = Vector2(560, 44)
+		btn.custom_minimum_size = Vector2(560, 56)
 		btn.add_theme_font_size_override("font_size", 13)
 		btn.set_meta("stance", stance)
 		btn.set_meta("opt_text", String(options[stance]))
@@ -242,6 +282,8 @@ func _on_result(info: Dictionary) -> void:
 		return
 	if _current_term_id >= 0:
 		_done_terms[_current_term_id] = true
+	# 结算回包也带阵营与倒戈名单，用它刷新一次，保证复盘文案取的是最终状态
+	_read_camps(info)
 
 	var p_total := float(info.get("player_debate_total", 0.0))
 	var o_total := float(info.get("opponent_debate_total", 0.0))
@@ -260,6 +302,22 @@ func _on_result(info: Dictionary) -> void:
 		if stance_count.has(s):
 			stance_summary.append("%s×%d" % [String(labels.get(s, s)), int(stance_count[s])])
 	lines.append("你的立场：%s" % (" · ".join(stance_summary) if stance_summary.size() > 0 else "—"))
+	# 连贯性：立场越集中，分数折扣越轻
+	var consistency := float(info.get("consistency", 1.0))
+	var c_color := "#88ee88" if consistency >= 0.85 else ("#ffd479" if consistency >= 0.7 else "#ff8888")
+	var c_word := "立场坚定" if consistency >= 0.85 else ("略有摇摆" if consistency >= 0.7 else "反复无常")
+	lines.append("镇民眼中的你：[color=%s]%s（得分 ×%.2f）[/color]" % [c_color, c_word, consistency])
+	# 对手每题站了哪儿
+	var picks: Array = info.get("opponent_picks", [])
+	if picks.size() > 0:
+		var pick_txt: Array[String] = []
+		for p in picks:
+			pick_txt.append(String(labels.get(String(p), String(p))))
+		lines.append("%s 的站位：%s" % [_opponent_name, " → ".join(pick_txt)])
+	# 八卦日的回报兑现
+	if _smeared_names.size() > 0:
+		lines.append("[color=#88ee88]🗣 %s 听信了对手的坏话，这次没站到他那边[/color]"
+			% ", ".join(_smeared_names))
 	lines.append("")
 	# 声望影响对比
 	var p_color := "#88ee88" if p_total >= o_total else "#ff8888"

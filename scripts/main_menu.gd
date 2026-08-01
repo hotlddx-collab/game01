@@ -7,7 +7,6 @@ extends Control
 @onready var start_button: Button = %StartButton
 @onready var quit_button: Button = %QuitButton
 @onready var title_box: VBoxContainer = %TitleBox
-@onready var tag_row: VBoxContainer = %TagRow
 @onready var hook_label: Label = %HookLabel
 
 ## 轮播的悬念文案：每隔几秒换一句，暗示 NPC 真的在背地里活动
@@ -31,7 +30,7 @@ func _ready() -> void:
 	_start_hook_rotation()
 
 
-## 入场动效：标题下沉淡入 → 卖点标签依次弹出
+## 入场动效：标题下沉淡入
 func _play_intro() -> void:
 	title_box.modulate.a = 0.0
 	title_box.position.y -= 24
@@ -39,18 +38,6 @@ func _play_intro() -> void:
 	tw.tween_property(title_box, "modulate:a", 1.0, 0.7).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(title_box, "position:y", title_box.position.y + 24, 0.8) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-	for i in tag_row.get_child_count():
-		var tag := tag_row.get_child(i) as Control
-		if tag == null:
-			continue
-		tag.modulate.a = 0.0
-		var from_x := tag.position.x - 30.0
-		tag.position.x = from_x
-		var t := create_tween().set_parallel(true)
-		t.tween_property(tag, "modulate:a", 1.0, 0.4).set_delay(0.55 + i * 0.13)
-		t.tween_property(tag, "position:x", from_x + 30.0, 0.5) \
-			.set_delay(0.55 + i * 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 悬念文案轮播：每 3.4 秒淡出换句再淡入

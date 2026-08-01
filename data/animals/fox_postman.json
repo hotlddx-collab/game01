@@ -89,7 +89,8 @@
       "map_piece",
       "feather",
       "fish",
-      "cookie"
+      "cookie",
+      "octopus"
     ],
     "dislikes": [
       "bread",
@@ -105,7 +106,11 @@
       "id": "hobby",
       "question": "考你一个——老子送信之外，最上心的是啥？别乱猜！",
       "answer": "收集旧书信",
-      "wrong": ["睡大觉", "钓鱼", "种花"],
+      "wrong": [
+        "睡大觉",
+        "钓鱼",
+        "种花"
+      ],
       "clue": "焰仔的挎包里塞满了根本不用送的旧信，一封都舍不得扔",
       "hint_topic": "旧信"
     },
@@ -113,14 +118,22 @@
       "id": "secret",
       "question": "哼，那你说说，我嘴上骂骂咧咧，心里其实最怕啥？",
       "answer": "别人不需要他",
-      "wrong": ["下雨", "黑夜", "苔老板"],
+      "wrong": [
+        "下雨",
+        "黑夜",
+        "苔老板"
+      ],
       "clue": "没人寄信的日子，焰仔会在邮局门口站很久",
       "hint_topic": "被需要"
     }
   ],
   "return_gifts": [
-    "letter",
+    "scroll_blank",
     "coin_purse"
+  ],
+  "rare_return_gifts": [
+    "scroll_thunder",
+    "gem_red"
   ],
   "signature_gift": "letter",
   "movement": {
@@ -131,7 +144,13 @@
     "forage": {
       "chance": 0.6,
       "radius": 240,
-      "items": ["feather", "acorn", "berry", "mushroom", "bread"]
+      "items": [
+        "feather",
+        "acorn",
+        "berry",
+        "mushroom",
+        "bread"
+      ]
     }
   },
   "schedule_weekend": [
@@ -180,5 +199,8 @@
       "location": "home_fox",
       "intent": "睡觉"
     }
+  ],
+  "mid_return_gifts": [
+    "silver_key"
   ]
 }

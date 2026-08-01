@@ -40,6 +40,10 @@ REL_TRUST_SCALE = 0.22     # 亲信度：听者越亲近传谣者，越愿意信
 # 关系为负时，听者本就看目标不顺眼 → 坏话正中下怀，额外加成
 GRUDGE_BONUS_SCALE = 0.25
 
+# 八卦日加成：在野第一天全镇嘴碎、耳根子软，散出去的话更容易被采信。
+# 数值约等于把「半信半疑」推过阈值，但撬不动铁关系（护主度系数更高）。
+GOSSIP_DAY_BONUS = 8.0
+
 
 def judge(
     listener_id: str,
@@ -49,6 +53,7 @@ def judge(
     affection_store,
     relation_store,
     rng: Optional[random.Random] = None,
+    gossip_day: bool = False,
 ) -> Dict:
     """返回 {"believe": bool, "score": float, "reason": str}。
 
@@ -56,6 +61,7 @@ def judge(
     source_id   : 谁说的（'player' 或 animal_id）
     subject_id  : 谣言主角（被造谣者，'player' 或 animal_id）
     sentiment   : smear / praise
+    gossip_day  : 是否八卦日（在野 D1），全镇耳根子软，采信更容易
     """
     r = rng or random
     score = 0.0
@@ -98,7 +104,12 @@ def judge(
             score += (-rel_subj) * GRUDGE_BONUS_SCALE
             reasons.append("本来就有嫌隙")
 
-    # ---- 3. 随机扰动 ----
+    # ---- 3. 八卦日加成 ----
+    if gossip_day:
+        score += GOSSIP_DAY_BONUS
+        reasons.append("今天镇上正传得凶")
+
+    # ---- 4. 随机扰动 ----
     score += r.uniform(-RANDOM_SPAN, RANDOM_SPAN)
 
     believe = score > BELIEVE_THRESHOLD

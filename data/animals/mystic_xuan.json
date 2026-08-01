@@ -84,7 +84,9 @@
       "herb",
       "compass",
       "potion_tea",
-      "gold_key"
+      "gold_key",
+      "scroll_ice",
+      "scroll_thunder"
     ],
     "dislikes": [
       "bread",
@@ -100,7 +102,11 @@
       "id": "hobby",
       "question": "……问你一件事。你觉得我在这镇上，究竟在做什么？",
       "answer": "观察",
-      "wrong": ["做买卖", "找宝藏", "等人"],
+      "wrong": [
+        "做买卖",
+        "找宝藏",
+        "等人"
+      ],
       "clue": "煊赫从不参与任何事，却总在人群边缘站着看",
       "hint_topic": "旁观"
     },
@@ -108,14 +114,22 @@
       "id": "interest",
       "question": "……那，什么东西能让我停下脚步？",
       "answer": "会发光的石头",
-      "wrong": ["金子", "美食", "热闹"],
+      "wrong": [
+        "金子",
+        "美食",
+        "热闹"
+      ],
       "clue": "煊赫袖子里藏着一块微微发亮的石头，夜里会拿出来看",
       "hint_topic": "发光石"
     }
   ],
   "return_gifts": [
-    "glow_stone",
-    "scroll_fire"
+    "coin_purse",
+    "water_pot"
+  ],
+  "rare_return_gifts": [
+    "heart_pot",
+    "gem_green"
   ],
   "signature_gift": "glow_stone",
   "movement": {
@@ -126,7 +140,13 @@
     "forage": {
       "chance": 0.4,
       "radius": 200,
-      "items": ["crystal", "moonstone", "ancient_book", "pearl", "dewdrop"]
+      "items": [
+        "crystal",
+        "moonstone",
+        "ancient_book",
+        "pearl",
+        "dewdrop"
+      ]
     }
   },
   "schedule_weekend": [
@@ -160,5 +180,8 @@
       "location": "hilltop",
       "intent": "又回高处"
     }
+  ],
+  "mid_return_gifts": [
+    "silver_key"
   ]
 }

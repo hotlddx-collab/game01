@@ -89,7 +89,8 @@
       "mushroom",
       "feather",
       "honey",
-      "pan_flute"
+      "pan_flute",
+      "heart_pot"
     ],
     "dislikes": [
       "fish",
@@ -105,7 +106,11 @@
       "id": "hobby",
       "question": "……我想问问你，你觉得我一天里最安心的时候是什么时候？",
       "answer": "天亮前采露水",
-      "wrong": ["赶集卖药", "跟人聊天", "数星星"],
+      "wrong": [
+        "赶集卖药",
+        "跟人聊天",
+        "数星星"
+      ],
       "clue": "天没亮小翠就提着小罐出门，回来时鞋子全湿了",
       "hint_topic": "露水"
     },
@@ -113,7 +118,11 @@
       "id": "companion",
       "question": "那……你猜我跟谁待着最自在？",
       "answer": "跟植物",
-      "wrong": ["跟小蓝", "跟一群人", "跟焰仔"],
+      "wrong": [
+        "跟小蓝",
+        "跟一群人",
+        "跟焰仔"
+      ],
       "clue": "小翠对着草药说话的时间，比对人说话还多",
       "hint_topic": "植物"
     }
@@ -121,6 +130,10 @@
   "return_gifts": [
     "potion_tea",
     "medi_pack"
+  ],
+  "rare_return_gifts": [
+    "scroll_ice",
+    "gem_green"
   ],
   "signature_gift": "potion_tea",
   "movement": {
@@ -131,7 +144,13 @@
     "forage": {
       "chance": 0.5,
       "radius": 200,
-      "items": ["herb", "mint", "mushroom", "berry", "dewdrop"]
+      "items": [
+        "herb",
+        "mint",
+        "mushroom",
+        "berry",
+        "dewdrop"
+      ]
     }
   },
   "schedule_weekend": [
@@ -180,5 +199,8 @@
       "location": "home_cui",
       "intent": "睡觉"
     }
+  ],
+  "mid_return_gifts": [
+    "silver_cup"
   ]
 }

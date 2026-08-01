@@ -62,6 +62,9 @@ signal exited(actor: Node)
 		show_area_visual = value
 		_update_visual()
 
+## 玩家的家：开启后入口处可按 E 休息，靠近时头顶弹出休息提示
+@export var is_rest_spot: bool = false
+
 
 func _ready() -> void:
 	_update_visual()
@@ -71,8 +74,38 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	add_to_group("building")
+	if is_rest_spot:
+		add_to_group("rest")
+		_ensure_rest_hint()
 	if has_node("/root/LocationDB"):
 		LocationDB.register(self)
+
+
+## 休息提示标签（默认隐藏，玩家靠近时由 set_interact_hint 打开）
+func _ensure_rest_hint() -> void:
+	if get_node_or_null("RestHint") != null:
+		return
+	var lbl := Label.new()
+	lbl.name = "RestHint"
+	lbl.visible = false
+	lbl.text = "🛏 按 E 休息"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 与其他世界空间文字一致：2 倍字号渲染再缩回，抵消相机 zoom 造成的模糊
+	lbl.add_theme_font_size_override("font_size", 24)
+	lbl.add_theme_color_override("font_color", Color(1, 0.95, 0.7, 1))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	lbl.add_theme_constant_override("outline_size", 8)
+	lbl.size = Vector2(280, 30)
+	lbl.scale = Vector2(0.5, 0.5)
+	lbl.position = Vector2(-70.0 + entry_offset.x, entry_offset.y + 6.0)
+	add_child(lbl)
+
+
+## 玩家靠近/离开时切换休息提示（与 Animal / ItemPickup 的接口一致）
+func set_interact_hint(on: bool) -> void:
+	var lbl := get_node_or_null("RestHint") as Label
+	if lbl != null:
+		lbl.visible = on
 
 
 func _exit_tree() -> void:
@@ -117,14 +150,23 @@ func _update_visual() -> void:
 	# Label 跟随视觉尺寸
 	if lbl:
 		lbl.text = display_name
-		lbl.size = Vector2(visual_size.x + 40.0, 18.0)
-		lbl.position = Vector2(-visual_size.x * 0.5 - 20.0, -visual_size.y * 0.5 - 22.0)
+		# 标签自身 scale=0.5（2 倍字号渲染再缩回，抵消相机 zoom 的模糊），
+		# 因此 size 要按缩放前的值给，position 再按缩放后的实际宽度居中。
+		var lbl_scale: float = lbl.scale.x if lbl.scale.x > 0.0 else 1.0
+		var raw_w: float = max(visual_size.x + 80.0, 200.0)
+		lbl.size = Vector2(raw_w, 30.0)
+		lbl.pivot_offset = Vector2.ZERO
+		lbl.position = Vector2(
+			-raw_w * lbl_scale * 0.5,
+			-visual_size.y * 0.5 - 26.0
+		)
 		# 建筑标签：小灰字，无填充感，与 NPC 名字明显区分
-		lbl.add_theme_font_size_override("font_size", 10)
-		lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9, 0.65))
-		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
-		lbl.add_theme_constant_override("outline_size", 2)
+		lbl.add_theme_font_size_override("font_size", 20)
+		lbl.add_theme_color_override("font_color", Color(0.94, 0.94, 0.94, 0.8))
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
+		lbl.add_theme_constant_override("outline_size", 5)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 	_update_entry_point()
 	_update_z_index(visual_size)

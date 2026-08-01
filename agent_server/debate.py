@@ -40,12 +40,28 @@ _OPPOSITE = {
 # 每个 NPC 对玩家辩论的总分上限缩放（接 W_DEBATE_MAX 在 election 里做）
 DEBATE_DAY_OFFSET = 1  # 辩论日 == 任期第 2 天（day_index=2）
 
-# 辩论日分多场进行：一整天只辩一次太单薄，拆成上午/下午/傍晚三场，
-# 每场换提问者换题，答案跨场累积求平均。
-DEBATE_SESSIONS_PER_DAY = 3
-DEBATE_QUESTIONS_PER_SESSION = 2
+# 辩论日分多场进行。阵营站队玩法单场信息量大（要看全场倾向 + 对手抢票），
+# 故压成上午/下午两场、每场 3 题，总题量与旧版持平但节奏更集中。
+DEBATE_SESSIONS_PER_DAY = 2
+DEBATE_QUESTIONS_PER_SESSION = 3
 # 各场开场时刻（游戏小时）
-DEBATE_SESSION_HOURS = (9, 14, 18)
+DEBATE_SESSION_HOURS = (9, 15)
+
+# ---- 阵营站队计分 ----
+# 逐题结算：玩家选一个象限、对手也选一个象限，NPC 各自站到自己倾向的象限上。
+#   与玩家同象限            → 玩家得 CAMP_WIN
+#   与对手同象限（玩家不在）→ 对手得 CAMP_WIN，玩家得 CAMP_LOSE
+#   两边都不沾             → 谁也不得分
+# 玩家与对手撞同一象限时该象限的 NPC 分摊（各得一半），抢票才有意义。
+CAMP_WIN = 1.0
+CAMP_LOSE = -0.4
+CAMP_SPLIT = 0.5
+
+# 立场反复无常惩罚：把玩家所有回答的「立场集中度」折成一个系数乘在总分上。
+# 全程咬定 1~2 个象限 → 接近 1.0；每题换一个象限 → 掉到 CONSISTENCY_FLOOR。
+# 这是策略张力的来源：想每题都讨好在场的人，就得付出人设崩塌的代价。
+CONSISTENCY_FLOOR = 0.55
+
 
 FALLBACK_REBUTTAL = {
     "radical": "改革？说得轻巧，真动起来镇上得乱成什么样！",
@@ -74,11 +90,13 @@ class DebateManager:
         llm=None,
         affection_store=None,
         data_path: Optional[str] = None,
+        rumor_store=None,
     ) -> None:
         self.election = election_store
         self.personas = personas
         self.llm = llm
         self.affection_store = affection_store
+        self.rumor_store = rumor_store
         self._data = self._load_data(data_path)
 
     def _load_data(self, data_path: Optional[str]) -> Dict[str, Any]:
@@ -148,27 +166,120 @@ class DebateManager:
             })
         return out
 
+    # ---- 阵营：NPC 站队倾向 ----
+
+    def npc_leanings(self, term: Dict) -> Dict[str, str]:
+        """本场各 voter 会站到哪个象限。目前即其偏好象限（公开可见）。
+
+        公开是故意的：玩家要能看见「选这个能拿下谁、会得罪谁」，
+        取舍才成立——否则又变回盲猜多数派。
+        """
+        return {v: self.stance_pref(v) for v in self.election.voters_of(term)}
+
+    def leaning_view(self, term: Dict) -> List[Dict[str, Any]]:
+        """给前端的站队视图：每个象限站了哪些 NPC。"""
+        leanings = self.npc_leanings(term)
+        buckets: Dict[str, List[Dict[str, str]]] = {s: [] for s in STANCES}
+        for npc_id, stance in leanings.items():
+            if stance in buckets:
+                buckets[stance].append({
+                    "npc_id": npc_id,
+                    "name": self.personas.get(npc_id, {}).get("name", npc_id),
+                })
+        return [{
+            "stance": s,
+            "label": self.stance_labels.get(s, s),
+            "npcs": buckets[s],
+        } for s in STANCES]
+
+    def smeared_voters(self, term: Dict) -> set:
+        """相信了「对手黑料」的 voter 集合 —— 八卦日造谣在辩论日的回报。
+
+        这些人不会再站到对手那边：哪怕象限对上了，对手也拿不到他们的分。
+        """
+        out: set = set()
+        if self.rumor_store is None:
+            return out
+        opponent_id = term.get("opponent_id", "")
+        if not opponent_id:
+            return out
+        for voter in self.election.voters_of(term):
+            try:
+                rows = self.rumor_store.belief_rows_for(voter, opponent_id)
+            except Exception:
+                continue
+            if any(r.get("sentiment") == "smear" for r in rows):
+                out.add(voter)
+        return out
+
+    def opponent_choice(self, term: Dict, q_index: int,
+                        player_history: List[str]) -> str:
+        """对手本题选哪个象限。不再是常数——他会主动抢票。
+
+        策略：优先堵玩家的高频立场（玩家老站哪儿，他就去哪儿分票）；
+        玩家还没暴露倾向时，退回自己的本命象限。
+        """
+        own = self.stance_pref(term.get("opponent_id", ""))
+        if not player_history:
+            return own
+        # 玩家最常站的象限
+        counts: Dict[str, int] = {}
+        for s in player_history:
+            counts[s] = counts.get(s, 0) + 1
+        hot = max(counts, key=lambda s: counts[s])
+        # 隔题交替：一题堵玩家、一题守本命，避免被玩家完全预判
+        return hot if q_index % 2 == 0 else own
+
+    @staticmethod
+    def consistency_factor(stances: List[str]) -> float:
+        """立场集中度 → [CONSISTENCY_FLOOR, 1.0] 的系数。
+
+        用「最高频象限占比」衡量：全程一个象限 = 1.0，
+        平均散在 4 个象限 = 0.25 → 映射到下限。
+        """
+        if not stances:
+            return 1.0
+        counts: Dict[str, int] = {}
+        for s in stances:
+            counts[s] = counts.get(s, 0) + 1
+        ratio = max(counts.values()) / len(stances)
+        # ratio 落在 [0.25, 1.0]，线性映射到 [FLOOR, 1.0]
+        t = (ratio - 0.25) / 0.75
+        return CONSISTENCY_FLOOR + (1.0 - CONSISTENCY_FLOOR) * max(0.0, min(1.0, t))
+
     # ---- 评分 ----
 
     def score_and_persist(self, term: Dict, answers: Dict[int, str]) -> Dict[str, Any]:
-        """answers: {question_index: chosen_stance}。
+        """answers: {question_index: chosen_stance}。逐题按阵营站队结算。
 
-        - 玩家：按每个 voter 偏好象限对玩家所有回答求平均亲和度。
-        - 对手：用对手固定立场（其偏好象限）对每个 voter 求亲和度（恒定基线，制造张力）。
-        写入 debate_scores 表（含两个候选人）。返回明细。
+        每一题：玩家站一个象限、对手站一个象限，各 voter 站自己的倾向象限。
+          - voter 与玩家同象限 → 玩家 +CAMP_WIN
+          - voter 与对手同象限 → 对手 +CAMP_WIN，玩家 CAMP_LOSE（票被抢走）
+          - 两人撞同一象限     → 该象限的 voter 分摊（各 CAMP_SPLIT 倍）
+          - voter 谁也不沾     → 本题双方都不得分
+        最后按玩家立场集中度打一个 consistency 折扣：每题换立场会被全镇看轻。
 
-        一天可开多场：本场答案与此前各场累计后一起求平均，
-        故后一场不会覆盖前一场，而是继续修正玩家的整体形象。
+        八卦日的回报在这里兑现：相信了对手黑料的 voter 不会站到对手那边。
+
+        一天可开多场：本场答案与此前各场累计后一起重算，
+        故后一场不覆盖前一场，而是继续修正玩家的整体形象。
         """
         term_id = int(term["term_id"])
         opponent_id = term["opponent_id"]
-        opponent_stance = self.stance_pref(opponent_id)
         voters = self.election.voters_of(term)
-        chosen_stances = [s for s in answers.values() if s in STANCES]
+        leanings = self.npc_leanings(term)
+        smeared = self.smeared_voters(term)
+
+        chosen = [s for s in answers.values() if s in STANCES]
         # 累积历史场次的回答（存在 detail_json 里）
-        prior = self._prior_answers(term_id)
-        chosen_stances = prior + chosen_stances
-        n_answers = len(chosen_stances)
+        all_stances = self._prior_answers(term_id) + chosen
+        n_answers = len(all_stances)
+        consistency = self.consistency_factor(all_stances)
+
+        # 逐题重放，得到对手每题的站位（依赖玩家此前的历史，保持可复现）
+        opponent_picks: List[str] = []
+        for i, _ in enumerate(all_stances):
+            opponent_picks.append(self.opponent_choice(term, i, all_stances[:i]))
 
         player_scores: Dict[str, float] = {}
         opponent_scores: Dict[str, float] = {}
@@ -176,20 +287,35 @@ class DebateManager:
         now = int(time.time())
         with get_conn() as conn:
             for voter in voters:
-                pref = self.stance_pref(voter)
-                if n_answers == 0:
-                    p_raw = 0.0
-                else:
-                    p_raw = sum(affinity(s, pref) for s in chosen_stances) / n_answers
-                o_raw = affinity(opponent_stance, pref)
+                stance = leanings.get(voter, self.stance_pref(voter))
+                p_sum = 0.0
+                o_sum = 0.0
+                for i, p_stance in enumerate(all_stances):
+                    o_stance = opponent_picks[i]
+                    p_hit = (p_stance == stance)
+                    # 已信对手黑料的镇民，本届不会再站到对手那边
+                    o_hit = (o_stance == stance) and voter not in smeared
+                    if p_hit and o_hit:
+                        p_sum += CAMP_WIN * CAMP_SPLIT
+                        o_sum += CAMP_WIN * CAMP_SPLIT
+                    elif p_hit:
+                        p_sum += CAMP_WIN
+                    elif o_hit:
+                        o_sum += CAMP_WIN
+                        p_sum += CAMP_LOSE
+                p_raw = (p_sum / n_answers * consistency) if n_answers else 0.0
+                o_raw = (o_sum / n_answers) if n_answers else 0.0
                 player_scores[voter] = p_raw
                 opponent_scores[voter] = o_raw
                 details[voter] = {
-                    "pref": pref,
-                    "player_answers": chosen_stances,
+                    "pref": stance,
+                    "player_answers": all_stances,
+                    "opponent_picks": opponent_picks,
                     "player_raw": p_raw,
-                    "opponent_stance": opponent_stance,
+                    "opponent_stance": opponent_picks[-1] if opponent_picks else "",
                     "opponent_raw": o_raw,
+                    "consistency": consistency,
+                    "smeared": voter in smeared,
                 }
                 for cid, raw in (("player", p_raw), (opponent_id, o_raw)):
                     conn.execute(
@@ -203,12 +329,16 @@ class DebateManager:
                         (term_id, voter, cid, raw,
                          json.dumps(details[voter], ensure_ascii=False), now),
                     )
-        log.info("[debate] term=%d 评分完成 voters=%d answers=%d", term_id, len(voters), n_answers)
+        log.info("[debate] term=%d 评分完成 voters=%d answers=%d consistency=%.2f smeared=%d",
+                 term_id, len(voters), n_answers, consistency, len(smeared))
         return {
             "player_scores": player_scores,
             "opponent_scores": opponent_scores,
             "details": details,
             "n_answers": n_answers,
+            "consistency": consistency,
+            "opponent_picks": opponent_picks,
+            "smeared_voters": sorted(smeared),
         }
 
     @staticmethod

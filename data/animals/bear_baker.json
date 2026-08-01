@@ -78,7 +78,10 @@
     "likes": [
       "bread",
       "flower",
-      "acorn"
+      "acorn",
+      "gem_green",
+      "silver_key",
+      "scroll_blank"
     ],
     "dislikes": [
       "feather",
@@ -90,15 +93,23 @@
     ]
   },
   "return_gifts": [
-    "honey",
-    "cookie"
+    "cookie",
+    "noodle"
+  ],
+  "rare_return_gifts": [
+    "gold_cup",
+    "treasure_small"
   ],
   "quiz": [
     {
       "id": "hobby",
       "question": "我考考你——你猜我一天里最盼着的是啥时候？",
       "answer": "听别人讲故事",
-      "wrong": ["数钱", "睡懒觉", "跟人吵架"],
+      "wrong": [
+        "数钱",
+        "睡懒觉",
+        "跟人吵架"
+      ],
       "clue": "苔老板揉面时总在听旁人闲扯，眼睛都笑成缝了",
       "hint_topic": "听故事"
     },
@@ -106,7 +117,11 @@
       "id": "food",
       "question": "嗯…那你说说，我最舍不得少放的一样料是啥？",
       "answer": "蜂蜜",
-      "wrong": ["辣椒", "盐巴", "冰块"],
+      "wrong": [
+        "辣椒",
+        "盐巴",
+        "冰块"
+      ],
       "clue": "苔老板的围裙上总沾着黏黏的金色渍子",
       "hint_topic": "蜂蜜"
     }
@@ -119,7 +134,13 @@
     "forage": {
       "chance": 0.45,
       "radius": 200,
-      "items": ["bread", "berry", "mushroom", "herb", "mint"]
+      "items": [
+        "bread",
+        "berry",
+        "mushroom",
+        "herb",
+        "mint"
+      ]
     }
   },
   "schedule_weekend": [
@@ -168,5 +189,8 @@
       "location": "home_bear",
       "intent": "睡觉"
     }
+  ],
+  "mid_return_gifts": [
+    "silver_cup"
   ]
 }

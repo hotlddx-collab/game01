@@ -126,21 +126,28 @@ class CrisisManager:
             return True
         return game_day - int(last) >= cooldown_days
 
-    def _eligible_templates(self, game_day: int) -> List[str]:
+    def _eligible_templates(self, game_day: int, ignore_cooldown: bool = False) -> List[str]:
+        """可抽的模板。ignore_cooldown 用于危机日——一天要连出好几起，
+        模板池就这么大，冷却会把它整天卡空。"""
         out: List[str] = []
         for tid, tpl in self.defs.items():
-            if game_day < int(tpl.get("min_day", 1)):
+            if game_day < int(tpl.get("min_day", 0)):
                 continue
-            if not self._cooldown_ok(tid, game_day, int(tpl.get("cooldown_days", 0))):
+            if not ignore_cooldown and not self._cooldown_ok(
+                    tid, game_day, int(tpl.get("cooldown_days", 0))):
                 continue
             out.append(tid)
         return out
 
-    def maybe_spawn(self, game_day: int, game_hour: int = 8) -> Optional[Dict[str, Any]]:
+    def maybe_spawn(self, game_day: int, game_hour: int = 8,
+                    ignore_cooldown: bool = False) -> Optional[Dict[str, Any]]:
         """若当前无 active 危机，按权重抽一个可用模板并落库。返回视图或 None。"""
         if self.get_active() is not None:
             return None
-        eligible = self._eligible_templates(game_day)
+        eligible = self._eligible_templates(game_day, ignore_cooldown)
+        if not eligible and not ignore_cooldown:
+            # 全在冷却里 → 退而求其次，忽略冷却再抽一次，别让危机日冷场
+            eligible = self._eligible_templates(game_day, True)
         if not eligible:
             return None
         weights = [float(self.defs[t].get("weight", 1)) for t in eligible]

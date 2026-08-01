@@ -8,7 +8,7 @@ signal tick(game_time_str: String, total_minutes: int)
 signal hour_changed(hour: int)
 
 ## 1 实秒 = 多少游戏秒。96 → 1 实秒 = 1.6 游戏分钟，单个游戏日=15 现实分钟。
-## （竞选任期 4 天 → 单局约 60 分钟内决出胜负）
+## （竞选任期 3 天 → 单局约 45 分钟内决出胜负）
 @export var time_scale: float = 96.0
 ## 起始小时（0-23）。
 @export var start_hour: int = 8

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://cmainmenu01"]
+[gd_scene load_steps=10 format=3 uid="uid://cmainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" uid="uid://dqr4y47dvqn0b" path="res://assets/ui/menu_bg.png" id="2_menubg"]
@@ -36,22 +36,6 @@ content_margin_left = 22.0
 content_margin_top = 14.0
 content_margin_right = 22.0
 content_margin_bottom = 14.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tag"]
-bg_color = Color(0.05, 0.12, 0.09, 0.88)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.45, 0.7, 0.48, 0.7)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-content_margin_left = 14.0
-content_margin_top = 6.0
-content_margin_right = 14.0
-content_margin_bottom = 6.0
 
 [sub_resource type="Gradient" id="Gradient_top"]
 offsets = PackedFloat32Array(0, 0.55, 1)
@@ -133,20 +117,11 @@ unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 30.0
-offset_bottom = 300.0
+offset_top = 24.0
+offset_bottom = 280.0
 grow_horizontal = 2
 theme_override_constants/separation = 8
 alignment = 0
-
-[node name="Badge" type="Label" parent="TitleBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.92, 0.72, 1)
-theme_override_colors/font_outline_color = Color(0.03, 0.08, 0.05, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 17
-text = "◆  LLM 驱动 · 每个居民都是独立 Agent  ◆"
-horizontal_alignment = 1
 
 [node name="Title" type="Label" parent="TitleBox"]
 layout_mode = 2
@@ -172,69 +147,8 @@ theme_override_colors/font_color = Color(1, 0.87, 0.5, 1)
 theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 20
-text = "拉票 · 送礼 · 八卦 · 造谣 —— 四天之内赢下人心"
+text = "拉票 · 送礼 · 八卦 · 造谣 —— 投票日之前，赢下人心"
 horizontal_alignment = 1
-
-[node name="TagRow" type="VBoxContainer" parent="."]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-offset_left = 26.0
-offset_top = -96.0
-offset_right = 250.0
-offset_bottom = 96.0
-grow_vertical = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="Tag1" type="PanelContainer" parent="TagRow"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
-
-[node name="L" type="Label" parent="TagRow/Tag1"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
-theme_override_constants/outline_size = 0
-theme_override_font_sizes/font_size = 15
-text = "🧠 会记仇的 NPC"
-
-[node name="Tag2" type="PanelContainer" parent="TagRow"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
-
-[node name="L" type="Label" parent="TagRow/Tag2"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
-theme_override_constants/outline_size = 0
-theme_override_font_sizes/font_size = 15
-text = "🗣 谣言会自己传开"
-
-[node name="Tag3" type="PanelContainer" parent="TagRow"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
-
-[node name="L" type="Label" parent="TagRow/Tag3"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
-theme_override_constants/outline_size = 0
-theme_override_font_sizes/font_size = 15
-text = "🤝 关系网有裂缝"
-
-[node name="Tag4" type="PanelContainer" parent="TagRow"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
-
-[node name="L" type="Label" parent="TagRow/Tag4"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
-theme_override_constants/outline_size = 0
-theme_override_font_sizes/font_size = 15
-text = "🗳 选票即结局"
 
 [node name="HookLabel" type="Label" parent="."]
 unique_name_in_owner = true

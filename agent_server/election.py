@@ -22,9 +22,10 @@ from db import get_conn
 log = logging.getLogger("election")
 
 # ---------- 常量 ----------
-TERM_DAYS = 4
+# 3 天任期：D1 危机日 / D2 辩论日 / D3 投票日（节奏收紧，避免中期空转）
+TERM_DAYS = 3
 DEBATE_DAY_INDEX = 2     # 1-indexed within a term
-VOTE_DAY_INDEX = 4
+VOTE_DAY_INDEX = 3
 
 PLAYER_ID = "player"
 DEFAULT_FIRST_OPPONENT = "bear_baker"
@@ -56,6 +57,12 @@ PROMISE_PER_ACTION = 7.0   # 对手每次 promise 动作给目标 voter 的 prom
 SMEAR_PER_ACTION = 6.0     # 对手每次 smear 动作在目标 voter 的 event 里给玩家扣分
 SMEAR_BACKFIRE = 4.0       # 抹黑玩家铁票（affection≥阈值）时反噬对手自身 event 分
 SMEAR_LOYAL_AFFECTION = 40  # voter 对玩家 affection ≥ 此值视为铁票，smear 反噬
+
+# 执政包袱：现任镇长每连任一届累积的权重惩罚，避免当选后靠老本无限连任
+INCUMBENT_PENALTY_PER_TERM = 8.0
+INCUMBENT_PENALTY_MAX = 24.0
+# voter 对现任者好感低于此值时，不满情绪放大惩罚
+INCUMBENT_GRUDGE_AFFECTION = 30
 
 # 玩家/小镇谣言对选举 event 分的影响（话题主角==候选人，且该 voter 已知晓时生效）
 RUMOR_EVENT_PER = 12.0        # 单条已知晓的候选人谣言，满热度(100)时对该 voter 的 event 分最大影响
@@ -355,29 +362,52 @@ class ElectionStore:
         """1..N（N 通常 = 7，可超过表示已逾期）。"""
         return max(1, game_day - int(term["start_day"]) + 1)
 
-    @staticmethod
-    def phase_of(day_index: int) -> str:
+    def mayor_kind(self, term: Optional[Dict]) -> str:
+        """本期镇上有没有镇长、是谁当的。决定三天走哪一套日程。
+
+        返回 'none'（还没选出过镇长）/ 'player'（玩家在位）/ 'npc'（NPC 在位）。
+        """
+        if not term:
+            return "none"
+        try:
+            mid = self.get_incumbent_id(int(term["term_id"]))
+        except Exception:
+            return "none"
+        if not mid:
+            return "none"
+        return "player" if mid == PLAYER_ID else "npc"
+
+    def player_is_incumbent(self, term: Optional[Dict]) -> bool:
+        """玩家是否为本期现任镇长。"""
+        return self.mayor_kind(term) == "player"
+
+    def phase_of(self, day_index: int, term: Optional[Dict] = None) -> str:
+        """玩法阶段。只有玩家当镇长时 D2 才是镇务日，其余情况都开辩论。"""
         if day_index >= VOTE_DAY_INDEX:
             return "vote"
         if day_index == DEBATE_DAY_INDEX:
-            return "debate"
+            return "governance" if self.mayor_kind(term) == "player" else "debate"
         return "campaign"
 
-    @staticmethod
-    def day_theme(day_index: int) -> str:
-        """当日主题节点（叠加在 phase 之上，仅用于氛围/引导/D3保证危机）。
+    def day_theme(self, day_index: int, term: Optional[Dict] = None) -> str:
+        """当日主题节点（叠加在 phase 之上，用于氛围/引导/玩法开关）。
 
-        4 天任期：D1 民意集会 / D2 辩论 / D3 突发危机 / D4 投票。
-        注意：D1、D3 的 phase 仍是 campaign（对手照常拉票、正常玩法）。
+        三套三天日程，按「镇上现在谁当镇长」分岔：
+          无镇长   ：D1 集会日（无事件，安心刷好感）/ D2 辩论日 / D3 投票日
+          玩家镇长 ：D1 危机日（调解纠纷）/ D2 镇务日（派人做事）/ D3 投票日
+          NPC 镇长 ：D1 八卦日（造谣效果提升）/ D2 辩论日 / D3 投票日
         """
         if day_index >= VOTE_DAY_INDEX:
             return "vote"
+        kind = self.mayor_kind(term)
         if day_index == DEBATE_DAY_INDEX:
-            return "debate"
+            return "governance" if kind == "player" else "debate"
         if day_index == 1:
+            if kind == "player":
+                return "crisis"
+            if kind == "npc":
+                return "gossip"
             return "rally"
-        if day_index == VOTE_DAY_INDEX - 1:
-            return "crisis"
         return "campaign"
 
     # ---- 权重计算 ----
@@ -416,8 +446,55 @@ class ElectionStore:
             f = self._term_factor(term)
             if f != 1.0:
                 sub = {k: v * f for k, v in sub.items()}
+        # 执政包袱：现任镇长要为施政结果负责，连任难度递增。
+        # 不加这一项的话，玩家一旦当选就能靠累计好感与承诺记录无限连任，
+        # 对手 NPC 永远追不上，选举失去悬念。
+        incumbency = self._incumbency_penalty(voter_id, candidate_id, term)
+        if incumbency != 0.0:
+            sub["incumbency"] = incumbency
         total = sum(sub.values())
         return total, sub
+
+    def _incumbency_penalty(self, voter_id: str, candidate_id: str, term: Dict) -> float:
+        """现任镇长的执政包袱（负分）。
+
+        - 只对本届的现任者生效，挑战者不受影响
+        - 连任越久包袱越重（按已连任届数递增，封顶）
+        - voter 对现任者好感越低，越容易把不满算在他头上
+        """
+        try:
+            if not self.is_incumbent(int(term["term_id"]), candidate_id):
+                return 0.0
+        except Exception:
+            return 0.0
+        streak = self._incumbent_streak(candidate_id, int(term["term_id"]))
+        if streak <= 0:
+            return 0.0
+        penalty = min(INCUMBENT_PENALTY_PER_TERM * streak, INCUMBENT_PENALTY_MAX)
+        # 好感低的 voter 对执政不满更强烈（最多再放大 50%）
+        aff = 0.0
+        if candidate_id == PLAYER_ID and self.affection_store is not None:
+            try:
+                aff = float(self.affection_store.get(voter_id))
+            except Exception:
+                aff = 0.0
+        if aff < INCUMBENT_GRUDGE_AFFECTION:
+            penalty *= 1.5
+        return -penalty
+
+    def _incumbent_streak(self, candidate_id: str, current_term_id: int) -> int:
+        """该候选人截至上一届为止的连续在任届数。"""
+        streak = 0
+        tid = current_term_id
+        while tid >= 1:
+            try:
+                if self.get_incumbent_id(tid) != candidate_id:
+                    break
+            except Exception:
+                break
+            streak += 1
+            tid -= 1
+        return streak
 
     @staticmethod
     def _term_factor(term: Dict) -> float:
@@ -701,7 +778,7 @@ class ElectionStore:
         latest = self.latest_weights(term, game_day)
 
         day_index = self.day_index_in_term(term, game_day)
-        phase = self.phase_of(day_index)
+        phase = self.phase_of(day_index, term)
 
         # 玩家权力点（仅当玩家为现任时 > 0；每日 06:00 起跨日补满）
         player_incumbent = self.is_incumbent(int(term["term_id"]), PLAYER_ID)
@@ -725,7 +802,7 @@ class ElectionStore:
             "day_index": day_index,
             "term_days": TERM_DAYS,
             "phase": phase,
-            "day_theme": self.day_theme(day_index),
+            "day_theme": self.day_theme(day_index, term),
             "opponent_id": term["opponent_id"],
             "incumbent_id": self.get_incumbent_id(int(term["term_id"])),
             "candidates": self.candidates_of(term),
@@ -738,6 +815,43 @@ class ElectionStore:
         }
 
     # ---- D7 自动结算 ----
+
+    # 唱票轮数：把选票分几批公布，制造「一轮轮开票」的悬念
+    VOTE_ROUNDS = 3
+
+    @staticmethod
+    def _split_rounds(ballot_log: List[Dict], candidates: List[str]) -> List[Dict]:
+        """把选票切成若干轮，每轮返回该轮明细与累计票数。
+
+        前端据此逐轮唱票；最后一轮的累计票数即最终结果。
+        选票顺序先打散，避免每次开票顺序一致、结果一眼看穿。
+        """
+        order = list(ballot_log)
+        random.shuffle(order)
+        total = len(order)
+        if total == 0:
+            return []
+        rounds_n = min(ElectionStore.VOTE_ROUNDS, total)
+        # 尽量均分，余数摊到靠前的轮次
+        base, rest = divmod(total, rounds_n)
+        out: List[Dict] = []
+        cum: Dict[str, int] = {cid: 0 for cid in candidates}
+        idx = 0
+        for r in range(rounds_n):
+            take = base + (1 if r < rest else 0)
+            chunk = order[idx:idx + take]
+            idx += take
+            for b in chunk:
+                cid = b["voted_for"]
+                cum[cid] = cum.get(cid, 0) + 1
+            out.append({
+                "round": r + 1,
+                "total_rounds": rounds_n,
+                "ballots": [{"voter": b["voter"], "voted_for": b["voted_for"]} for b in chunk],
+                "cumulative": dict(cum),
+                "is_final": r == rounds_n - 1,
+            })
+        return out
 
     def settle_term_if_due(self, game_day: int) -> Optional[Dict]:
         """如果当前 term day_index >= VOTE_DAY_INDEX，触发投票结算并开新任期。
@@ -790,6 +904,7 @@ class ElectionStore:
         result = {
             "votes": votes,
             "ballots": ballot_log,
+            "rounds": self._split_rounds(ballot_log, candidates),
             "tie_break": len(winners) > 1,
             "winner_id": winner_id,
         }

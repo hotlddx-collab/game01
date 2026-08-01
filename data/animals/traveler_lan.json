@@ -86,7 +86,10 @@
       "fish",
       "letter",
       "gold_cup",
-      "glow_stone"
+      "glow_stone",
+      "gem_red",
+      "water_pot",
+      "gourd"
     ],
     "dislikes": [
       "flower",
@@ -102,7 +105,11 @@
       "id": "hobby",
       "question": "诶诶诶！我考考你——你猜我最喜欢干什么？",
       "answer": "到处跑到处看",
-      "wrong": ["待在家里", "记账算钱", "一个人发呆"],
+      "wrong": [
+        "待在家里",
+        "记账算钱",
+        "一个人发呆"
+      ],
       "clue": "小蓝的行囊从来没解开过，随时准备上路",
       "hint_topic": "旅行"
     },
@@ -110,14 +117,22 @@
       "id": "treasure",
       "question": "那你说说，我包里最宝贝的是啥玩意儿？",
       "answer": "残破的地图",
-      "wrong": ["金币", "干粮", "雨伞"],
+      "wrong": [
+        "金币",
+        "干粮",
+        "雨伞"
+      ],
       "clue": "小蓝夜里常摊开一张破地图，对着缺角的地方发呆",
       "hint_topic": "地图"
     }
   ],
   "return_gifts": [
-    "map_piece",
-    "pan_flute"
+    "pan_flute",
+    "octopus"
+  ],
+  "rare_return_gifts": [
+    "scroll_fire",
+    "gold_key"
   ],
   "signature_gift": "map_piece",
   "movement": {
@@ -128,7 +143,14 @@
     "forage": {
       "chance": 0.6,
       "radius": 240,
-      "items": ["acorn", "rock", "branch", "bark", "resin", "feather"]
+      "items": [
+        "acorn",
+        "rock",
+        "branch",
+        "bark",
+        "resin",
+        "feather"
+      ]
     }
   },
   "schedule_weekend": [
@@ -177,5 +199,8 @@
       "location": "home_lan",
       "intent": "睡觉"
     }
+  ],
+  "mid_return_gifts": [
+    "compass"
   ]
 }

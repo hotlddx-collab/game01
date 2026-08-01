@@ -13,33 +13,34 @@ extends CanvasLayer
 @export var panel_margin_top: float = 16.0:
 	set(v): panel_margin_top = v; _apply_layout()
 ## 面板宽高
-@export var panel_width: float = 384.0:
+@export var panel_width: float = 420.0:
 	set(v): panel_width = v; _apply_layout()
-@export var panel_height: float = 120.0:
+## 面板最小高度；实际高度由内容自适应撑开（见 _resize_panel）
+@export var panel_height: float = 112.0:
 	set(v): panel_height = v; _apply_layout()
 ## 面板内四边留白
-@export var pad_left: float = 16.0:
+@export var pad_left: float = 14.0:
 	set(v): pad_left = v; _apply_layout()
-@export var pad_right: float = 16.0:
+@export var pad_right: float = 14.0:
 	set(v): pad_right = v; _apply_layout()
-@export var pad_top: float = 12.0:
+@export var pad_top: float = 10.0:
 	set(v): pad_top = v; _apply_layout()
-@export var pad_bottom: float = 8.0:
+@export var pad_bottom: float = 10.0:
 	set(v): pad_bottom = v; _apply_layout()
 ## 行与行垂直间距
-@export var row_separation: int = 6:
+@export var row_separation: int = 5:
 	set(v): row_separation = v; _apply_layout()
 ## 名字列宽 / 分数列宽 / 进度条最小长度 / 进度条高度
-@export var name_column_width: float = 64.0:
+@export var name_column_width: float = 70.0:
 	set(v): name_column_width = v; _apply_layout()
-@export var score_column_width: float = 36.0:
+@export var score_column_width: float = 52.0:
 	set(v): score_column_width = v; _apply_layout()
-@export var bar_min_length: float = 230.0:
+@export var bar_min_length: float = 200.0:
 	set(v): bar_min_length = v; _apply_layout()
-@export var bar_height: float = 16.0:
+@export var bar_height: float = 14.0:
 	set(v): bar_height = v; _apply_layout()
 ## 行内元素水平间距
-@export var row_h_separation: int = 10:
+@export var row_h_separation: int = 8:
 	set(v): row_h_separation = v; _apply_layout()
 ## 字号
 @export var font_size: int = 13:
@@ -328,10 +329,39 @@ func _refresh() -> void:
 	if _player_incumbent:
 		header.text += "  [color=#ffd864]🏛权力%s/%s(K)[/color]" % [_player_power, _player_power_max]
 
+	# Header 行数会随内容变化，刷新后重算面板高度
+	_resize_panel()
 
-## 面板尺寸固定（由 tscn 控制），内容 EXPAND 铺满；保留空壳供旧调用点
+
+## 让面板高度随可见内容自适应，消除下方留白 / 内容出框。
+## Header 是 fit_content 的 RichTextLabel，双行或追加权力提示时高度会变，
+## 固定 panel_height 撑不住，必须按实际内容重算。
 func _resize_panel() -> void:
-	pass
+	if not is_inside_tree():
+		return
+	if Engine.is_editor_hint():
+		return          # 编辑器内不做异步重算，避免 @tool 下等帧异常
+	var p := get_node_or_null("Panel") as Panel
+	if p == null:
+		return
+	var vb := p.get_node_or_null("VBox") as VBoxContainer
+	if vb == null:
+		return
+	# 等两帧：让容器完成布局、RichTextLabel 按宽度算好 fit_content 高度
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var sep: float = float(vb.get_theme_constant("separation"))
+	var h := 0.0
+	var vis := 0
+	for c in vb.get_children():
+		if c is Control and (c as Control).visible:
+			h += (c as Control).get_combined_minimum_size().y
+			vis += 1
+	if vis > 1:
+		h += sep * (vis - 1)
+	p.size.y = max(h + pad_top + pad_bottom, panel_height)
 
 
 ## 按 @export 参数应用布局，Inspector 改动即时生效
@@ -344,7 +374,9 @@ func _apply_layout() -> void:
 	p.offset_left = panel_margin_left
 	p.offset_top = panel_margin_top
 	p.offset_right = panel_margin_left + panel_width
+	# 这里只给最小高；真实高度由 _resize_panel 按内容重算
 	p.offset_bottom = panel_margin_top + panel_height
+	_resize_panel()
 
 	var vb := p.get_node_or_null("VBox") as VBoxContainer
 	if vb == null:
@@ -466,28 +498,64 @@ func show_vote_result(info: Dictionary) -> void:
 	# 渐入
 	var fade_in := create_tween()
 	fade_in.tween_property(result_overlay, "modulate:a", 1.0, 0.4)
+	await get_tree().create_timer(0.6).timeout
 
-	# 票数滚动（玩家）
-	var p_bar_tw := create_tween()
-	p_bar_tw.tween_interval(0.6)
-	p_bar_tw.tween_property(pvote_bar, "value", p_target, 1.4).set_trans(Tween.TRANS_CUBIC)
+	var rounds: Array = info.get("rounds", [])
+	if rounds.is_empty():
+		# 后端没给分轮数据（旧版本）→ 退回一次性揭晓
+		await _tween_votes_to(p_target, o_target, 1.4)
+	else:
+		await _play_rounds(rounds, settled_opponent)
 
-	var p_num_tw := create_tween()
-	p_num_tw.tween_interval(0.6)
-	p_num_tw.tween_method(_set_player_num, 0.0, float(p_target), 1.4).set_trans(Tween.TRANS_CUBIC)
-
-	# 票数滚动（对手）
-	var o_bar_tw := create_tween()
-	o_bar_tw.tween_interval(0.7)
-	o_bar_tw.tween_property(ovote_bar, "value", o_target, 1.4).set_trans(Tween.TRANS_CUBIC)
-
-	var o_num_tw := create_tween()
-	o_num_tw.tween_interval(0.7)
-	o_num_tw.tween_method(_set_op_num, 0.0, float(o_target), 1.4).set_trans(Tween.TRANS_CUBIC)
-
-	# 等动画完，显示横幅
-	await get_tree().create_timer(2.6).timeout
 	_show_result_banner(info, op_id)
+
+
+## 逐轮唱票：每轮公布本轮投给谁，再把累计票数滚上去，最后一轮定胜负
+func _play_rounds(rounds: Array, settled_opponent: String) -> void:
+	for r in rounds:
+		var rd: Dictionary = r
+		var idx := int(rd.get("round", 0))
+		var total := int(rd.get("total_rounds", rounds.size()))
+		var is_final: bool = bool(rd.get("is_final", false))
+
+		# 本轮是谁投的、投给了谁
+		var names: Array[String] = []
+		for b in rd.get("ballots", []):
+			var who := _id_to_name(String((b as Dictionary).get("voter", "")))
+			var to_id := String((b as Dictionary).get("voted_for", ""))
+			var to_name: String = "你" if to_id == "player" else _id_to_name(to_id)
+			names.append("%s→%s" % [who, to_name])
+
+		if is_final:
+			result_status.text = "[center][color=#ffce8a]最终轮 %d/%d ：%s[/color][/center]" % [
+				idx, total, "、".join(names)
+			]
+		else:
+			result_status.text = "[center][color=#9fd4ff]第 %d/%d 轮开票：%s[/color][/center]" % [
+				idx, total, "、".join(names)
+			]
+
+		var cum: Dictionary = rd.get("cumulative", {})
+		await _tween_votes_to(
+			int(cum.get("player", 0)),
+			int(cum.get(settled_opponent, 0)),
+			0.8
+		)
+		# 轮间留白，让玩家看清这一轮的变化
+		if not is_final:
+			await get_tree().create_timer(0.9).timeout
+
+
+## 把两条票数条滚动到目标值，返回时动画已结束
+func _tween_votes_to(p: int, o: int, dur: float) -> void:
+	var p_from := pvote_bar.value
+	var o_from := ovote_bar.value
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(pvote_bar, "value", float(p), dur).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_method(_set_player_num, p_from, float(p), dur).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(ovote_bar, "value", float(o), dur).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_method(_set_op_num, o_from, float(o), dur).set_trans(Tween.TRANS_CUBIC)
+	await tw.finished
 
 
 func _set_player_num(v: float) -> void:
