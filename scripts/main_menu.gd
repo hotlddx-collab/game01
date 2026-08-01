@@ -45,12 +45,12 @@ func _play_intro() -> void:
 		if tag == null:
 			continue
 		tag.modulate.a = 0.0
-		tag.scale = Vector2(0.8, 0.8)
-		tag.pivot_offset = tag.size * 0.5
+		var from_x := tag.position.x - 30.0
+		tag.position.x = from_x
 		var t := create_tween().set_parallel(true)
-		t.tween_property(tag, "modulate:a", 1.0, 0.35).set_delay(0.5 + i * 0.13)
-		t.tween_property(tag, "scale", Vector2.ONE, 0.4) \
-			.set_delay(0.5 + i * 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(tag, "modulate:a", 1.0, 0.4).set_delay(0.55 + i * 0.13)
+		t.tween_property(tag, "position:x", from_x + 30.0, 0.5) \
+			.set_delay(0.55 + i * 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 悬念文案轮播：每 3.4 秒淡出换句再淡入

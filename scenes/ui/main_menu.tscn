@@ -38,12 +38,12 @@ content_margin_right = 22.0
 content_margin_bottom = 14.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tag"]
-bg_color = Color(0.06, 0.14, 0.11, 0.82)
+bg_color = Color(0.05, 0.12, 0.09, 0.88)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.42, 0.66, 0.45, 0.85)
+border_color = Color(0.45, 0.7, 0.48, 0.7)
 corner_radius_top_left = 20
 corner_radius_top_right = 20
 corner_radius_bottom_right = 20
@@ -54,8 +54,8 @@ content_margin_right = 14.0
 content_margin_bottom = 6.0
 
 [sub_resource type="Gradient" id="Gradient_top"]
-offsets = PackedFloat32Array(0, 1)
-colors = PackedColorArray(0.04, 0.09, 0.07, 0.72, 0.04, 0.09, 0.07, 0)
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.04, 0.09, 0.07, 0.5, 0.04, 0.09, 0.07, 0.16, 0.04, 0.09, 0.07, 0)
 
 [sub_resource type="GradientTexture2D" id="GradTex_top"]
 gradient = SubResource("Gradient_top")
@@ -65,8 +65,8 @@ fill_from = Vector2(0, 0)
 fill_to = Vector2(0, 1)
 
 [sub_resource type="Gradient" id="Gradient_bottom"]
-offsets = PackedFloat32Array(0, 1)
-colors = PackedColorArray(0.05, 0.12, 0.08, 0, 0.05, 0.12, 0.08, 0.88)
+offsets = PackedFloat32Array(0, 0.45, 1)
+colors = PackedColorArray(0.05, 0.12, 0.08, 0, 0.05, 0.12, 0.08, 0.28, 0.05, 0.12, 0.08, 0.82)
 
 [sub_resource type="GradientTexture2D" id="GradTex_bottom"]
 gradient = SubResource("Gradient_bottom")
@@ -109,7 +109,7 @@ texture = ExtResource("2_menubg")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 360.0
+offset_bottom = 300.0
 grow_horizontal = 2
 texture = SubResource("GradTex_top")
 expand_mode = 1
@@ -121,7 +121,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -320.0
+offset_top = -230.0
 grow_horizontal = 2
 grow_vertical = 0
 texture = SubResource("GradTex_bottom")
@@ -175,50 +175,61 @@ theme_override_font_sizes/font_size = 20
 text = "拉票 · 送礼 · 八卦 · 造谣 —— 四天之内赢下人心"
 horizontal_alignment = 1
 
-[node name="TagRow" type="HBoxContainer" parent="TitleBox"]
+[node name="TagRow" type="VBoxContainer" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 10
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 26.0
+offset_top = -96.0
+offset_right = 250.0
+offset_bottom = 96.0
+grow_vertical = 2
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="Tag1" type="PanelContainer" parent="TitleBox/TagRow"]
+[node name="Tag1" type="PanelContainer" parent="TagRow"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
 
-[node name="L" type="Label" parent="TitleBox/TagRow/Tag1"]
+[node name="L" type="Label" parent="TagRow/Tag1"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
 theme_override_constants/outline_size = 0
 theme_override_font_sizes/font_size = 15
 text = "🧠 会记仇的 NPC"
 
-[node name="Tag2" type="PanelContainer" parent="TitleBox/TagRow"]
+[node name="Tag2" type="PanelContainer" parent="TagRow"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
 
-[node name="L" type="Label" parent="TitleBox/TagRow/Tag2"]
+[node name="L" type="Label" parent="TagRow/Tag2"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
 theme_override_constants/outline_size = 0
 theme_override_font_sizes/font_size = 15
 text = "🗣 谣言会自己传开"
 
-[node name="Tag3" type="PanelContainer" parent="TitleBox/TagRow"]
+[node name="Tag3" type="PanelContainer" parent="TagRow"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
 
-[node name="L" type="Label" parent="TitleBox/TagRow/Tag3"]
+[node name="L" type="Label" parent="TagRow/Tag3"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
 theme_override_constants/outline_size = 0
 theme_override_font_sizes/font_size = 15
 text = "🤝 关系网有裂缝"
 
-[node name="Tag4" type="PanelContainer" parent="TitleBox/TagRow"]
+[node name="Tag4" type="PanelContainer" parent="TagRow"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_tag")
 
-[node name="L" type="Label" parent="TitleBox/TagRow/Tag4"]
+[node name="L" type="Label" parent="TagRow/Tag4"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.95, 0.84, 1)
 theme_override_constants/outline_size = 0
@@ -232,14 +243,14 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -246.0
-offset_bottom = -212.0
+offset_top = -218.0
+offset_bottom = -186.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.98, 0.85, 0.62, 1)
 theme_override_colors/font_outline_color = Color(0.04, 0.09, 0.06, 1)
-theme_override_constants/outline_size = 9
-theme_override_font_sizes/font_size = 21
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 20
 text = "「苔老板刚才跟焰仔说了你的坏话。」"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -250,11 +261,11 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -196.0
-offset_bottom = -58.0
+offset_top = -172.0
+offset_bottom = -52.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 alignment = 2
 
 [node name="StartRow" type="HBoxContainer" parent="ButtonBox"]
@@ -301,11 +312,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -460.0
 offset_top = -40.0
-offset_right = -24.0
+offset_right = -26.0
 offset_bottom = -14.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.84, 0.9, 0.82, 1)
+theme_override_colors/font_color = Color(0.78, 0.86, 0.78, 1)
 theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
 theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 14
@@ -315,17 +326,18 @@ vertical_alignment = 1
 
 [node name="Credit" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = 2
+anchors_preset = 12
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
 offset_top = -40.0
-offset_right = 420.0
 offset_bottom = -14.0
+grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.7, 0.8, 0.72, 1)
+theme_override_colors/font_color = Color(0.72, 0.82, 0.74, 1)
 theme_override_colors/font_outline_color = Color(0.05, 0.1, 0.07, 1)
 theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 14
 text = "DeepSeek 驱动 · 6 位居民 · 无剧本，只有人心"
+horizontal_alignment = 1
 vertical_alignment = 1
