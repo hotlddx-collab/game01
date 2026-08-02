@@ -56,3 +56,9 @@ func total_count() -> int:
 	for c in _items.values():
 		n += int(c)
 	return n
+
+
+## 换号重开时清空背包——库存本就是纯内存态，不清的话会把上一局的东西带进新一局。
+func clear() -> void:
+	_items.clear()
+	inventory_changed.emit()

@@ -8,6 +8,11 @@ extends Control
 @onready var quit_button: Button = %QuitButton
 @onready var title_box: VBoxContainer = %TitleBox
 @onready var hook_label: Label = %HookLabel
+@onready var settings_button: Button = %SettingsButton
+@onready var settings_panel: PopupPanel = %SettingsPanel
+@onready var restart_button: Button = %RestartButton
+@onready var close_button: Button = %CloseButton
+@onready var reset_confirm: ConfirmationDialog = %ResetConfirm
 
 ## 轮播的悬念文案：每隔几秒换一句，暗示 NPC 真的在背地里活动
 const HOOKS := [
@@ -24,6 +29,10 @@ var _hook_index: int = 0
 func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
+	settings_button.pressed.connect(_on_settings_pressed)
+	restart_button.pressed.connect(_on_restart_pressed)
+	close_button.pressed.connect(settings_panel.hide)
+	reset_confirm.confirmed.connect(_on_reset_confirmed)
 	start_button.grab_focus()
 	AudioManager.play_menu_bgm()
 	_play_intro()
@@ -64,3 +73,20 @@ func _on_start_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+
+func _on_settings_pressed() -> void:
+	settings_panel.popup_centered()
+
+
+func _on_restart_pressed() -> void:
+	settings_panel.hide()
+	reset_confirm.popup_centered()
+
+
+## 换一个全新的本机存档标识（sid），断开旧连接；下次点「竞选开始」
+## 后端就认成全新玩家，好感/竞选/任务/背包全部清零重来。
+func _on_reset_confirmed() -> void:
+	AgentClient.reset_session()
+	PlayerInventory.clear()
+	hook_label.text = "已重新开始，点击「竞选开始」进入新的一局"

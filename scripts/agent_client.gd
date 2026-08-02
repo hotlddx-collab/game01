@@ -179,6 +179,22 @@ func _gen_uuid() -> String:
 	return bytes.hex_encode()
 
 
+## 换号重开：生成一个全新 session_id 并落盘覆盖旧的，断开当前连接。
+## 下次连接（回到主菜单点「竞选开始」）会带新 sid，后端认成全新玩家，
+## 好感/竞选/任务等全部从零开始——旧存档的库文件留在服务器上，不主动删，
+## 换号本身不依赖它清没清。
+func reset_session() -> void:
+	_session_id = _gen_uuid()
+	var cfg := ConfigFile.new()
+	cfg.set_value("session", "id", _session_id)
+	cfg.save(_SESSION_PATH)
+	_resolved_url = ""  # 强制下次连接重新拼 url，带上新 sid
+	_ever_attempted = false
+	if _ws.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		_ws.close()
+	_connected = false
+
+
 
 func is_connected_to_server() -> bool:
 	return _connected
