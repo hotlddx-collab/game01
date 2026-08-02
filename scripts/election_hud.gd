@@ -129,6 +129,20 @@ func _id_to_name(npc_id: String) -> String:
 	for n in get_tree().get_nodes_in_group("npc"):
 		if "animal_id" in n and n.animal_id == npc_id:
 			return n.animal_name if "animal_name" in n else npc_id
+	# 兜底：roster 包还没到、NPC 节点也还没生成时（开局最初那一两帧最容易撞上），
+	# 直接读本地人设 JSON——跟 animal.gd 给名字牌取名用的是同一份数据源，
+	# 零网络依赖，不会再露出英文 id。查到就顺手缓存，下次不用再读文件。
+	var path := "res://data/animals/%s.json" % npc_id
+	if FileAccess.file_exists(path):
+		var f := FileAccess.open(path, FileAccess.READ)
+		if f:
+			var parsed = JSON.parse_string(f.get_as_text())
+			f.close()
+			if typeof(parsed) == TYPE_DICTIONARY:
+				var nm := String(parsed.get("name", ""))
+				if nm != "":
+					_id_name_map[npc_id] = nm
+					return nm
 	return npc_id
 
 
