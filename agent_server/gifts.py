@@ -2,25 +2,29 @@
 
 公式：
     delta = round(base_value × pref_mult × affection_mult × fatigue_mult)
+    正向增益封顶 GIFT_DELTA_CAP；负向扣分不封顶（保留惩罚力度）。
 
-倍数：
+倍数（实际取值以下方常量为准，改数值时记得同步这段）：
     pref_mult       — NPC 个人偏好（persona.gift_prefs）
-        loves    × 2.0
-        likes    × 1.3
-        dislikes × 0.3   （仍正但弱）
-        hates    × -1.5  （直接扣分）
-        其它     × 1.0
+        loves    × 1.3
+        likes    × 1.1
+        neutral  × 1.0
+        dislikes × 0.3   （仍是正的，只是几乎不领情）
+        hates    × -1.0  （直接扣分，且东西越贵扣得越狠）
 
-    affection_mult  — 当前关系等级（关系差打折，关系好加成）
-        hate    × 0.2
-        cold    × 0.5
-        neutral × 1.0
-        like    × 1.2
-        love    × 1.5
+    affection_mult  — 当前关系等级（6 档，与名字板颜色一一对应）
+        hostile  × 0.3
+        neutral  × 1.0
+        friendly × 1.1
+        fond     × 1.2
+        close    × 0.8   高位边际递减：关系越深越难再被同样的礼物打动
+        intimate × 0.5
 
     fatigue_mult    — 同 (npc, item) 累计送礼疲劳，clamp 到 [-0.5, 1.0]
-        fatigue_mult = 1.0 - 0.3 × count
+        fatigue_mult = 1.0 - 0.45 × count
         每过 FATIGUE_DECAY_DAYS 个游戏日没送，count -1（自然淡忘）
+        **负向礼物例外**：hates 物的疲劳只削弱惩罚（下钳到 0），不会翻成加分。
+        见 effective_fatigue_mult()。
 
 存储：SQLite `gift_log(animal_id, item_id, count, last_gift_day, PK)`。
 """
@@ -145,6 +149,21 @@ def compute_fatigue_mult(count_before_this_gift: int) -> float:
     return max(FATIGUE_MIN, min(FATIGUE_MAX, raw))
 
 
+def effective_fatigue_mult(fatigue_mult: float, pref_mult: float) -> float:
+    """负向礼物不吃「疲劳翻正」。
+
+    疲劳的本意是「同一件东西送多了就不新鲜」，套到扣分物上却成了
+    「同一句难听话骂多了反而变成夸奖」——因为 fatigue 会一路降到 -0.5，
+    而 负 pref_mult × 负 fatigue = 正。玩家只要连送 4 次对方最讨厌的东西，
+    第 4 次就开始加分，是实打实的刷分漏洞。
+
+    对 hates 物：疲劳只能削弱惩罚力度（趋近 0），不能把符号翻过来。
+    """
+    if pref_mult < 0:
+        return max(0.0, fatigue_mult)
+    return fatigue_mult
+
+
 def compute_delta(
     item_id: str,
     persona_prefs: Dict[str, Any],
@@ -164,7 +183,8 @@ def compute_delta(
     pm = PREF_MULT.get(pref, 1.0)
     am = AFFECTION_MULT.get(affection_level, 1.0)
     fm = compute_fatigue_mult(count_before_this_gift)
-    raw = item.base_value * pm * am * fm
+    fm_eff = effective_fatigue_mult(fm, pm)
+    raw = item.base_value * pm * am * fm_eff
     delta = int(round(raw))
     # 硬上限：正向增益封顶（负向扣分不限制，保留惩罚力度）
     if delta > GIFT_DELTA_CAP:
@@ -176,7 +196,7 @@ def compute_delta(
         "pref": pref,
         "pref_mult": pm,
         "affection_mult": am,
-        "fatigue_mult": fm,
+        "fatigue_mult": fm_eff,
         "count_after": count_before_this_gift + 1,
         "raw": raw,
     }

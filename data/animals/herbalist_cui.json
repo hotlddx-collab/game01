@@ -90,7 +90,8 @@
       "feather",
       "honey",
       "pan_flute",
-      "heart_pot"
+      "heart_pot",
+      "watering_can"
     ],
     "dislikes": [
       "fish",
@@ -201,6 +202,7 @@
     }
   ],
   "mid_return_gifts": [
-    "silver_cup"
+    "silver_cup",
+    "sickle"
   ]
 }

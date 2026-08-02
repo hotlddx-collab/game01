@@ -3,6 +3,8 @@
   "_format_collect": "{ kind:'collect', requires:{ item_id, count } } 玩家把 N 个 X 给委托人 → chat 委托人完成",
   "_format_relay": "{ kind:'relay',   requires:{ target_npc, message_summary, keywords[] } } 玩家 chat target_npc 时 user_text 命中所有关键词",
   "_format_deliver": "{ kind:'deliver', requires:{ target_npc, item_id, count } } 接受时委托人发物品给玩家 → 玩家 chat target_npc 时背包有该物品",
+  "_rule_tier": "collect 任务的 min_affection_level 必须与需求物的获取难度匹配，由 test_item_source.py 第 10 节强制：地图可捡物(base_value<=3 或有 spawner) → neutral/friendly；NPC 普通或中档回礼(v4-9) → friendly/fond；NPC 稀有回礼或招牌礼(v10+) → close/intimate。曾经出现过 close 档只要玩家随手捡的露水、neutral 档却要全镇最硬的火卷轴，前者让玩家觉得辛苦白费，后者让新手直接卡死。",
+  "_rule_no_self_supply": "NPC 的 collect 需求物不得出现在他自己的回礼池或招牌礼里，否则玩家可以「找他要来再交还给他」白拿奖励，由 test_item_source.py 第 9 节强制。",
   "bear_baker_collect_herb": {
     "npc_id": "bear_baker",
     "title": "面包配方需要薄荷",
@@ -342,7 +344,7 @@
       "count": 1,
       "affection": 7
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "herbalist_cui_collect_bark": {
@@ -416,7 +418,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "fond",
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "traveler_lan_collect_shell": {
@@ -467,7 +469,7 @@
       "count": 4,
       "affection": 4
     },
-    "min_affection_level": "neutral",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "traveler_lan_deliver_map_to_xuan": {
@@ -546,7 +548,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "fond",
+    "min_affection_level": "neutral",
     "repeatable": true
   },
   "pirate_lao_collect_octopus": {
@@ -597,7 +599,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "pirate_lao_collect_pearl": {
@@ -614,7 +616,7 @@
       "count": 1,
       "affection": 8
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "pirate_lao_deliver_cup_to_baker": {
@@ -693,7 +695,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "mystic_xuan_deliver_book_to_lan": {
@@ -716,11 +718,11 @@
   },
   "mystic_xuan_collect_glow_stone": {
     "npc_id": "mystic_xuan",
-    "title": "……会发光的石头",
-    "desc": "煊赫：'……会自己发光的石头。老咸的旧箱底压着一块，去替我取来。'",
+    "title": "……那张残片",
+    "desc": "煊赫：'……我要一块地图残片。小蓝走过的地方够多，她那儿有。别说是我要的。'",
     "kind": "collect",
     "requires": {
-      "item_id": "glow_stone",
+      "item_id": "map_piece",
       "count": 1
     },
     "reward": {
@@ -728,7 +730,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "close",
+    "min_affection_level": "fond",
     "repeatable": false
   },
   "mystic_xuan_collect_moonstone": {
@@ -745,7 +747,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "mystic_xuan_collect_scroll": {
@@ -762,7 +764,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "neutral",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "mystic_xuan_collect_resin": {
@@ -870,7 +872,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "neutral",
+    "min_affection_level": "fond",
     "repeatable": false
   },
   "bear_baker_collect_gem_green": {
@@ -887,7 +889,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "traveler_lan_collect_gem_red": {
@@ -904,7 +906,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "traveler_lan_collect_gold_cup": {
@@ -921,7 +923,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_gold_key": {
@@ -938,7 +940,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "traveler_lan_collect_gourd": {
@@ -972,7 +974,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "pirate_lao_collect_medi_pack": {
@@ -1057,7 +1059,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "neutral",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_scroll_ice": {
@@ -1074,7 +1076,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_scroll_thunder": {
@@ -1091,7 +1093,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "bear_baker_collect_silver_key": {
@@ -1125,7 +1127,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "friendly",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "boar_shi_collect_rock": {
@@ -1170,7 +1172,11 @@
     "requires": {
       "target_npc": "bear_baker",
       "message_summary": "明天封路半天，柴已经提前堆在门口",
-      "keywords": ["封路", "柴", "门口"]
+      "keywords": [
+        "封路",
+        "柴",
+        "门口"
+      ]
     },
     "reward": {
       "item_id": "coin_purse",
@@ -1212,7 +1218,7 @@
       "count": 1,
       "affection": 10
     },
-    "min_affection_level": "close",
+    "min_affection_level": "fond",
     "repeatable": false
   },
   "mole_tu_collect_mushroom": {
@@ -1257,7 +1263,11 @@
     "requires": {
       "target_npc": "mystic_xuan",
       "message_summary": "今晚地下有动静，别往北边走",
-      "keywords": ["今晚", "地下", "北边"]
+      "keywords": [
+        "今晚",
+        "地下",
+        "北边"
+      ]
     },
     "reward": {
       "item_id": "dice",
@@ -1299,7 +1309,7 @@
       "count": 1,
       "affection": 10
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   },
   "diva_mei_collect_flower": {
@@ -1344,7 +1354,11 @@
     "requires": {
       "target_npc": "herbalist_cui",
       "message_summary": "上回夸那束干花是真心的，不是客套",
-      "keywords": ["干花", "真心", "客套"]
+      "keywords": [
+        "干花",
+        "真心",
+        "客套"
+      ]
     },
     "reward": {
       "item_id": "letter",
@@ -1386,7 +1400,7 @@
       "count": 1,
       "affection": 10
     },
-    "min_affection_level": "close",
+    "min_affection_level": "neutral",
     "repeatable": false
   }
 }

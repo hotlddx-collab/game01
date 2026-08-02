@@ -64,7 +64,7 @@
     }
   ],
   "return_gifts": ["watering_can", "letter"],
-  "mid_return_gifts": ["potion_tea", "pan_flute"],
+  "mid_return_gifts": ["potion_tea", "pan_flute", "shovel"],
   "rare_return_gifts": ["gem_red", "treasure_small"],
   "signature_gift": "silver_cup",
   "movement": {

@@ -183,5 +183,76 @@ check("火卷轴的真实持有者仍是小蓝",
       [h["npc_id"] for h in idx.holders("scroll_fire")] == ["traveler_lan"],
       str([h["name"] for h in idx.holders("scroll_fire")]))
 
+print("\n=== 9. 第三条铁律：回礼池 ∩ 自己的任务需求物 = ∅ ===")
+# 否则玩家可以「找他要来 → 再交还给他」完成任务，白拿奖励和好感。
+# 实际抓到过两处：煊赫要萤石（萤石唯一来源就是他自己的招牌礼）、
+# 老咸要章鱼（章鱼在他自己的普通回礼池里）。
+_Q = json.loads((ROOT / "data/world/quests.json").read_text(encoding="utf-8"))
+_Q = {k: v for k, v in _Q.items() if not k.startswith("_")}
+self_supply = []
+for npc, p in P.items():
+    pool = set()
+    for f in ("return_gifts", "mid_return_gifts", "rare_return_gifts"):
+        pool |= set(p.get(f) or [])
+    if p.get("signature_gift"):
+        pool.add(p["signature_gift"])
+    need = {
+        q["requires"]["item_id"] for q in _Q.values()
+        if q.get("npc_id") == npc and q.get("kind") == "collect"
+        and (q.get("requires") or {}).get("item_id")
+    }
+    for i in sorted(need & pool):
+        self_supply.append(f"{npc}:{i}")
+check("没有 NPC 自产自销（要的东西自己就能给）", not self_supply, str(self_supply))
+
+print("\n=== 10. 任务门槛必须与需求物的获取难度匹配 ===")
+# 修复前的倒挂：close 档「天亮前的露水」只要玩家随手捡的露珠(v2)，
+# 而 neutral 档「找一件火卷轴」却要全镇最硬的通货(v10，只有小蓝 rare 档给)。
+# 前者让玩家觉得辛苦刷来的好感白费，后者让新手一见面就被卡死。
+_ground = {s["item_id"] for s in json.loads(
+    (ROOT / "data/world/spawners.json").read_text(encoding="utf-8"))["spawners"]}
+_LV = {"neutral": 0, "friendly": 1, "fond": 2, "close": 3, "intimate": 4}
+
+
+def _tier(iid):
+    bv = items_module._ITEMS[iid].base_value
+    if iid in _ground or bv <= 3:
+        return 0          # 地图可捡
+    return 2 if bv <= 9 else 3   # NPC 中档 / 稀有
+
+
+_OK = {0: (0, 1), 2: (1, 2), 3: (3, 4)}
+_LABEL = {0: "地图可捡→neutral/friendly", 2: "NPC中档→friendly/fond",
+          3: "NPC稀有→close/intimate"}
+mismatch = []
+for k, q in _Q.items():
+    if q.get("kind") != "collect":
+        continue
+    iid = (q.get("requires") or {}).get("item_id")
+    if not iid or iid not in items_module._ITEMS:
+        continue
+    t = _tier(iid)
+    lo, hi = _OK[t]
+    cur = _LV.get(q.get("min_affection_level", "neutral"), 0)
+    if not (lo <= cur <= hi):
+        mismatch.append(
+            f"{q['title']}(要{items_module._ITEMS[iid].name}v{items_module._ITEMS[iid].base_value},"
+            f"门槛{q.get('min_affection_level')},应{_LABEL[t]})")
+check("无门槛倒挂的 collect 任务", not mismatch,
+      f"{len(mismatch)} 个: {mismatch[:3]}" if mismatch else "")
+
+# 顺带确认重排没把任务弄成不可达
+unreachable = []
+for k, q in _Q.items():
+    if q.get("kind") != "collect":
+        continue
+    iid = (q.get("requires") or {}).get("item_id")
+    if not iid or iid not in items_module._ITEMS:
+        continue
+    if iid not in _ground and items_module._ITEMS[iid].base_value > 3 \
+            and not idx.holders(iid):
+        unreachable.append(f"{q['title']}:{iid}")
+check("所有 collect 需求物仍然可达（无死锁）", not unreachable, str(unreachable))
+
 print(f"\n=== 结果汇总 ===\n通过 {sum(results)}/{len(results)}")
 sys.exit(0 if all(results) else 1)

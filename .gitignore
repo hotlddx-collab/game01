@@ -36,6 +36,12 @@ venv/
 # 跑测截图：当时的现场记录，二进制文件无法 diff，不入库
 docs/游戏截图/
 
+# Excel 打开时生成的临时锁文件
+~$*.xlsx
+
+# 审计报表：由 tools/audit_items.py 随时重跑生成，二进制无法 diff，不入库
+docs/道具审计表.xlsx
+
 # 导出产物（本地构建，不入库）
 build/
 *.app/
