@@ -26,7 +26,7 @@ import items
 from affection import AffectionStore
 from gifts import GiftStore
 from reflection import ReflectionStore, IntentStore
-from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX, LOYALTY_MAP
+from election import ElectionStore, TERM_DAYS, VOTE_DAY_INDEX, LOYALTY_MAP, W_CANVASS_BONUS
 import belief
 import intel
 import quiz
@@ -115,6 +115,8 @@ election_store = ElectionStore(
 )
 # 选民 = 当前会话在场的 NPC。备选池的人不该投票，离镇的人也不该。
 election_store.present_provider = roster_store.present_ids
+# _calc_event 判断 world_events 文案是否提到某个 NPC 时要按中文名比对
+election_store.name_of = lambda aid: (manager.get(aid).name if manager.get(aid) else aid)
 log.info("[election] ElectionStore 就绪 npc=%d", len(manager.all_ids()))
 
 
@@ -130,6 +132,11 @@ def _rotate_npc_on_term_end(game_day: int) -> dict:
     newcomer = res.get("newcomer")
     if not newcomer:
         return res
+
+    # 离镇者的展示名——前端换届黑幕过渡文案要用（"XX 离开了小镇"）
+    leaver_persona = _load_all().get(res.get("leaver", ""))
+    if leaver_persona is not None:
+        res["leaver_name"] = leaver_persona.get("name", res["leaver"])
 
     p = _load_all().get(newcomer)
     if p is None:
@@ -335,6 +342,42 @@ async def websocket_endpoint(ws: WebSocket):
         log.exception("ws error: %s", e)
 
 
+# ---------- 拉票（聊天里点到 NPC 心愿的一次性加分） ----------
+# 纯关键词判定，不吃 LLM 自报——LLM 会顺着玩家的话附和，靠它判断
+# "是否真的拉票成功"等于把裁判权交给玩家嘴上功夫，防不住刷分。
+_CANVASS_INTENT_WORDS = (
+    "投我", "选我", "支持我", "拉票", "投票给我", "选我当", "当镇长", "选镇长", "竞选",
+)
+
+
+def _try_canvass_pitch(npc_id: str, user_text: str, persona: dict, context: dict) -> Optional[dict]:
+    """聊天里同时命中"拉票意图词"+"该 NPC 心愿关键词" → 记一次拉票成功。
+
+    防刷三道闸：
+    1. 纯关键词判定，不靠 LLM 自报
+    2. 每个 NPC 每届任期只算一次（campaign_pitch 表 UNIQUE 约束）
+    3. 该 NPC 必须是当期真实选民（不给围观群众也算分）
+    """
+    wish = persona.get("wish") or {}
+    kws = wish.get("keywords") or []
+    if not kws:
+        return None
+    if not any(w in user_text for w in _CANVASS_INTENT_WORDS):
+        return None
+    if not any(kw in user_text for kw in kws):
+        return None
+    term = election_store.get_active_term()
+    if term is None:
+        return None
+    if npc_id not in election_store.voters_of(term):
+        return None
+    game_day = int(context.get("game_day", 0))
+    if not election_store.record_pitch(int(term["term_id"]), npc_id, game_day):
+        return None  # 本届已经拉过票，静默跳过，不重复提示
+    log.info("[canvass] 拉票成功 npc=%s term=%d wish=%s", npc_id, term["term_id"], wish.get("text", ""))
+    return {"wish": wish.get("text", ""), "bonus": W_CANVASS_BONUS}
+
+
 async def _handle_message(ws: WebSocket, msg: dict) -> None:
     msg_type = msg.get("type")
 
@@ -511,6 +554,15 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
         "affection": result.get("affection", {}),
         "ok": True,
     }
+
+    # 拉票命中检测（仅 chat 路径，只有 user_text 有意义）
+    if msg_type == "chat":
+        try:
+            canvass = _try_canvass_pitch(animal_id, user_text, agent.persona, context)
+            if canvass:
+                payload["canvass"] = canvass
+        except Exception as e:
+            log.warning("[canvass] 检测失败: %s", e)
 
     # 心情推动：由好感 delta + 互动类型折算，回包带当前心情供前端头顶显示
     try:
@@ -1005,9 +1057,9 @@ def _infer_rumor(content: str, subject_id: str, sentiment: str, force_smear: boo
 
 
 def _is_gossip_day(game_day: int) -> bool:
-    """今天是不是在野三天里的「满镇风言日」（D1）。
+    """今天是不是「满镇风言日」（无镇长 D2 / NPC 镇长 D1-D2）。
 
-    这天造谣采信率与话题热度都有加成，玩家该趁机为明天的辩论日铺路。
+    这天造谣采信率与话题热度都有加成，玩家该趁机为后面的辩论日铺路。
     """
     try:
         term = election_store.ensure_term_active(game_day)
@@ -1313,6 +1365,9 @@ def _build_election_context(animal_id: str, context: dict) -> dict:
         "my_score": round(my_score, 1),
         "rival_score": round(rival_score, 1),
         "is_incumbent": election_store.is_incumbent(int(term["term_id"]), animal_id),
+        # 玩家本人是否是本镇现任镇长——独立于"role"（那个是本届候选人身份），
+        # 全镇 NPC 打招呼都该认得镇长，不只是当期候选对手才知道。
+        "player_is_mayor": election_store.is_incumbent(int(term["term_id"]), "player"),
     }
 
 
@@ -1328,6 +1383,45 @@ async def _handle_election_query(ws: WebSocket, msg: dict) -> None:
     await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
 
+async def _generate_leaver_farewell(leaver_id: str) -> str:
+    """换届离镇的 NPC 给玩家留句话——仪式感的最后一环，别让人悄无声息地消失。
+
+    按玩家对他的好感档位定调（越熟越舍不得/越掏心），LLM 生成失败则退回模板。
+    """
+    persona = personas.get(leaver_id, {})
+    name = persona.get("name", leaver_id)
+    level = affection_store.snapshot(leaver_id).get("level", "neutral")
+    fallback = {
+        "hostile": f"「…没什么好说的，走了。」——{name}",
+        "neutral": f"「要搬走了，照顾好自己吧。」——{name}",
+        "friendly": f"「这段时间处得还不错，有空来我新住处找我。」——{name}",
+        "fond": f"「舍不得这镇子，更舍不得你。保重，别忘了我。」——{name}",
+        "close": f"「这些日子谢谢你了，真的。往后的路你要自己走了，我会想你的。」——{name}",
+        "intimate": f"「走了以后我肯定会想你……你是我在这镇上最舍不得的人。」——{name}",
+    }.get(level, f"「要搬走了，照顾好自己吧。」——{name}")
+    try:
+        sys_prompt = (
+            f"你扮演 {name}，{persona.get('species', '怪物')}。"
+            f"性格：{persona.get('personality', '')}\n"
+            f"说话风格：{persona.get('speech_style', '')}\n"
+            f"你因为换届轮换即将离开这个小镇，搬去别处。"
+            f"你和玩家的关系档位是「{level}」（越高越亲密）。\n"
+            f"给玩家留一句临别的话，符合你的性格与说话风格，"
+            f"体现出与玩家关系的亲疏。不超过 40 字，直接说话，不要旁白。"
+        )
+        resp = await llm.chat(
+            messages=[{"role": "system", "content": sys_prompt}],
+            max_tokens=80,
+            temperature=0.9,
+        )
+        line = resp.strip().strip("「」\"'")
+        if line:
+            return f"「{line}」——{name}"
+    except Exception as e:
+        log.warning("[roster] 生成离镇留言失败 %s: %s", leaver_id, e)
+    return fallback
+
+
 async def _push_rotation(ws: WebSocket, settle: dict) -> None:
     """换届轮换单独推一条：前端要据此删节点、建节点、换门牌。
 
@@ -1337,6 +1431,10 @@ async def _push_rotation(ws: WebSocket, settle: dict) -> None:
     rot = (settle or {}).get("rotation") or {}
     if not rot.get("newcomer"):
         return
+    try:
+        rot["farewell"] = await _generate_leaver_farewell(rot["leaver"])
+    except Exception as e:
+        log.warning("[roster] 离镇留言生成异常: %s", e)
     try:
         await ws.send_text(json.dumps({
             "type": "npc_rotation", "ok": True, **rot,
@@ -1352,6 +1450,7 @@ async def _push_rotation(ws: WebSocket, settle: dict) -> None:
                if rot.get("closed_facility") else "")
         ),
     )
+
 
 
 async def _handle_debug_force_vote(ws: WebSocket, msg: dict) -> None:
@@ -1532,6 +1631,17 @@ async def _handle_debate_submit(ws: WebSocket, msg: dict) -> None:
             topics[int(k)] = str(v)
         except Exception:
             continue
+    # 本场提交前先记一次 debate 子项快照——score_and_persist 落库的是
+    # "本届累计"分（含之前几场），面板文案说的是"本场带来声望"，
+    # 不减去提交前的旧值就会把之前几场的分也算进这一场，跟增减记录对不上。
+    player_before = 0.0
+    opponent_before = 0.0
+    for voter in election_store.voters_of(term):
+        _, sub_p = election_store.compute_weight(voter, "player", term)
+        _, sub_o = election_store.compute_weight(voter, term["opponent_id"], term)
+        player_before += sub_p.get("debate", 0.0)
+        opponent_before += sub_o.get("debate", 0.0)
+
     try:
         result = debate_manager.score_and_persist(term, answers, topics)
     except Exception as e:
@@ -1539,14 +1649,17 @@ async def _handle_debate_submit(ws: WebSocket, msg: dict) -> None:
         await _send_error(ws, f"辩论评分失败: {e}")
         return
 
-    # 计算给玩家带来的总 debate 加权（汇总各 voter 子项），方便 UI 展示
-    player_total = 0.0
-    opponent_total = 0.0
+    # 提交后再算一次，用差值得到"本场"真正带来的边际加权，
+    # 才能跟增减记录（growth log，本身就是按权重差值打印的）对得上。
+    player_after = 0.0
+    opponent_after = 0.0
     for voter in election_store.voters_of(term):
         _, sub_p = election_store.compute_weight(voter, "player", term)
         _, sub_o = election_store.compute_weight(voter, term["opponent_id"], term)
-        player_total += sub_p.get("debate", 0.0)
-        opponent_total += sub_o.get("debate", 0.0)
+        player_after += sub_p.get("debate", 0.0)
+        opponent_after += sub_o.get("debate", 0.0)
+    player_total = player_after - player_before
+    opponent_total = opponent_after - opponent_before
 
     await ws.send_text(json.dumps({
         "type": "debate_result",
@@ -1939,7 +2052,7 @@ async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket, force: b
 _DAY_THEME_TEXT = {
     "rally":      {"title": "📣 民意集会日", "hint": "镇上还没有镇长，今天没什么事。安心串门、送礼、拉好感，为竞选起势。"},
     "gossip":     {"title": "🗣 满镇风言日", "hint": "镇长是别人当的，今天镇上嘴特别碎——放出去的话没人不信、传得也快。趁机散播消息，为明天的辩论铺路。"},
-    "debate":     {"title": "🎤 广场辩论日", "hint": "今天广场上下午各一场辩论。镇民会各自站队，选边要挑准——立场反复无常会失了人心。"},
+    "debate":     {"title": "🎤 广场辩论日", "hint": "今天广场上下午各一场辩论，镇民会各自站队。今晚 20:00 开票，辩论表现会直接影响票数。"},
     "crisis":     {"title": "⚡ 突发危机日", "hint": "镇上今天要出好几档子乱子！身为镇长，妥善调解能大幅左右选情。"},
     "governance": {"title": "📋 镇务政事日", "hint": "今天该办正事了。指派镇民干活、兑现承诺，用政绩说话。"},
     "vote":       {"title": "🗳 投票日", "hint": "今天镇民投票，结果即将揭晓，做最后冲刺！"},
@@ -1961,8 +2074,12 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
 
     sess.last_known_game_day = game_day
 
-    # 新的一天首个醒来 tick → 推送当日主题节点事件（引导玩家 + 氛围）
-    if game_day > sess.last_day_event_day and game_hour >= 7:
+    # 新的一天首个醒来 tick → 推送当日主题节点事件（引导玩家 + 氛围）。
+    # 用 != 而非 >：sess 常驻在服务端内存里，玩家（尤其测试时）用同一个
+    # persistent sid 反复重开客户端，game_day 会从 0 重新数起，但 sess 里
+    # 记的 last_day_event_day 还停在上次跑到的高位——`>` 一旦被更高的历史
+    # 值挡住就再也翻不过身，新的一天永远收不到提示。
+    if game_day != sess.last_day_event_day and game_hour >= 6:
         sess.last_day_event_day = game_day
         try:
             term = election_store.ensure_term_active(game_day)
@@ -2100,8 +2217,16 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
     except Exception as e:
         log.warning("[mayor_task] 刷新失败: %s", e)
 
-    # 选举权重重算：每日 22:00+ 重算一次（与反思同时机），并推送状态
-    if game_hour >= 22 and game_day > sess.last_election_recompute_day:
+    # 选举权重重算：普通日 22:00+ 重算一次（与反思同时机）；
+    # 投票日（D3 辩论与投票合并的最后一天）提前到 20:00，给白天两场辩论（9/15点）留够时间。
+    _election_hour_gate = 22
+    try:
+        _term_peek = election_store.ensure_term_active(game_day)
+        if election_store.day_index_in_term(_term_peek, game_day) >= VOTE_DAY_INDEX:
+            _election_hour_gate = 20
+    except Exception:
+        pass
+    if game_hour >= _election_hour_gate and game_day > sess.last_election_recompute_day:
         sess.last_election_recompute_day = game_day
         try:
             term = election_store.ensure_term_active(game_day)

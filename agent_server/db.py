@@ -144,6 +144,14 @@ CREATE TABLE IF NOT EXISTS candidate_state (
   PRIMARY KEY (term_id, candidate_id)
 );
 
+-- 镇长选举：拉票留言（聊天里点到 NPC 心愿的一次性加分，防刷用）
+CREATE TABLE IF NOT EXISTS campaign_pitch (
+  term_id   INTEGER NOT NULL,
+  npc_id    TEXT NOT NULL,
+  game_day  INTEGER NOT NULL,
+  PRIMARY KEY (term_id, npc_id)
+);
+
 -- 镇长选举：对手每日动作日志
 CREATE TABLE IF NOT EXISTS opponent_actions (
   action_id              INTEGER PRIMARY KEY AUTOINCREMENT,

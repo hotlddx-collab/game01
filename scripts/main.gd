@@ -19,6 +19,7 @@ var _pending_mayor: Dictionary = {}   # executor_id -> 结算 info，等对话�
 var _situation: Dictionary = {}       # 当前镇务情境：{task_id,type,markers,spots,target_id}
 var _performing: bool = false         # 正在表演，期间忽略情境拆除推送
 var _resting: bool = false            # 正在播休息演出，避免重复触发
+var _pending_rotation: Dictionary = {} # 收到但未应用的换届轮换信息，等黑幕过渡时才落地
 
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func _ready() -> void:
 	AgentClient.error_received.connect(_on_error_received)
 	AgentClient.npc_intent_received.connect(_on_npc_intent)
 	AgentClient.npc_gift_received.connect(_on_npc_gift)
+	AgentClient.canvass_pitch_received.connect(_on_canvass_pitch)
 	AgentClient.quest_offer_received.connect(_on_quest_offer)
 	AgentClient.quest_progress_received.connect(_on_quest_progress)
 	AgentClient.quest_completed_received.connect(_on_quest_completed)
@@ -47,6 +49,9 @@ func _ready() -> void:
 	AgentClient.observation_clue.connect(_on_observation_clue)
 	AgentClient.roster_received.connect(_on_roster_received)
 	AgentClient.npc_rotation_received.connect(_on_npc_rotation)
+	var election_hud := get_node_or_null("ElectionHUD")
+	if election_hud and election_hud.has_signal("term_settled"):
+		election_hud.term_settled.connect(_on_term_settled)
 	if AgentClient.has_signal("mayor_task_result_received"):
 		AgentClient.mayor_task_result_received.connect(_on_mayor_task_result)
 	if AgentClient.has_signal("mayor_task_state_received"):
@@ -54,10 +59,60 @@ func _ready() -> void:
 
 	AudioManager.play_game_bgm()
 
-	# 若 4 秒内后端没给名单（未启动/断网），按兜底名单生成，保证单机可玩。
-	await get_tree().create_timer(4.0).timeout
+	_show_intro()
+
+
+## 开局黑幕：介绍"你是谁/在哪/要干什么"，同时把 NPC 尚未生成的空档盖住——
+## 顺便解决了"NPC 名字还没从后端刷回来就被玩家看到英文 id"的闪一下问题。
+## 黑幕至少停留 3 秒（够读完），且不会早于 NPC 名单落地就提前撤下；
+## 4 秒内后端仍没给名单则按兜底名单生成，保证单机可玩。
+const _INTRO_TEXT := "[center]🌲 [b]欢迎来到怪物森林[/b]\n\n这里住满了外形各异、却心地善良的怪物居民。\n\n你是一位偶然闯入森林的旅人。\n镇上正在举行[b]首届镇长竞选[/b]——\n串门聊天、送礼交心、辩论造势，都能为你赢得选票。\n\n击败对手，成为森林的第一任镇长吧。[/center]"
+
+
+func _show_intro() -> void:
+	player.input_enabled = false
+
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 1)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+
+	var text := RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.fit_content = true
+	text.scroll_active = false
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.custom_minimum_size = Vector2(640, 0)
+	text.set_anchors_preset(Control.PRESET_CENTER)
+	text.position -= text.custom_minimum_size * 0.5
+	text.add_theme_font_size_override("normal_font_size", 22)
+	text.add_theme_color_override("default_color", Color(0.93, 0.93, 0.88))
+	text.text = _INTRO_TEXT
+	layer.add_child(text)
+
+	var waited := 0.0
+	while waited < 4.0 and not _roster_built:
+		await get_tree().create_timer(0.1).timeout
+		waited += 0.1
 	if not _roster_built:
 		_spawn_npcs_fallback()
+
+	var remain: float = max(0.0, 3.0 - waited)
+	if remain > 0.0:
+		await get_tree().create_timer(remain).timeout
+
+	var tw := create_tween()
+	tw.tween_property(bg, "color:a", 0.0, 0.7)
+	tw.parallel().tween_property(text, "modulate:a", 0.0, 0.5)
+	await tw.finished
+	layer.queue_free()
+	player.input_enabled = true
 
 
 func _process(_delta: float) -> void:
@@ -158,7 +213,12 @@ func _do_rest() -> void:
 	await get_tree().create_timer(1.1).timeout
 	if player.has_method("rest"):
 		player.rest()
+	# 睡一觉总要花点时间——游戏时间跳 1 小时，顺带在提示上给个反馈，
+	# 不然玩家会觉得"睡了但啥也没变"
+	WorldClock.advance_by_minutes(60)
+	tip.text = "🛏  精神满满！体力已回满\n🕐 %s" % WorldClock.format_time()
 
+	await get_tree().create_timer(0.9).timeout
 	var tw2 := create_tween()
 	tw2.tween_property(tip, "modulate:a", 0.0, 0.35)
 	tw2.parallel().tween_property(fade, "color:a", 0.0, 0.6)
@@ -167,6 +227,128 @@ func _do_rest() -> void:
 	layer.queue_free()
 	player.input_enabled = true
 	_resting = false
+
+
+## 换届黑幕过渡：唱票演出播完后触发。黑幕上交代"当选/离镇/迁入"三件事，
+## 期间悄悄把 NPC 换人（_apply_rotation），再把时间跳到次日早晨——
+## 相当于"当晚大家都去睡了"，玩家按休息结算（含冲刺体力）。
+func _on_term_settled(info: Dictionary, next_opponent_id: String) -> void:
+	_do_term_transition(info, next_opponent_id)
+
+
+func _do_term_transition(info: Dictionary, next_opponent_id: String) -> void:
+	if _resting:
+		return
+	_resting = true
+	player.input_enabled = false
+
+	var layer := CanvasLayer.new()
+	layer.layer = 95
+	add_child(layer)
+
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 0)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(fade)
+
+	var text := RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.fit_content = true
+	text.scroll_active = false
+	text.modulate.a = 0.0
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text.add_theme_font_size_override("normal_font_size", 24)
+	layer.add_child(text)
+
+	text.text = _build_term_transition_text(info, next_opponent_id)
+
+	var tw := create_tween()
+	tw.tween_property(fade, "color:a", 1.0, 0.6)
+	tw.parallel().tween_property(text, "modulate:a", 1.0, 0.9)
+	await tw.finished
+
+	await get_tree().create_timer(3.0).timeout
+
+	# 黑幕之下悄悄落地：换人、门牌、公共设施
+	if not _pending_rotation.is_empty():
+		_apply_rotation(_pending_rotation)
+		_pending_rotation = {}
+
+	# 整晚直接跳过——大家都去睡了，直接天亮；体力按休息结算（含冲刺条）
+	if has_node("/root/WorldClock"):
+		WorldClock.skip_to_next_morning()
+	if player.has_method("rest"):
+		player.rest()
+
+	await get_tree().create_timer(0.5).timeout
+
+	var tw2 := create_tween()
+	tw2.tween_property(text, "modulate:a", 0.0, 0.35)
+	tw2.parallel().tween_property(fade, "color:a", 0.0, 0.6)
+	await tw2.finished
+
+	layer.queue_free()
+	player.input_enabled = true
+	_resting = false
+
+
+## 换届黑幕文案：当选/落选 + 离镇 + 迁入 + 设施停业/重开 + 下任对手，一次性交代完
+func _build_term_transition_text(info: Dictionary, next_opponent_id: String) -> String:
+	var lines: Array[String] = []
+	var winner := String(info.get("winner_id", ""))
+	if winner == "player":
+		lines.append("🎉 [b]你当选了！[/b]从明天起，你是这片森林新的镇长。")
+	else:
+		var tie_note := "（票数相同，按规则你败）" if bool(info.get("tie_break", false)) else ""
+		lines.append("🏛 %s 当选了本届镇长。%s" % [_npc_display_name(winner), tie_note])
+
+	var rot := _pending_rotation
+	var leaver_name := String(rot.get("leaver_name", ""))
+	if leaver_name == "":
+		leaver_name = _npc_display_name(String(rot.get("leaver", "")))
+	var newcomer_name := String(rot.get("nameplate", rot.get("newcomer", "")))
+	if leaver_name != "":
+		lines.append("🚶 %s 离开了小镇。" % leaver_name)
+	var farewell := String(rot.get("farewell", ""))
+	if farewell != "":
+		lines.append("[color=#c9b98a]%s[/color]" % farewell)
+	if newcomer_name != "":
+		lines.append("🏠 %s 搬了进来。" % newcomer_name)
+
+	var closed := String(rot.get("closed_facility", ""))
+	if closed != "":
+		lines.append("（%s 暂时停业了）" % _facility_display_name(closed))
+	var reopened := String(rot.get("reopened_facility", ""))
+	if reopened != "":
+		lines.append("（%s 重新开张了）" % _facility_display_name(reopened))
+
+	var next_name := _npc_display_name(next_opponent_id)
+	if next_name != "":
+		lines.append("[color=#999999]下一任挑战者：%s[/color]" % next_name)
+
+	return "[center]" + "\n".join(lines) + "[/center]"
+
+
+func _npc_display_name(id: String) -> String:
+	if id == "":
+		return ""
+	if id == "player":
+		return "你"
+	var n := _find_npc_node(id)
+	if n != null and "animal_name" in n:
+		return String(n.animal_name)
+	return id
+
+
+func _facility_display_name(building_id: String) -> String:
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.get("building_id") == building_id:
+			return String(b.display_name).replace("（停业）", "")
+	return building_id
 
 
 func _on_chat_send(animal_id: String, user_text: String) -> void:
@@ -239,6 +421,14 @@ func _on_npc_gift(animal_id: String, item_id: String, _item_name: String, messag
 	PlayerInventory.add_item(item_id, 1)
 	if dialog_ui.is_open():
 		dialog_ui.show_npc_gift_note(message)
+
+
+func _on_canvass_pitch(_animal_id: String, wish: String, bonus: float) -> void:
+	## 拉票命中：聊天里点到了 NPC 的心愿，竞选分加成一次（每人每届仅此一次）
+	if dialog_ui.is_open():
+		dialog_ui.show_npc_gift_note(
+			"🗳 [b]拉票成功！[/b]\nTa 记住了你的承诺：%s\n竞选分 +%d" % [wish, int(bonus)]
+		)
 
 
 func _on_quest_offer(_aid: String, qid: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String, collect_item: String, required: int) -> void:
@@ -878,6 +1068,14 @@ func _find_npc_node(animal_id: String) -> Node:
 
 
 func _on_npc_rotation(info: Dictionary) -> void:
+	## 先缓存，不立即落地——换届黑幕过渡（_do_term_transition）播完叙事文案后才真正换人，
+	## 否则玩家会在毫无征兆的情况下看到 NPC 瞬间消失/出现。
+	if String(info.get("newcomer", "")) == "":
+		return
+	_pending_rotation = info
+
+
+func _apply_rotation(info: Dictionary) -> void:
 	var leaver := String(info.get("leaver", ""))
 	var newcomer := String(info.get("newcomer", ""))
 	if newcomer == "":

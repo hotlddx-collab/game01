@@ -38,7 +38,7 @@ _OPPOSITE = {
 }
 
 # 每个 NPC 对玩家辩论的总分上限缩放（接 W_DEBATE_MAX 在 election 里做）
-DEBATE_DAY_OFFSET = 1  # 辩论日 == 任期第 2 天（day_index=2）
+DEBATE_DAY_OFFSET = 2  # 辩论日 == 任期第 3 天（day_index=3，与投票日合并为同一天）
 
 # 辩论日分多场进行。阵营站队玩法单场信息量大（要看全场倾向 + 对手抢票），
 # 故压成上午/下午两场、每场 3 题，总题量与旧版持平但节奏更集中。

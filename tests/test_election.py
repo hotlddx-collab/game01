@@ -37,7 +37,7 @@ db.current_db_path.set(TEST_DB)
 db.init_schema(TEST_DB)
 
 from election import (
-    ElectionStore, affection_norm, TERM_DAYS, VOTE_DAY_INDEX, DEBATE_DAY_INDEX,
+    ElectionStore, affection_norm, TERM_DAYS, VOTE_DAY_INDEX, GOVERNANCE_DAY_INDEX,
     PLAYER_ID, DEFAULT_FIRST_OPPONENT, W_AFFECTION_MAX, W_LOYALTY_MAX,
     W_PROMISE_MAX,
 )
@@ -61,12 +61,11 @@ check("首期对手 = bear_baker", term1["opponent_id"] == DEFAULT_FIRST_OPPONEN
 check("首期 day_index=1", es.day_index_in_term(term1, 0) == 1)
 check("首期 phase=campaign", es.phase_of(es.day_index_in_term(term1, 0)) == "campaign")
 
-# 辩论日 = DEBATE_DAY_INDEX（game_day 从 start_day 起，day_index = game_day-start_day+1）
-check(f"day_index={DEBATE_DAY_INDEX} phase=debate",
-      es.phase_of(es.day_index_in_term(term1, DEBATE_DAY_INDEX - 1)) == "debate")
-# 投票日 = VOTE_DAY_INDEX
-check(f"day_index={VOTE_DAY_INDEX} phase=vote",
-      es.phase_of(es.day_index_in_term(term1, VOTE_DAY_INDEX - 1)) == "vote")
+# D2（无镇长，非镇务日）phase=campaign；D(VOTE_DAY_INDEX) 辩论与投票合并为一天，phase=debate
+check("day_index=2 phase=campaign（无镇长，非镇务日）",
+      es.phase_of(es.day_index_in_term(term1, 1)) == "campaign")
+check(f"day_index={VOTE_DAY_INDEX} phase=debate（辩论日当天投票）",
+      es.phase_of(es.day_index_in_term(term1, VOTE_DAY_INDEX - 1)) == "debate")
 
 
 # ──────────────────────────────────────────────────────────
@@ -155,21 +154,21 @@ check("无镇长 D1 主题 = rally（集会日）",
 _t5 = es.ensure_term_active(0)
 _tid5 = int(_t5["term_id"])
 _themes = lambda: [es.day_theme(d, _t5) for d in (1, 2, 3)]
-check("无镇长三天 = 集会/辩论/投票",
-      es.mayor_kind(_t5) == "none" and _themes() == ["rally", "debate", "vote"],
+check("无镇长三天 = 集会/八卦/辩论(合并投票)",
+      es.mayor_kind(_t5) == "none" and _themes() == ["rally", "gossip", "debate"],
       f"kind={es.mayor_kind(_t5)} {_themes()}")
 es.set_incumbent(_tid5, PLAYER_ID)
-check("玩家镇长三天 = 危机/镇务/投票",
-      es.mayor_kind(_t5) == "player" and _themes() == ["crisis", "governance", "vote"],
+check("玩家镇长三天 = 危机/镇务/辩论(合并投票)",
+      es.mayor_kind(_t5) == "player" and _themes() == ["crisis", "governance", "debate"],
       f"kind={es.mayor_kind(_t5)} {_themes()}")
 check("玩家镇长 D2 phase = governance（不开辩论）",
       es.phase_of(2, _t5) == "governance", f"got {es.phase_of(2, _t5)}")
 es.set_incumbent(_tid5, _t5["opponent_id"])
-check("NPC 镇长三天 = 八卦/辩论/投票",
-      es.mayor_kind(_t5) == "npc" and _themes() == ["gossip", "debate", "vote"],
+check("NPC 镇长三天 = 八卦/八卦/辩论(合并投票)",
+      es.mayor_kind(_t5) == "npc" and _themes() == ["gossip", "gossip", "debate"],
       f"kind={es.mayor_kind(_t5)} {_themes()}")
-check("NPC 镇长 D2 phase = debate（照常辩论）",
-      es.phase_of(2, _t5) == "debate", f"got {es.phase_of(2, _t5)}")
+check("NPC 镇长 D2 phase = campaign（八卦日不是辩论）",
+      es.phase_of(2, _t5) == "campaign", f"got {es.phase_of(2, _t5)}")
 # 恢复无镇长状态，避免影响后续用例
 with db.get_conn() as _c5:
     _c5.execute("UPDATE candidate_state SET is_incumbent = 0 WHERE term_id = ?", (_tid5,))

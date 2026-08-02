@@ -75,6 +75,10 @@ func _on_result(info: Dictionary) -> void:
 		var txt := String(info.get("text", ""))
 		result_label.text = "[color=#88ee88]✓ %s[/color]" % txt
 		_expanded_action = ""
+		# 索取行动会附带一件实物，落进背包
+		var item_id := String(info.get("item_id", ""))
+		if item_id != "" and PlayerInventory.has_method("add_item"):
+			PlayerInventory.add_item(item_id, 1)
 	else:
 		var err := String(info.get("error", "行动失败"))
 		result_label.text = "[color=#ee8888]✗ %s[/color]" % err

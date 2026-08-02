@@ -454,8 +454,7 @@ func _maybe_offer_mayor_task() -> void:
 	var line := "[color=#7a3a18][b]🏛【镇务】[/b]以镇长身份安排 %s 去「%s」%s[/color]\n" % [name_label.text, title, obj]
 	line += "[color=#4a3a28]方式：[/color]"
 	line += "[url=mayor:persuade][color=#2a6a2a]【好感说服】[/color][/url]  "
-	line += "[url=mayor:reason][color=#2a5a8a]【讲道理】[/color][/url]  "
-	line += "[url=mayor:threat][color=#a03020]【威胁】[/color][/url]\n\n"
+	line += "[url=mayor:command][color=#a03020]【命令】（耗1权力点）[/color][/url]\n\n"
 	_append_log(line)
 
 
@@ -481,11 +480,11 @@ func _on_meta_clicked(meta) -> void:
 	if not _mayor_offered or _mayor_assigning or _mayor_task.is_empty():
 		return
 	var method := s.substr(6)
-	if method not in ["persuade", "reason", "threat"]:
+	if method not in ["persuade", "command"]:
 		return
 	_mayor_assigning = true
 	_mayor_offered = false
-	var method_cn: String = {"persuade": "好言相劝", "reason": "讲清道理", "threat": "厉声施压"}.get(method, method)
+	var method_cn: String = {"persuade": "好言相劝", "command": "动用镇长权力下令"}.get(method, method)
 	_append_log("[b][color=#205080]你：[/color][/b][i]（以镇长身份%s，安排 TA 去办这事）[/i]\n\n" % method_cn)
 	input_line.editable = false
 	gift_button.disabled = true

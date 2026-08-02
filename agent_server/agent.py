@@ -384,6 +384,8 @@ class Agent:
                 f"你不是候选人，但你是有投票权的居民。这届由玩家和「{opp}」竞争，"
                 "你会根据他们对你的好感、承诺兑现、辩论表现等来决定投票给谁。被问到时可以聊聊你的倾向。"
             )
+            if el.get("player_is_mayor"):
+                lines.append("重要：玩家正是本镇现任镇长，全镇皆知——你绝不能表现得像不认识他/她。")
         return "\n" + "\n".join(lines)
 
     def _build_quest_block(self, context: Dict[str, Any]) -> str:
@@ -524,13 +526,25 @@ class Agent:
         ]
         roster_line = f"可用 target_id：{'、'.join(others)}" if others else ""
 
-        # 当前 NPC 可送出的物品（signature_gift + loves + 自己捡到的野货）
+        # 当前 NPC 可送出的物品（signature_gift + loves + 自己捡到的野货 + 三档回礼池）。
+        #
+        # 三档回礼池必须按当前好感解锁后一并加进来——这里若漏掉，LLM 眼里
+        # 「手边有的物品」和 _handle_gift_request 实际认可的 giveable 集合就不是同一份事实：
+        # 任务提示「关系一般就能找焰仔要钱袋」（coin_purse 在 return_gifts，common 档），
+        # 但 LLM 因为没被告知自己"有"这东西，索要时只会瞎编一句"没有"，
+        # 根本走不到后端裁决逻辑——玩家好感再够也要不到。
         prefs = self.persona.get("gift_prefs", {}) or {}
         sig = self.persona.get("signature_gift", "")
+        level = self.affection.snapshot(self.animal_id).get("level", "neutral")
         giveable_ids = set(prefs.get("loves", []))
         if sig:
             giveable_ids.add(sig)
         giveable_ids |= set(self.profile.get_forage_bag(self.animal_id).keys())
+        giveable_ids |= set(self.persona.get("return_gifts", []) or [])
+        if at_least(level, "fond"):
+            giveable_ids |= set(self.persona.get("mid_return_gifts", []) or [])
+        if at_least(level, "close"):
+            giveable_ids |= set(self.persona.get("rare_return_gifts", []) or [])
         valid_ids = [iid for iid in giveable_ids if items_module.get(iid) is not None]
         giveable_line = (
             "你手边有的物品：" +
@@ -607,7 +621,10 @@ class Agent:
         prof = self.profile.get_all(self.animal_id)
         name = prof.get("name", "").strip()
         likes = prof.get("likes", "").strip()
-        log.info("[greet] %s profile=%s name=%r", self.animal_id, prof, name)
+        # 玩家若是现任镇长，全镇都该认得——哪怕这个 NPC 没跟他互通过姓名，
+        # 也不该把镇长当"没见过的面孔"，否则镇长做了两届还被当陌生人很离谱。
+        is_mayor = bool((context.get("election") or {}).get("player_is_mayor"))
+        log.info("[greet] %s profile=%s name=%r is_mayor=%s", self.animal_id, prof, name, is_mayor)
 
         if name:
             hints = [f"你认识这位玩家，他/她叫「{name}」。"]
@@ -617,6 +634,13 @@ class Agent:
             hints.append(f"结合你当前在做的事和所在地点，用 1-2 句话热情打招呼。")
             user_msg = "（{name}走近了。请按以下要求开口：\n{hints}\n直接输出你说的话，不要加旁白）".format(
                 name=name, hints="\n".join("- " + h for h in hints)
+            )
+        elif is_mayor:
+            hints = ["走近你的正是本镇现任镇长。你不知道他/她的名字，但镇长的身份全镇皆知，"
+                     "绝不能表现出「没见过」「陌生面孔」的样子。"]
+            hints.append("用带着敬意或热络（按你的性格）的 1-2 句话打招呼，可以提一句镇务或感谢镇长关照。")
+            user_msg = "（{hints}\n直接输出你说的话，不要加旁白）".format(
+                hints="\n".join("- " + h for h in hints)
             )
         else:
             user_msg = (

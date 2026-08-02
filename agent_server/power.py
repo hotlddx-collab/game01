@@ -15,6 +15,8 @@ import logging
 import random
 from typing import Any, Dict, List, Optional
 
+import items as items_module
+
 log = logging.getLogger("power")
 
 # 行动定义（供 UI 渲染 + 校验）
@@ -31,10 +33,17 @@ ACTIONS: Dict[str, Dict[str, Any]] = {
         "need_target": False,
         "desc": "面向全镇发表施政公告，全员小幅好感（+2）",
     },
+    "demand": {
+        "label": "索取",
+        "cost": 1,
+        "need_target": True,
+        "desc": "以镇长身份向居民索取一件东西（非其心爱之物），会掉好感",
+    },
 }
 
 VISIT_AFFECTION = 5
 ANNOUNCE_AFFECTION = 2
+DEMAND_AFFECTION = -8
 
 FALLBACK_VISIT_LINES = [
     "镇长亲自登门，问起了你最近的近况。",
@@ -44,6 +53,11 @@ FALLBACK_VISIT_LINES = [
 FALLBACK_ANNOUNCE_LINES = [
     "镇长在广场发表公告，承诺让小镇日子更红火。",
     "镇长召集大家，宣布了新的施政打算，居民们议论纷纷。",
+]
+FALLBACK_DEMAND_LINES = [
+    "镇长开了口，你只好把东西递了过去，心里有点不是滋味。",
+    "拗不过镇长的身份，东西还是交出去了，脸色却不太好看。",
+    "镇长说要，你也不好当面驳回，闷闷地给了。",
 ]
 
 
@@ -90,6 +104,10 @@ class PowerManager:
             if target_id not in voters:
                 return {"ok": False, "error": "目标无效（只能对本镇居民使用）"}
 
+        # 索取要先确认对方手上有拿得出手的东西，免得点数白扣却两手空空
+        if action == "demand" and self._pick_demand_item(target_id) is None:
+            return {"ok": False, "error": f"{self._name(target_id)}身上没有能索取的东西"}
+
         # 扣点（先确保跨日补满）
         self.election.refresh_power_points(term_id, "player", game_day)
         if not self.election.spend_power_points(term_id, "player", int(spec["cost"])):
@@ -97,6 +115,8 @@ class PowerManager:
 
         if action == "visit":
             return await self._do_visit(term, game_day, target_id)
+        if action == "demand":
+            return await self._do_demand(term, game_day, target_id)
         return await self._do_announce(term, game_day)
 
     async def _do_visit(self, term: Dict, game_day: int, target_id: str) -> Dict[str, Any]:
@@ -150,6 +170,53 @@ class PowerManager:
             "text": line,
         }
 
+    def _pick_demand_item(self, target_id: str) -> Optional[Dict[str, str]]:
+        """在该 NPC 的回礼池里挑一件东西索取，招牌物（signature_gift）排除在外——
+        那是他最珍视的东西，镇长权力也不能强要。"""
+        persona = self.personas.get(target_id, {})
+        sig = persona.get("signature_gift", "")
+        pool: List[str] = []
+        for field in ("return_gifts", "mid_return_gifts", "rare_return_gifts"):
+            pool.extend(persona.get(field) or [])
+        pool = [iid for iid in dict.fromkeys(pool) if iid and iid != sig]
+        random.shuffle(pool)
+        for item_id in pool:
+            item = items_module.get(item_id)
+            if item is not None:
+                return {"item_id": item_id, "item_name": item.name}
+        return None
+
+    async def _do_demand(self, term: Dict, game_day: int, target_id: str) -> Dict[str, Any]:
+        name = self._name(target_id)
+        picked = self._pick_demand_item(target_id)
+        if picked is None:
+            return {"ok": False, "error": f"{name}身上没有能索取的东西"}
+        snap = self.affection.adjust(target_id, DEMAND_AFFECTION)
+        line = await self._gen_demand_line(target_id, picked["item_name"])
+        desc = "玩家以镇长身份向 %s（%s）索取了%s，%s心里不太痛快。原话：%s" % (
+            name, target_id, picked["item_name"], name, line,
+        )
+        if self.world is not None:
+            self.world.add(actor="", description=desc)
+        log.info("[power] demand target=%s item=%s aff=%s",
+                 target_id, picked["item_id"], snap.get("value"))
+        return {
+            "ok": True,
+            "action": "demand",
+            "spent": ACTIONS["demand"]["cost"],
+            "item_id": picked["item_id"],
+            "item_name": picked["item_name"],
+            "affected": [{
+                "npc_id": target_id,
+                "name": name,
+                "affection": int(snap.get("value", 0)),
+                "level": snap.get("level", "neutral"),
+                "delta": DEMAND_AFFECTION,
+            }],
+            "text": "%s（获得 %s，%s -%d 好感）" % (
+                line, picked["item_name"], name, abs(DEMAND_AFFECTION)),
+        }
+
     # ---- LLM 台词（带兜底）----
 
     async def _gen_visit_line(self, target_id: str) -> str:
@@ -194,3 +261,26 @@ class PowerManager:
         except Exception as e:
             log.warning("[power] announce line LLM 失败: %s", e)
         return random.choice(FALLBACK_ANNOUNCE_LINES)
+
+    async def _gen_demand_line(self, target_id: str, item_name: str) -> str:
+        if self.llm is None:
+            return random.choice(FALLBACK_DEMAND_LINES)
+        persona = self.personas.get(target_id, {})
+        sys = (
+            "你帮一位居民生成一句被镇长开口索取东西时的反应台词，心里不情愿但拗不过身份，"
+            "不超过 30 字，口语、直接说话不要旁白引号。"
+        )
+        user = "居民：%s（%s）。镇长向你索取了%s，你不情不愿地嘀咕一句：" % (
+            persona.get("name", target_id), persona.get("personality", ""), item_name,
+        )
+        try:
+            resp = await self.llm.chat(
+                messages=[{"role": "system", "content": sys}, {"role": "user", "content": user}],
+                max_tokens=60, temperature=0.85,
+            )
+            line = (resp or "").strip().strip("「」\"'")
+            if line:
+                return line[:60]
+        except Exception as e:
+            log.warning("[power] demand line LLM 失败: %s", e)
+        return random.choice(FALLBACK_DEMAND_LINES)

@@ -18,6 +18,7 @@ signal quiz_asked(animal_id: String, quiz_id: String, question: String, options:
 signal quiz_result_received(info: Dictionary)
 signal observation_clue(animal_id: String, text: String)
 signal gift_received(animal_id: String, item_id: String, delta: int, pref: String, count_after: int)
+signal canvass_pitch_received(animal_id: String, wish: String, bonus: float)
 signal quest_offer_received(animal_id: String, quest_id: String, title: String, desc: String, kind: String, give_item: String, give_count: int, target_npc: String, message_summary: String, item_id: String, required: int)
 signal quest_completed_received(animal_id: String, quest_id: String, title: String, kind: String, reward_item: String, reward_count: int, consume_item: String, consume_count: int)
 signal quest_progress_received(animal_id: String, quest_id: String, title: String, desc: String, progress: int, required: int)
@@ -90,6 +91,10 @@ func _process(delta: float) -> void:
 				connected.emit()
 				# 连上先要在场名单：镇上有谁由后端说了算
 				request_roster()
+				# 补一次 time_tick：hour_changed 只在整点跨越时才发，游戏若从
+				# 非整点启动（如 08:40），后端在下一次跨点前收不到任何 tick，
+				# 当日主题提示（day_event）就会迟迟不来甚至被玩家错过。
+				send_time_tick()
 			# 收包
 			while _ws.get_available_packet_count() > 0:
 				var pkt: PackedByteArray = _ws.get_packet()
@@ -427,7 +432,7 @@ func request_mayor_task_query() -> bool:
 	})
 
 
-## 镇长政务任务：指派某 NPC 执行（method: persuade|reason|threat）
+## 镇长政务任务：指派某 NPC 执行（method: persuade|command，command 耗镇长权力点）
 func request_mayor_task_assign(task_id: int, executor_id: String, method: String) -> bool:
 	return _send({
 		"type": "mayor_task_assign",
@@ -522,6 +527,13 @@ func _handle_packet(text: String) -> void:
 					int(gift.get("delta", 0)),
 					String(gift.get("pref", "neutral")),
 					int(gift.get("count_after", 0)),
+				)
+			var canvass = data.get("canvass", null)
+			if typeof(canvass) == TYPE_DICTIONARY and canvass.has("wish"):
+				canvass_pitch_received.emit(
+					aid,
+					String(canvass.get("wish", "")),
+					float(canvass.get("bonus", 0.0)),
 				)
 			var intent = data.get("intent", null)
 			if typeof(intent) == TYPE_DICTIONARY and intent.has("target_name"):

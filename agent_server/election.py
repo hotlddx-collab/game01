@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import sqlite3
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -22,9 +23,9 @@ from db import get_conn
 log = logging.getLogger("election")
 
 # ---------- 常量 ----------
-# 3 天任期：D1 危机日 / D2 辩论日 / D3 投票日（节奏收紧，避免中期空转）
+# 3 天任期：D1 危机/八卦/集会 / D2 镇务/八卦 / D3 辩论日当天 20:00 投票（辩论与投票合并为一天）
 TERM_DAYS = 3
-DEBATE_DAY_INDEX = 2     # 1-indexed within a term
+GOVERNANCE_DAY_INDEX = 2  # 玩家当镇长时的镇务日；1-indexed within a term
 VOTE_DAY_INDEX = 3
 
 PLAYER_ID = "player"
@@ -39,6 +40,17 @@ DEFAULT_OPPONENT_POOL = (
     "traveler_lan",
 )
 
+# 投票理由文案：某张票投给赢家而非输家，取两者子项差值最大的那一项来解释「为什么」
+BALLOT_REASON_LABEL: Dict[str, str] = {
+    "affection": "私交更深",
+    "promise": "承诺兑现更到位",
+    "debate": "辩论更有说服力",
+    "event": "最近风评更占优",
+    "loyalty": "人情站队",
+    "incumbency": "对方执政包袱更重",
+    "canvass": "被拉票承诺打动",
+}
+
 # affection 取值范围（与 affection.py 保持一致）
 AFFECTION_VALUE_MIN = -50
 AFFECTION_VALUE_MAX = 100
@@ -51,6 +63,10 @@ W_DEBATE_MAX = 15.0        # 10 → 15
 W_EVENT_MAX = 25.0         # 20 → 25
 W_LOYALTY_MAX = 10.0       # 15 → 10
 W_TOTAL_MAX = W_AFFECTION_MAX + W_PROMISE_MAX + W_DEBATE_MAX + W_EVENT_MAX + W_LOYALTY_MAX  # 100
+
+# 拉票：聊天里点到 NPC 心愿的一次性加分，同 incumbency 一样是 100 之外的独立加成
+# 值不高（约等于半个 loyalty 档），且每人每届只吃一次，靠聊天刷不出规模分
+W_CANVASS_BONUS = 5.0
 
 # 对手动作机械系数（强劲追赶 + 抹黑反制）
 PROMISE_PER_ACTION = 7.0   # 对手每次 promise 动作给目标 voter 的 promise 加分
@@ -152,6 +168,10 @@ class ElectionStore:
         self.promise_store = promise_store
         # 可选回调：换届时执行 NPC 轮换，签名 (game_day) -> dict
         self.rotate_npc = None  # type: Optional[Callable[[int], Dict]]
+        # 可选：id → 中文展示名。world_events 的文案全是中文，_calc_event 判断
+        # 「这条事件是否提到了某个 voter」必须按中文名比对，不给就退化成 id 本身
+        # （英文 id 几乎不会出现在中文文案里，等于该判断形同虚设）。
+        self.name_of = None  # type: Optional[Callable[[str], str]]
 
     @property
     def npc_ids(self) -> List[str]:
@@ -454,33 +474,34 @@ class ElectionStore:
         return self.mayor_kind(term) == "player"
 
     def phase_of(self, day_index: int, term: Optional[Dict] = None) -> str:
-        """玩法阶段。只有玩家当镇长时 D2 才是镇务日，其余情况都开辩论。"""
+        """玩法阶段。D(VOTE_DAY_INDEX) 辩论与投票合并为一天；玩家当镇长时 D2 是镇务日；其余是竞选日。"""
         if day_index >= VOTE_DAY_INDEX:
-            return "vote"
-        if day_index == DEBATE_DAY_INDEX:
-            return "governance" if self.mayor_kind(term) == "player" else "debate"
+            return "debate"
+        if day_index == GOVERNANCE_DAY_INDEX and self.mayor_kind(term) == "player":
+            return "governance"
         return "campaign"
 
     def day_theme(self, day_index: int, term: Optional[Dict] = None) -> str:
         """当日主题节点（叠加在 phase 之上，用于氛围/引导/玩法开关）。
 
-        三套三天日程，按「镇上现在谁当镇长」分岔：
-          无镇长   ：D1 集会日（无事件，安心刷好感）/ D2 辩论日 / D3 投票日
-          玩家镇长 ：D1 危机日（调解纠纷）/ D2 镇务日（派人做事）/ D3 投票日
-          NPC 镇长 ：D1 八卦日（造谣效果提升）/ D2 辩论日 / D3 投票日
+        三套三天日程，按「镇上现在谁当镇长」分岔（D3 辩论日当天 20:00 投票，不再单独占一天）：
+          无镇长   ：D1 集会日（无事件，安心刷好感）/ D2 八卦日（造谣效果提升）/ D3 辩论日
+          玩家镇长 ：D1 危机日（调解纠纷）/ D2 镇务日（派人做事）/ D3 辩论日
+          NPC 镇长 ：D1 八卦日（造谣效果提升）/ D2 八卦日（造谣效果提升）/ D3 辩论日
         """
         if day_index >= VOTE_DAY_INDEX:
-            return "vote"
+            return "debate"
         kind = self.mayor_kind(term)
-        if day_index == DEBATE_DAY_INDEX:
-            return "governance" if kind == "player" else "debate"
         if day_index == 1:
             if kind == "player":
                 return "crisis"
             if kind == "npc":
                 return "gossip"
             return "rally"
-        return "campaign"
+        # day_index == 2
+        if kind == "player":
+            return "governance"
+        return "gossip"
 
     # ---- 权重计算 ----
 
@@ -524,6 +545,9 @@ class ElectionStore:
         incumbency = self._incumbency_penalty(voter_id, candidate_id, term)
         if incumbency != 0.0:
             sub["incumbency"] = incumbency
+        canvass = self._calc_canvass(voter_id, candidate_id, term)
+        if canvass != 0.0:
+            sub["canvass"] = canvass
         total = sum(sub.values())
         return total, sub
 
@@ -662,6 +686,19 @@ class ElectionStore:
             ).fetchone()
         return int(row["c"]) if row else 0
 
+    def _display_name(self, npc_id: str) -> str:
+        """id → 中文展示名，world_events 文案比对用（没接 name_of 就退化成 id 本身）。"""
+        if npc_id == PLAYER_ID:
+            return "玩家"
+        if self.name_of is not None:
+            try:
+                n = self.name_of(npc_id)
+                if n:
+                    return str(n)
+            except Exception:
+                pass
+        return npc_id
+
     def _calc_event(self, voter_id: str, candidate_id: str) -> float:
         """近期 world_events 与 (voter, candidate) 相关的情感累加 + 抹黑机制。
 
@@ -679,6 +716,8 @@ class ElectionStore:
             events = self.world_store.recent(n=30)
         except Exception:
             events = []
+        voter_name = self._display_name(voter_id)
+        cand_name = self._display_name(candidate_id)
         score = 0.0
         for ev in events:
             desc = ev.description or ""
@@ -688,12 +727,16 @@ class ElectionStore:
             # 且 recent 滑窗会让同一句话反复进出 → 分数无故跳变。
             if actor == PLAYER_ID and desc.startswith("对") and "说:" in desc:
                 continue
-            mentions_voter = (voter_id in desc) or any(
-                tok in desc for tok in voter_id.split("_")
+            # 文案全是中文，比对必须按中文名——voter_id/candidate_id 是英文 id，
+            # 几乎不会真的出现在 desc 里，之前这里形同虚设，导致下面判断退化成
+            # 只看 actor == candidate_id：候选人做的任何事（哪怕跟这个 voter 毫无
+            # 关系）都会被算成对全体 voter 一视同仁地生效，好感/舆论无关也照样加分。
+            mentions_voter = (voter_id in desc) or (voter_name and voter_name in desc)
+            mentions_candidate = (
+                (candidate_id in desc) or (cand_name and cand_name in desc)
+                or (candidate_id == PLAYER_ID and "玩家" in desc)
             )
-            related = (actor == candidate_id) or (
-                mentions_voter and (candidate_id in desc or candidate_id == PLAYER_ID and "玩家" in desc)
-            )
+            related = mentions_voter and (actor == candidate_id or mentions_candidate)
             if not related:
                 continue
             pos = any(w in desc for w in POSITIVE_WORDS)
@@ -776,6 +819,37 @@ class ElectionStore:
         if voter_id in LOYALTY_MAP.get(candidate_id, set()):
             return W_LOYALTY_MAX
         return 0.0
+
+    def _calc_canvass(self, voter_id: str, candidate_id: str, term: Dict) -> float:
+        """拉票加成：只给玩家，且该 voter 本届必须已被成功拉票过一次。"""
+        if candidate_id != PLAYER_ID:
+            return 0.0
+        if self.has_pitched(int(term["term_id"]), voter_id):
+            return W_CANVASS_BONUS
+        return 0.0
+
+    @staticmethod
+    def has_pitched(term_id: int, npc_id: str) -> bool:
+        """该 NPC 本届是否已被玩家成功拉过票（防刷：每人每届只算一次）。"""
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM campaign_pitch WHERE term_id=? AND npc_id=?",
+                (term_id, npc_id),
+            ).fetchone()
+        return row is not None
+
+    @staticmethod
+    def record_pitch(term_id: int, npc_id: str, game_day: int) -> bool:
+        """记一次拉票成功。已记过则原样返回 False（调用方借此判断是否要提示玩家）。"""
+        with get_conn() as conn:
+            try:
+                conn.execute(
+                    "INSERT INTO campaign_pitch (term_id, npc_id, game_day) VALUES (?, ?, ?)",
+                    (term_id, npc_id, game_day),
+                )
+                return True
+            except sqlite3.IntegrityError:
+                return False
 
     def recompute_and_persist_weights(self, term: Dict, game_day: int) -> List[Dict]:
         """对当前任期当日所有 (voter, candidate) 重算并写入 election_weight 表。
@@ -897,6 +971,19 @@ class ElectionStore:
     VOTE_ROUNDS = 3
 
     @staticmethod
+    def _ballot_reason(bd_win: Dict[str, float], bd_lose: Dict[str, float]) -> str:
+        """这一票投给赢家而非输家，理由取两者子项差值最大的那一项。"""
+        keys = set(bd_win) | set(bd_lose)
+        best_key = None
+        best_diff = 0.01  # 差值太小说不出理由，退化成「综合考量」
+        for k in keys:
+            diff = float(bd_win.get(k, 0.0)) - float(bd_lose.get(k, 0.0))
+            if diff > best_diff:
+                best_diff = diff
+                best_key = k
+        return BALLOT_REASON_LABEL.get(best_key, "综合考量")
+
+    @staticmethod
     def _split_rounds(ballot_log: List[Dict], candidates: List[str]) -> List[Dict]:
         """把选票切成若干轮，每轮返回该轮明细与累计票数。
 
@@ -924,7 +1011,7 @@ class ElectionStore:
             out.append({
                 "round": r + 1,
                 "total_rounds": rounds_n,
-                "ballots": [{"voter": b["voter"], "voted_for": b["voted_for"]} for b in chunk],
+                "ballots": [{"voter": b["voter"], "voted_for": b["voted_for"], "reason": b.get("reason", "")} for b in chunk],
                 "cumulative": dict(cum),
                 "is_final": r == rounds_n - 1,
             })
@@ -952,10 +1039,12 @@ class ElectionStore:
         self.recompute_and_persist_weights(term, game_day)
         latest = self.latest_weights(term, game_day)
 
-        # 按 voter 聚合
+        # 按 voter 聚合（同时留一份 breakdown，唱票时给每张票配个理由）
         per_voter: Dict[str, Dict[str, float]] = {}
+        per_voter_breakdown: Dict[str, Dict[str, Dict[str, float]]] = {}
         for row in latest:
             per_voter.setdefault(row["voter_id"], {})[row["candidate_id"]] = float(row["weight"])
+            per_voter_breakdown.setdefault(row["voter_id"], {})[row["candidate_id"]] = row.get("breakdown", {}) or {}
 
         candidates = self.candidates_of(term)
         votes: Dict[str, int] = {cid: 0 for cid in candidates}
@@ -966,7 +1055,11 @@ class ElectionStore:
             picks = [cid for cid, w in weights.items() if abs(w - max_w) < 1e-6]
             voted = random.choice(picks) if picks else candidates[0]
             votes[voted] = votes.get(voted, 0) + 1
-            ballot_log.append({"voter": voter_id, "voted_for": voted, "weights": weights})
+            other = next((c for c in candidates if c != voted), voted)
+            bd_win = per_voter_breakdown.get(voter_id, {}).get(voted, {})
+            bd_lose = per_voter_breakdown.get(voter_id, {}).get(other, {})
+            reason = self._ballot_reason(bd_win, bd_lose)
+            ballot_log.append({"voter": voter_id, "voted_for": voted, "weights": weights, "reason": reason})
 
         # 决定胜者
         max_votes = max(votes.values()) if votes else 0

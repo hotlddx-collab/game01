@@ -1,11 +1,11 @@
 """镇长政务任务（现任镇长专属玩法）。
 
 循环：随机刷新政务任务 → 玩家在某 NPC 对话里「安排 TA 去做」并选说服方式
-（好感说服 / 讲道理 / 威胁）→ NPC 接受则寻路到现场表演 → 按
+（好感说服 / 命令，命令消耗镇长权力点）→ NPC 接受则寻路到现场表演 → 按
 人岗匹配(fit) + 方式 + 心情/好感 结算 搞砸/马马虎虎/漂亮。
 
 满意度即选举分：结果写 world_events（actor=player → 全镇 event 子项），
-安排方式影响被指派者个人 affection（威胁掉好感）。不额外建满意度表。
+安排方式影响被指派者个人 affection（命令掉好感）。不额外建满意度表。
 
 战斗类（制服酒鬼）：比拼战斗力（= 制服排序的名次），打不过 → 搞砸且执行者受伤。
 """
@@ -72,7 +72,8 @@ AWAKE_START, AWAKE_END = 8, 20
 # 结算/效果参数
 EVENT_POSITIVE = "圆满解决"   # 含选举 POSITIVE_WORDS「解决」
 EVENT_NEGATIVE = "闹出麻烦"   # 含选举 NEGATIVE_WORDS「麻烦」
-THREAT_AFF = -6              # 威胁掉好感
+COMMAND_AFF = -6             # 命令：动镇长权力压下去，掉好感
+COMMAND_POWER_COST = 1       # 命令消耗的镇长权力点
 PERSUADE_AFF = 2            # 好感说服（成功）小幅加好感
 GREAT_MOOD, BOTCH_MOOD = 12, -10
 INJURED_AFF, INJURED_MOOD = -4, -18
@@ -229,14 +230,11 @@ class MayorTaskManager:
         return order.index(npc_id) if npc_id in order else len(order) + 2
 
     def decide_accept(self, task: Dict[str, Any], executor_id: str, method: str) -> bool:
-        if method == "threat":
+        if method == "command":
             return True
         rank = self._fit_rank(task["task_type"], executor_id)
         aff = self.affection.get(executor_id) if self.affection else 0
-        if method == "persuade":
-            p = 0.35 + aff / 120.0
-        else:  # reason
-            p = 0.55
+        p = 0.35 + aff / 120.0
         p += max(0, 2 - rank) * 0.08
         try:
             mv = self.mood.get(executor_id) if self.mood else 0
@@ -264,15 +262,15 @@ class MayorTaskManager:
                 base = "great"
             else:
                 base = "ok"
-            # 威胁去打（不情愿）稍降档
-            if method == "threat" and base == "great" and random.random() < 0.4:
+            # 命令去打（不情愿）稍降档
+            if method == "command" and base == "great" and random.random() < 0.4:
                 base = "ok"
             return {"outcome": base, "injured": injured}
 
         # 技能类：连续质量分
         rank = self._fit_rank(task_type, executor_id)
         quality = 3.0 - rank * 1.2
-        if method == "threat":
+        if method == "command":
             quality -= 1.0
         elif method == "persuade":
             quality += 0.3
@@ -306,10 +304,20 @@ class MayorTaskManager:
         task = dict(row)
         if task["status"] != "open":
             return {"ok": False, "executor_id": executor_id, "error": "任务已被安排或已结束"}
-        if method not in ("persuade", "reason", "threat"):
+        if method not in ("persuade", "command"):
             return {"ok": False, "executor_id": executor_id, "error": "无效的说服方式"}
         if not self.eligible_executor(task, executor_id):
             return {"ok": False, "executor_id": executor_id, "error": "此人无法处理这件事"}
+
+        # 命令：动用镇长权力压下去，先扣权力点，点数不够就下不了这道令
+        if method == "command":
+            term = self.election.ensure_term_active(game_day)
+            term_id = int(term["term_id"])
+            if not self.election.is_incumbent(term_id, "player"):
+                return {"ok": False, "executor_id": executor_id, "error": "你不是现任镇长，无法下令"}
+            self.election.refresh_power_points(term_id, "player", game_day)
+            if not self.election.spend_power_points(term_id, "player", COMMAND_POWER_COST):
+                return {"ok": False, "executor_id": executor_id, "error": "权力点不足，无法下令"}
 
         accepted = self.decide_accept(task, executor_id, method)
         if not accepted:
@@ -367,8 +375,8 @@ class MayorTaskManager:
         # 个人效果：安排方式 + 结果 → 执行者 affection / mood
         aff_delta = 0
         mood_delta = 0
-        if method == "threat":
-            aff_delta += THREAT_AFF
+        if method == "command":
+            aff_delta += COMMAND_AFF
             mood_delta -= 8
         elif method == "persuade":
             aff_delta += PERSUADE_AFF
@@ -411,7 +419,7 @@ class MayorTaskManager:
             return fallback
         persona = self.personas.get(executor_id, {})
         title = TASK_DEFS[task["task_type"]].get("title", task["task_type"])
-        method_cn = {"persuade": "用好感软磨", "reason": "讲道理", "threat": "威胁施压"}[method]
+        method_cn = {"persuade": "用好感软磨", "command": "动用镇长权力下令"}[method]
         if phase == "accept":
             ask = "镇长%s让 TA 去「%s」，TA 勉强/爽快答应，说一句：" % (method_cn, title)
         elif phase == "refuse":
