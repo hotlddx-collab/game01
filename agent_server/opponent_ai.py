@@ -28,6 +28,14 @@ PLAYER_ID = "player"
 ACTION_VISIT = "visit"
 ACTION_PROMISE = "promise"
 ACTION_SMEAR = "smear"
+ACTION_POACH = "poach"
+
+# 挖墙脚：对手主动去经营玩家好感最高的那位 NPC。
+# 只做抹黑不动好感，玩家的关系底子就永远无损——攒到顶就一劳永逸，
+# 这正是后期无事可做的根源。挖墙脚让高好感也需要守。
+POACH_MIN_AFFECTION = 60      # 只挖玩家已达 close 档的（低好感不值得挖，也没手感）
+POACH_AFFECTION_DELTA = -3    # 单次拉低幅度，温和但持续
+POACH_MIN_TERM = 2            # term1 是新手局，不挖墙脚
 
 # 落后玩家超过此分 → 当日行动数 +1，且更倾向抹黑（追赶施压）
 CATCHUP_BEHIND_THRESHOLD = 25.0
@@ -62,6 +70,12 @@ FALLBACK_SMEAR_TEXTS = [
     "别被花言巧语骗了，他到现在连镇上的规矩都没摸清。",
 ]
 
+FALLBACK_POACH_TEXTS = [
+    "我知道你跟他走得近。可交情归交情，镇子的事得看谁真办得成。",
+    "他对你好，我看得见。只是……他对谁都这样，你想过吗？",
+    "我不劝你疏远谁。我只是想让你知道，我这儿的门一直开着。",
+]
+
 
 class OpponentAI:
     """对手 NPC 行为生成器。"""
@@ -73,12 +87,15 @@ class OpponentAI:
         llm,
         world_store,
         memory_store=None,
+        affection_store=None,
     ) -> None:
         self.election = election_store
         self.personas = personas
         self.llm = llm
         self.world = world_store
         self.memory = memory_store
+        # 挖墙脚要直接改好感，没有它就退化成普通抹黑
+        self.affection = affection_store
 
     # ---- 立场 / 纲领 ----
 
@@ -175,6 +192,7 @@ class OpponentAI:
     def _pick_targets_by_score(self, term: Dict, opponent_id: str, count: int) -> List[Tuple[str, str]]:
         """按当前每个 voter 的双方权重智能选目标 + 动作类型。
 
+        - 玩家好感极高的铁票 → poach（挖墙脚，直接动好感）
         - 玩家在该 voter 领先很多 → smear（夺票）
         - 双方接近的摇摆 voter → promise（争取）
         - 其余 → visit（常规拉票）
@@ -195,9 +213,13 @@ class OpponentAI:
         # 玩家领先越多越优先攻打
         leads.sort(key=lambda x: x[1], reverse=True)
 
+        poach_target = self._pick_poach_target(term, opponent_id)
+
         picks: List[Tuple[str, str]] = []
         for v, lead in leads[:count]:
-            if lead >= 18.0:
+            if v == poach_target:
+                action = ACTION_POACH       # 玩家的铁票 → 挖墙脚
+            elif lead >= 18.0:
                 action = ACTION_SMEAR       # 玩家明显领先 → 抹黑夺票
             elif abs(lead) <= 8.0:
                 action = ACTION_PROMISE     # 摇摆票 → 许诺争取
@@ -205,6 +227,26 @@ class OpponentAI:
                 action = ACTION_VISIT       # 常规拉票
             picks.append((v, action))
         return picks
+
+    def _pick_poach_target(self, term: Dict, opponent_id: str) -> str:
+        """挑玩家好感最高的那位下手。
+
+        专挑最高的而不是随机，是因为挖墙脚要让玩家**感觉到疼**——
+        动一个无关紧要的人，玩家不会有任何反应，这个机制就白做了。
+        """
+        if self.affection is None:
+            return ""
+        if int(term.get("term_id", 1)) < POACH_MIN_TERM:
+            return ""
+        best, best_v = "", POACH_MIN_AFFECTION - 1
+        for v in self._voter_targets(opponent_id):
+            try:
+                val = int(self.affection.get(v))
+            except Exception:
+                continue
+            if val > best_v:
+                best, best_v = v, val
+        return best
 
     async def run_daily_actions(
         self,
@@ -280,6 +322,20 @@ class OpponentAI:
         text = await self._generate_action_line(opponent_id, target_id, action_type, platform)
 
         effect = {"target": target_id, "kind": action_type, "magnitude": 1}
+
+        # 挖墙脚是唯一直接改好感的对手动作：其余动作只影响选票权重。
+        # 玩家能反制——去跟这位 NPC 说话送礼把好感拉回来，这正是目的：
+        # 让高好感从"一次性成就"变成"需要持续维护的东西"。
+        if action_type == ACTION_POACH and self.affection is not None:
+            try:
+                before = int(self.affection.get(target_id))
+                self.affection.adjust(target_id, POACH_AFFECTION_DELTA)
+                after = int(self.affection.get(target_id))
+                effect["affection_delta"] = after - before
+                effect["affection_after"] = after
+            except Exception as e:
+                log.warning("[opponent_ai] 挖墙脚改好感失败 %s: %s", target_id, e)
+
         with get_conn() as conn:
             conn.execute(
                 """INSERT INTO opponent_actions
@@ -295,6 +351,8 @@ class OpponentAI:
         # 写 world_events（让 voter 的 event 子项可感知）
         if action_type == ACTION_SMEAR:
             desc = f"{op_name} 在 {target_name} 面前数落玩家的不是：「{text[:30]}」"
+        elif action_type == ACTION_POACH:
+            desc = f"{op_name} 特意去拉拢与玩家最亲近的 {target_name}：「{text[:30]}」"
         elif action_type == ACTION_PROMISE:
             desc = f"{op_name} 向 {target_name} 许诺帮忙：「{text[:30]}」"
         else:
@@ -345,6 +403,15 @@ class OpponentAI:
                 f"用一句话（不超过 30 字）含蓄地抹黑对手，不要太露骨。直接说话，不要旁白。"
             )
             fallback = FALLBACK_SMEAR_TEXTS
+        elif action_type == ACTION_POACH:
+            sys_prompt = common + (
+                f"居民 {target_name} 跟玩家（你的竞选对手）关系极好，是玩家最铁的支持者。"
+                f"你专程来拉拢他/她。\n"
+                f"用一句话（不超过 30 字）动摇这份交情——不要直接说玩家坏话，"
+                f"而是让对方对这份关系产生一丝疑虑，或让他/她觉得你这边更可靠。"
+                f"直接说话，不要旁白。"
+            )
+            fallback = FALLBACK_POACH_TEXTS
         elif action_type == ACTION_PROMISE:
             sys_prompt = common + (
                 f"现在你向摇摆中的居民 {target_name} 许下一个具体承诺，争取他/她的票。\n"

@@ -8,6 +8,9 @@ signal affection_level_changed(prev_level: String, new_level: String)
 ## P1 行为规则：路网寻路 / 错峰出发 / 到达闲逛 / 沿途停顿 / 个性速度差异。
 
 @export_file("*.json") var persona_file: String = ""
+
+## 后端下发的日程覆盖（轮换迁入者用）。须在 add_child 之前赋值。
+var schedule_override: Dictionary = {}
 @export var move_speed: float = 58.0
 @export var arrive_distance: float = 10.0
 
@@ -82,13 +85,15 @@ var _nav_agent: NavigationAgent2D = null
 @onready var emote_label: Label = %EmoteLabel
 @onready var mood_label: Label = %MoodLabel
 
+## 名字板颜色：与后端 affection.py 的 6 档一一对应。
+## 档位数不能超过颜色数，否则玩家从名字板读不出自己处在哪一档。
 const NAME_COLORS := {
-	"hate":    Color(1.0, 0.35, 0.35),
-	"cold":    Color(1.0, 0.7,  0.7),
-	"neutral": Color(1.0, 1.0,  1.0),
-	"warm":    Color(1.0, 0.95, 0.55),
-	"like":    Color(0.7, 1.0,  0.7),
-	"love":    Color(0.35,1.0,  0.35),
+	"hostile":  Color(1.0, 0.35, 0.35),   # 红   敌对
+	"neutral":  Color(1.0, 1.0,  1.0),    # 白   普通
+	"friendly": Color(1.0, 0.9,  0.4),    # 黄   友善
+	"fond":     Color(0.45, 0.75, 1.0),   # 蓝   喜欢
+	"close":    Color(0.4, 1.0,  0.45),   # 绿   好友
+	"intimate": Color(0.15, 0.7,  0.25),  # 深绿 亲密
 }
 var _affection_value: int = 0
 var _affection_level: String = "neutral"
@@ -477,6 +482,18 @@ func _load_persona() -> void:
 	sprite_file = data.get("sprite_file", "")
 	_schedule         = data.get("schedule", [])
 	_schedule_weekend = data.get("schedule_weekend", [])
+
+	# 后端下发的日程覆盖：轮换迁入的 NPC，其 persona 文件里写的是占位住所
+	# （home_boar 等），地图上并不存在——他住的是前任腾出来的房子。
+	# 后端 rebind_home() 只改内存不写盘（避免污染新开的局），所以这里
+	# 必须用下发的版本覆盖，否则这个 NPC 永远走不到家。
+	if not schedule_override.is_empty():
+		var so_a = schedule_override.get("schedule", [])
+		var so_b = schedule_override.get("schedule_weekend", [])
+		if so_a is Array and not so_a.is_empty():
+			_schedule = so_a
+		if so_b is Array and not so_b.is_empty():
+			_schedule_weekend = so_b
 
 	# 读取个性参数
 	var mv: Dictionary = data.get("movement", {})

@@ -47,6 +47,7 @@ class CrisisManager:
         self.personas = personas
         self.memory = memory_store
         self.llm = llm
+        self.present_provider = None  # type: Any
         self.defs: Dict[str, Dict[str, Any]] = self._load_defs()
 
     def _load_defs(self) -> Dict[str, Dict[str, Any]]:
@@ -56,6 +57,22 @@ class CrisisManager:
             log.warning("[crisis] 加载危机池失败: %s", e)
             return {}
         return {k: v for k, v in raw.items() if not k.startswith("_")}
+
+    def _all_present(self, entry: Dict[str, Any]) -> bool:
+        """当事人必须全部在镇上。
+
+        备选池 NPC 参与的危机若被抽中，玩家在场景里找不到当事人，
+        HUD 会指向一个不存在的节点。轮换后这些危机自然解禁。
+        在场判断走 present_provider（每会话独立），不能在加载时定死。
+        """
+        parties = entry.get("parties") or []
+        if self.present_provider is None:
+            return all(p in self.personas for p in parties)
+        try:
+            present = set(self.present_provider())
+        except Exception:
+            return True
+        return all(p in present for p in parties)
 
     def _name(self, npc_id: str) -> str:
         return self.personas.get(npc_id, {}).get("name", npc_id)
@@ -132,6 +149,8 @@ class CrisisManager:
         out: List[str] = []
         for tid, tpl in self.defs.items():
             if game_day < int(tpl.get("min_day", 0)):
+                continue
+            if not self._all_present(tpl):
                 continue
             if not ignore_cooldown and not self._cooldown_ok(
                     tid, game_day, int(tpl.get("cooldown_days", 0))):

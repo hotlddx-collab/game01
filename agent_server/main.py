@@ -56,6 +56,14 @@ app = FastAPI(title="怪物森林 Agent Server")
 
 llm: LLMClient = LLMClient()
 personas = load_all_personas()
+
+# personas 保持全量（9 人）：它是进程级全局，多个会话共享同一份。
+# 若在这里按某个会话的在场名单裁剪，别的会话就会拿到错误的镇民。
+# "谁在镇上"是**每会话**的存档状态，只能在用到的地方按 roster 动态判断。
+from roster import RosterStore, rebind_home
+roster_store = RosterStore(list(personas.keys()))
+log.info("[roster] personas 全量 %d 人；默认会话在场 %s",
+         len(personas), roster_store.present_ids())
 memory_store = MemoryStore()
 profile_store = PlayerProfile()
 world_store = WorldEventStore()
@@ -81,6 +89,8 @@ manager = AgentManager(
     quest_engine=quest_engine,
     mood_store=mood_store,
 )
+# Agent 全量常驻，但"谁在镇上"按会话动态判定
+manager.present_provider = roster_store.present_ids
 log.info("加载 personas: %s", manager.all_ids())
 
 # 八卦系统（活社会核心）
@@ -103,7 +113,47 @@ election_store = ElectionStore(
     world_store=world_store,
     promise_store=promise_store,
 )
+# 选民 = 当前会话在场的 NPC。备选池的人不该投票，离镇的人也不该。
+election_store.present_provider = roster_store.present_ids
 log.info("[election] ElectionStore 就绪 npc=%d", len(manager.all_ids()))
+
+
+def _rotate_npc_on_term_end(game_day: int) -> dict:
+    """换届轮换。好感最高者离镇，备选池补一人接手其宅。
+
+    Agent 实例是全量常驻的，无需增删——在场与否由 roster 决定。
+    这里只补齐前端需要的展示信息：门牌名与重绑定后的日程。
+    """
+    from roster import rotate_on_term_end, rebind_home
+    from personas import load_all_personas as _load_all
+    res = rotate_on_term_end(roster_store, affection_store, game_day)
+    newcomer = res.get("newcomer")
+    if not newcomer:
+        return res
+
+    p = _load_all().get(newcomer)
+    if p is None:
+        log.warning("[roster] 找不到迁入者 persona: %s", newcomer)
+        return res
+    rebind_home(p, res["home_id"])
+    # Agent 常驻实例的日程也要跟着改，否则他嘴里说的作息还是老一套
+    ag = manager.get(newcomer)
+    if ag is not None and isinstance(getattr(ag, "persona", None), dict):
+        ag.persona["schedule"] = p.get("schedule") or []
+        ag.persona["schedule_weekend"] = p.get("schedule_weekend") or []
+    res["nameplate"] = p.get("name", newcomer)
+    res["schedule_override"] = {
+        "schedule": p.get("schedule") or [],
+        "schedule_weekend": p.get("schedule_weekend") or [],
+    }
+    log.info("[roster] 换届轮换 %s(好感%s) 离镇 → %s 迁入 %s；停业=%s 重开=%s",
+             res["leaver"], res["leaver_affection"], newcomer,
+             res["home_id"], res["closed_facility"] or "无",
+             res.get("reopened_facility") or "无")
+    return res
+
+
+election_store.rotate_npc = _rotate_npc_on_term_end
 
 
 # 当期对手不派任务（对手非投票人，给它完成的承诺无法加选票）
@@ -116,6 +166,7 @@ def _is_current_opponent(npc_id: str) -> bool:
 
 
 quest_engine.is_opponent = _is_current_opponent
+quest_engine.is_present = roster_store.is_present
 
 # ---- quest ↔ promise 钩子 ----
 # 每次 quest accept/complete 时，同步建 / 兑现 promise
@@ -170,6 +221,7 @@ opponent_ai = OpponentAI(
     llm=llm,
     world_store=world_store,
     memory_store=memory_store,
+    affection_store=affection_store,
 )
 log.info("[opponent_ai] OpponentAI 就绪")
 
@@ -203,6 +255,7 @@ crisis_manager = CrisisManager(
     memory_store=memory_store,
     llm=llm,
 )
+crisis_manager.present_provider = roster_store.present_ids
 log.info("[crisis] CrisisManager 就绪 危机数=%d", len(crisis_manager.defs))
 
 # 镇长政务任务系统（现任镇长专属：指挥 NPC 干活）
@@ -239,6 +292,22 @@ async def root():
     return {"status": "ok", "animals": manager.all_ids()}
 
 
+@app.get("/roster")
+async def get_roster():
+    """在场名单。前端据此动态实例化 NPC 节点，取代 main.tscn 里写死的 6 个。"""
+    from personas import load_all_personas as _all
+    _p = _all()
+    entries = roster_store.snapshot(_p)
+    for e in entries:
+        e["name"] = (_p.get(e["animal_id"]) or {}).get("name", e["animal_id"])
+    return {
+        "ok": True,
+        "present": entries,
+        "reserve": roster_store.reserve_ids(),
+        "town_size": len(entries),
+    }
+
+
 # ---------- WebSocket ----------
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
@@ -272,6 +341,18 @@ async def _handle_message(ws: WebSocket, msg: dict) -> None:
     # 游戏时间同步（每游戏日 22:00 触发全员反思，不回包）
     if msg_type == "time_tick":
         await _handle_time_tick(msg, ws)
+        return
+
+    # 在场名单：前端启动时据此实例化 NPC 节点
+    if msg_type == "roster_query":
+        from personas import load_all_personas as _all
+        _p = _all()
+        entries = roster_store.snapshot(_p)
+        for e in entries:
+            e["name"] = (_p.get(e["animal_id"]) or {}).get("name", e["animal_id"])
+        await ws.send_text(json.dumps({
+            "type": "roster", "ok": True, "present": entries,
+        }, ensure_ascii=False))
         return
 
     # NPC↔NPC 对话（特殊：需要两个 agent，不走 animal_id 单查）
@@ -770,6 +851,28 @@ async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
                 ties.append({**row, "name": _o.name if _o else row["id"]})
         except Exception as e:
             log.debug("[relation] 情报组装失败: %s", e)
+        # 辩论立场情报：挑一个玩家还没打听过的议题，问出来即在辩论面板解锁
+        stance_intel = None
+        try:
+            if speaker_aff >= intel.TIER_STANCE:
+                topics = list(debate_manager.topic_labels.keys())
+                fresh = [t for t in topics
+                         if not debate_manager.has_intel(target_id, t)]
+                topic = random.choice(fresh) if fresh else None
+                if topic:
+                    sal = debate_manager.salience_of(target_id, topic)
+                    stance = debate_manager.stance_on(target_id, topic)
+                    stance_intel = {
+                        "topic": topic,
+                        "topic_label": debate_manager.topic_labels.get(topic, topic),
+                        "stance_label": debate_manager.stance_labels.get(stance, stance),
+                        "salience_word": ("这事他最上心" if sal >= 1.4
+                                          else "他压根不太在乎" if sal <= 0.7
+                                          else "还算在意"),
+                    }
+                    debate_manager.record_intel(target_id, topic)
+        except Exception as e:
+            log.debug("[debate] 立场情报组装失败: %s", e)
         tips = intel.build_tips(
             target_id, target_name,
             (target.persona if target else {}),
@@ -777,6 +880,7 @@ async def _handle_rumor_inquire(ws: WebSocket, msg: dict) -> None:
             affection_store.get(target_id),
             vote_id, vote_label,
             ties,
+            stance_intel,
         )
         profile_store.set(target_id, "intel_about_day", str(game_day))
 
@@ -1224,6 +1328,32 @@ async def _handle_election_query(ws: WebSocket, msg: dict) -> None:
     await ws.send_text(json.dumps(payload, ensure_ascii=False))
 
 
+async def _push_rotation(ws: WebSocket, settle: dict) -> None:
+    """换届轮换单独推一条：前端要据此删节点、建节点、换门牌。
+
+    结算有三条入口（自动 22:00 / debug 强制 / 手动结算），任何一条漏推，
+    玩家那边就会出现"后端换了人、场景里没换"的鬼状态，故收敛到一处。
+    """
+    rot = (settle or {}).get("rotation") or {}
+    if not rot.get("newcomer"):
+        return
+    try:
+        await ws.send_text(json.dumps({
+            "type": "npc_rotation", "ok": True, **rot,
+        }, ensure_ascii=False))
+    except Exception as e:
+        log.warning("[roster] 推送轮换失败: %s", e)
+    world_store.add(
+        actor=rot["leaver"],
+        description=(
+            f"{rot['leaver']} 离开了怪物森林，"
+            f"{rot['newcomer']} 搬进了他的房子"
+            + (f"；{rot['closed_facility']} 停业"
+               if rot.get("closed_facility") else "")
+        ),
+    )
+
+
 async def _handle_debug_force_vote(ws: WebSocket, msg: dict) -> None:
     """玩家用：把当前任期推到 D7 直接投票，省去等 7 个游戏日。
 
@@ -1245,6 +1375,7 @@ async def _handle_debug_force_vote(ws: WebSocket, msg: dict) -> None:
             }, ensure_ascii=False))
         except Exception as e:
             log.warning("[election] debug force vote 推送失败: %s", e)
+        await _push_rotation(ws, settle)
         winner = settle["winner_id"]
         world_store.add(
             actor=winner,
@@ -1343,7 +1474,8 @@ async def _handle_debate_start(ws: WebSocket, msg: dict) -> None:
             "name", term["opponent_id"]),
         "questions": questions,
         "stance_labels": debate_manager.stance_labels,
-        # 阵营站队：各象限站了哪些镇民，玩家据此权衡拿谁、丢谁
+        "topic_labels": debate_manager.topic_labels,
+        # 阵营站队按题变化，故 camps 挂在每个 question 上（见 questions[i].camps）
         "camps": debate_manager.leaning_view(term),
         # 已信对手黑料的镇民（八卦日的回报）：他们不会再站到对手那边
         "smeared_voters": sorted(debate_manager.smeared_voters(term)),
@@ -1386,6 +1518,7 @@ async def _handle_debate_submit(ws: WebSocket, msg: dict) -> None:
     game_day = int(msg.get("game_day", 0))
     term = election_store.ensure_term_active(game_day)
     raw_answers = msg.get("answers", {}) or {}
+    raw_topics = msg.get("topics", {}) or {}
     # 键可能是字符串，转 int
     answers: dict = {}
     for k, v in raw_answers.items():
@@ -1393,8 +1526,14 @@ async def _handle_debate_submit(ws: WebSocket, msg: dict) -> None:
             answers[int(k)] = str(v)
         except Exception:
             continue
+    topics: dict = {}
+    for k, v in raw_topics.items():
+        try:
+            topics[int(k)] = str(v)
+        except Exception:
+            continue
     try:
-        result = debate_manager.score_and_persist(term, answers)
+        result = debate_manager.score_and_persist(term, answers, topics)
     except Exception as e:
         log.warning("[debate] 评分失败: %s", e)
         await _send_error(ws, f"辩论评分失败: {e}")
@@ -1422,6 +1561,9 @@ async def _handle_debate_submit(ws: WebSocket, msg: dict) -> None:
         "opponent_picks": result.get("opponent_picks", []),
         "consistency": round(float(result.get("consistency", 1.0)), 2),
         "smeared_voters": result.get("smeared_voters", []),
+        # 站到对立象限的代价：这些 NPC 掉了好感
+        "offended": result.get("offended", {}),
+        "details": result.get("details", {}),
         "camps": debate_manager.leaning_view(term),
     }, ensure_ascii=False))
 
@@ -1785,6 +1927,7 @@ async def _run_opponent_daily(term: dict, game_day: int, ws: WebSocket, force: b
                 "action_type": action["action_type"],
                 "target_npc": action["target_npc"],
                 "text": action["llm_text"],
+                "mechanical_effect": action.get("mechanical_effect", {}),
             }, ensure_ascii=False))
         # 行动后比分变化 → 推一次最新状态刷新 HUD
         if actions:
@@ -1977,6 +2120,7 @@ async def _handle_time_tick(msg: dict, ws: WebSocket) -> None:
                     }, ensure_ascii=False))
                 except Exception as e:
                     log.warning("[election] 推送结算失败: %s", e)
+                await _push_rotation(ws, settle_info)
                 # 写一条世界事件
                 winner = settle_info["winner_id"]
                 world_store.add(

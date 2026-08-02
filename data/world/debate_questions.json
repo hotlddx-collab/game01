@@ -1,11 +1,24 @@
 {
-  "_comment": "辩论日题库。每个 NPC 有 2 题；每题 4 个立场象限选项。玩家选象限 → 旁听 NPC 按自己偏好象限打分。",
-  "_stances": ["radical", "conservative", "pleasing", "pragmatic"],
+  "_comment": "辩论日题库。每题标 topic；NPC 站位 = 本命象限被该 topic 的倾向覆盖，故每题人头分布不同。salience 是该 NPC 对该议题的在意度（计分权重）。",
+  "_stances": [
+    "radical",
+    "conservative",
+    "pleasing",
+    "pragmatic"
+  ],
   "_stance_labels": {
     "radical": "激进改革",
     "conservative": "稳健保守",
     "pleasing": "讨好民生",
     "pragmatic": "务实理性"
+  },
+  "_topic_labels": {
+    "budget": "钱怎么花",
+    "welfare": "谁来照顾",
+    "order": "规矩与秩序",
+    "nature": "森林与开发",
+    "outsider": "对外来者",
+    "values": "为官之道"
   },
   "npc_stance_pref": {
     "fox_postman": "radical",
@@ -13,12 +26,164 @@
     "herbalist_cui": "conservative",
     "pirate_lao": "pragmatic",
     "mystic_xuan": "pragmatic",
-    "traveler_lan": "pleasing"
+    "traveler_lan": "pleasing",
+    "boar_shi": "pragmatic",
+    "mole_tu": "conservative",
+    "diva_mei": "pleasing"
+  },
+  "npc_topic_stance": {
+    "fox_postman": {
+      "budget": "pragmatic",
+      "welfare": "pleasing",
+      "order": "radical",
+      "nature": "radical",
+      "outsider": "radical",
+      "values": "radical"
+    },
+    "bear_baker": {
+      "budget": "pleasing",
+      "welfare": "pleasing",
+      "order": "conservative",
+      "nature": "conservative",
+      "outsider": "pleasing",
+      "values": "conservative"
+    },
+    "herbalist_cui": {
+      "budget": "conservative",
+      "welfare": "pragmatic",
+      "order": "conservative",
+      "nature": "pragmatic",
+      "outsider": "conservative",
+      "values": "conservative"
+    },
+    "pirate_lao": {
+      "budget": "pragmatic",
+      "welfare": "conservative",
+      "order": "radical",
+      "nature": "pragmatic",
+      "outsider": "pragmatic",
+      "values": "radical"
+    },
+    "mystic_xuan": {
+      "budget": "conservative",
+      "welfare": "pragmatic",
+      "order": "conservative",
+      "nature": "conservative",
+      "outsider": "pragmatic",
+      "values": "pragmatic"
+    },
+    "traveler_lan": {
+      "budget": "radical",
+      "welfare": "pleasing",
+      "order": "pleasing",
+      "nature": "radical",
+      "outsider": "radical",
+      "values": "pleasing"
+    },
+    "boar_shi": {
+      "budget": "pragmatic",
+      "welfare": "conservative",
+      "order": "conservative",
+      "nature": "pragmatic",
+      "outsider": "conservative",
+      "values": "pragmatic"
+    },
+    "mole_tu": {
+      "budget": "conservative",
+      "welfare": "pleasing",
+      "order": "pleasing",
+      "nature": "conservative",
+      "outsider": "pleasing",
+      "values": "conservative"
+    },
+    "diva_mei": {
+      "budget": "pleasing",
+      "welfare": "radical",
+      "order": "radical",
+      "nature": "pleasing",
+      "outsider": "pleasing",
+      "values": "radical"
+    }
+  },
+  "npc_topic_salience": {
+    "fox_postman": {
+      "budget": 1.3,
+      "welfare": 0.8,
+      "order": 1.5,
+      "nature": 0.6,
+      "outsider": 1.0,
+      "values": 0.5
+    },
+    "bear_baker": {
+      "budget": 1.5,
+      "welfare": 1.5,
+      "order": 0.7,
+      "nature": 0.6,
+      "outsider": 0.8,
+      "values": 0.5
+    },
+    "herbalist_cui": {
+      "budget": 0.7,
+      "welfare": 1.3,
+      "order": 0.6,
+      "nature": 1.6,
+      "outsider": 1.2,
+      "values": 0.6
+    },
+    "pirate_lao": {
+      "budget": 1.2,
+      "welfare": 0.5,
+      "order": 1.6,
+      "nature": 0.4,
+      "outsider": 0.9,
+      "values": 0.9
+    },
+    "mystic_xuan": {
+      "budget": 0.5,
+      "welfare": 0.7,
+      "order": 0.6,
+      "nature": 1.0,
+      "outsider": 1.0,
+      "values": 1.6
+    },
+    "traveler_lan": {
+      "budget": 0.7,
+      "welfare": 1.2,
+      "order": 0.8,
+      "nature": 0.6,
+      "outsider": 1.6,
+      "values": 0.6
+    },
+    "boar_shi": {
+      "budget": 1.6,
+      "welfare": 0.5,
+      "order": 1.2,
+      "nature": 1.3,
+      "outsider": 0.6,
+      "values": 0.8
+    },
+    "mole_tu": {
+      "budget": 0.6,
+      "welfare": 1.0,
+      "order": 0.7,
+      "nature": 1.5,
+      "outsider": 1.3,
+      "values": 0.9
+    },
+    "diva_mei": {
+      "budget": 0.9,
+      "welfare": 1.4,
+      "order": 0.6,
+      "nature": 1.1,
+      "outsider": 1.5,
+      "values": 0.7
+    }
   },
   "questions": {
     "fox_postman": [
       {
         "q": "邮路总被野草盖住，包裹老是送晚。你当镇长打算怎么治？",
+        "topic": "budget",
         "options": {
           "radical": "全镇道路推倒重修，建一条贯通的石板主路！",
           "conservative": "维持现状，定期派人除草就够了，别折腾。",
@@ -28,6 +193,7 @@
       },
       {
         "q": "镇上效率太低了！你会逼着大家加快节奏，还是随他们慢悠悠？",
+        "topic": "order",
         "options": {
           "radical": "当然要改！定规矩、立标准，谁拖后腿谁负责。",
           "conservative": "森林的节奏本就慢，强求快只会出乱子。",
@@ -37,6 +203,7 @@
       },
       {
         "q": "哈！要是有人天天误事，你这镇长是罚他还是护他？",
+        "topic": "order",
         "options": {
           "radical": "该罚就罚，规矩立不起来谁都敢糊弄。",
           "conservative": "镇上抬头不见低头见，别把人逼到墙角。",
@@ -46,6 +213,7 @@
       },
       {
         "q": "我一个人跑全镇的信。你当镇长，会给我加人手还是加工钱？",
+        "topic": "budget",
         "options": {
           "radical": "重建邮政！招人、分片、定考核，一次到位。",
           "conservative": "一个人跑了这么多年也没出事，先别动。",
@@ -57,6 +225,7 @@
     "bear_baker": [
       {
         "q": "要是镇上预算紧张，你会先保证大家的口粮，还是先搞建设？",
+        "topic": "budget",
         "options": {
           "radical": "勒紧裤腰带也要搞大建设，长远看才值。",
           "conservative": "钱要留着应急，不饿肚子、不乱花最稳妥。",
@@ -66,6 +235,7 @@
       },
       {
         "q": "有居民日子过得紧巴巴，你这镇长会怎么帮他？",
+        "topic": "welfare",
         "options": {
           "radical": "改革分配制度，从根上解决贫富差。",
           "conservative": "邻里互助是老传统，让大家搭把手就好。",
@@ -75,6 +245,7 @@
       },
       {
         "q": "面包店的炉子是全镇最老的了……你会拿公家的钱替我换新的吗？",
+        "topic": "budget",
         "options": {
           "radical": "不止你的炉子，全镇的老家伙什都该换一遍。",
           "conservative": "老炉子烤了几十年的面包，修修还能用很久。",
@@ -86,6 +257,7 @@
     "herbalist_cui": [
       {
         "q": "森林边的草药地越来越少，你会怎么平衡开发和保护？",
+        "topic": "nature",
         "options": {
           "radical": "划一大片保护区，禁止任何采摘和开发！",
           "conservative": "顺其自然，老祖宗怎么做我们就怎么做。",
@@ -95,6 +267,7 @@
       },
       {
         "q": "镇上想引进外来的新东西，你支持还是谨慎？",
+        "topic": "outsider",
         "options": {
           "radical": "全力引进！新东西才能让小镇焕发活力。",
           "conservative": "外来的未必合适，还是守着熟悉的稳妥。",
@@ -104,6 +277,7 @@
       },
       {
         "q": "嗯……要是有人生了病，药却只够一个人用。你会怎么定？",
+        "topic": "welfare",
         "options": {
           "radical": "定一套规矩，按轻重缓急排，谁也别想插队。",
           "conservative": "谁先来给谁，老规矩最不容易起争执。",
@@ -115,6 +289,7 @@
     "pirate_lao": [
       {
         "q": "要是有人在镇上闹事，你这镇长是铁腕镇压还是好言相劝？",
+        "topic": "order",
         "options": {
           "radical": "立规矩、严执行，闹事就得有代价。",
           "conservative": "睁一只眼闭一只眼，多大点事。",
@@ -124,6 +299,7 @@
       },
       {
         "q": "老水手我见多了空头承诺。你凭啥让我信你能办成事？",
+        "topic": "values",
         "options": {
           "radical": "我会立刻拿出大动作，让你亲眼看到改变。",
           "conservative": "我不夸海口，能守住现在就不错了。",
@@ -133,6 +309,7 @@
       },
       {
         "q": "想当年船上，船长说了算。你当镇长，遇上大伙儿都反对你，你听谁的？",
+        "topic": "order",
         "options": {
           "radical": "听我自己的。对的事，反对的人多也得做。",
           "conservative": "大伙儿反对，那多半是我操之过急，缓一缓。",
@@ -144,6 +321,7 @@
     "mystic_xuan": [
       {
         "q": "……当镇长，图什么？",
+        "topic": "values",
         "options": {
           "radical": "图改变。这片森林该有新的样子。",
           "conservative": "图守护。让一切如常，便是好的。",
@@ -153,6 +331,7 @@
       },
       {
         "q": "……若你的决定，伤了一个人，成全了多数人。你做吗？",
+        "topic": "welfare",
         "options": {
           "radical": "做。大局为重，阵痛难免。",
           "conservative": "不做。不伤人，是底线。",
@@ -162,6 +341,7 @@
       },
       {
         "q": "……你说的这些，等选举过去了还会记得吗？",
+        "topic": "values",
         "options": {
           "radical": "记得。因为那时候，镇子已经不一样了。",
           "conservative": "记得。我说的本就是些不必改的老理。",
@@ -173,6 +353,7 @@
     "traveler_lan": [
       {
         "q": "我走南闯北爱热闹！你当镇长会让小镇更有活力吗？",
+        "topic": "nature",
         "options": {
           "radical": "当然！我要办集市、搞节庆，让小镇沸腾起来！",
           "conservative": "安安静静也挺好，热闹过头容易出事。",
@@ -182,6 +363,7 @@
       },
       {
         "q": "镇上要是起了流言蜚语，你这镇长管不管？",
+        "topic": "order",
         "options": {
           "radical": "立刻查清源头，公开澄清，绝不姑息。",
           "conservative": "流言止于智者，不必大动干戈。",
@@ -191,11 +373,108 @@
       },
       {
         "q": "诶你说！要是外头来了个陌生怪物想在镇上住下，你放不放行？",
+        "topic": "outsider",
         "options": {
           "radical": "放！镇子就该敞着门，新血才有新气象。",
           "conservative": "先别急，让他在镇外住些日子，看清楚人再说。",
           "pleasing": "问问大伙儿愿不愿意，大家点头我就点头。",
           "pragmatic": "看他能给镇上带来什么，也看镇上养不养得起。"
+        }
+      }
+    ],
+    "boar_shi": [
+      {
+        "q": "修路的钱到底从哪出？给句准话，别跟我绕。",
+        "topic": "budget",
+        "options": {
+          "radical": "加征一笔工程税，一次修个彻底！",
+          "conservative": "没钱就先别修，等攒够了再说。",
+          "pleasing": "谁受影响大就先给谁修，钱慢慢想办法。",
+          "pragmatic": "先算清一段路多少料多少工，按账面来。"
+        }
+      },
+      {
+        "q": "森林边那片石料场，采还是不采？",
+        "topic": "nature",
+        "options": {
+          "radical": "全采了，镇子建设等着用料！",
+          "conservative": "一块都不许动，那是老林子的根。",
+          "pleasing": "看大家怎么想，多数人同意就采。",
+          "pragmatic": "划出一块采、留一块养，采完补种。"
+        }
+      },
+      {
+        "q": "工期误了怎么办？我最烦有人说'回头再说'。",
+        "topic": "order",
+        "options": {
+          "radical": "误一天罚一天，规矩摆在那儿。",
+          "conservative": "老规矩怎么办就怎么办，别乱改。",
+          "pleasing": "先问清是不是有难处，帮人一把。",
+          "pragmatic": "分清是天灾还是人祸，再定怎么处置。"
+        }
+      }
+    ],
+    "mole_tu": [
+      {
+        "q": "小点声……地底下挖出的老东西，该归谁？",
+        "topic": "nature",
+        "options": {
+          "radical": "挖出来就是镇上的，拿去换钱。",
+          "conservative": "埋回去，那些东西不该见光。",
+          "pleasing": "谁最需要就给谁，别争。",
+          "pragmatic": "先弄清是什么，再定归属。"
+        }
+      },
+      {
+        "q": "要是有外来的想在镇上落脚，你放不放？",
+        "topic": "outsider",
+        "options": {
+          "radical": "敞开门，来的都是客。",
+          "conservative": "先看清底细，镇子小，经不起乱。",
+          "pleasing": "有难处的就收留，谁没个落难的时候。",
+          "pragmatic": "定个期限试住，合适再留下。"
+        }
+      },
+      {
+        "q": "我听说的事……该不该往外传？你别说是我问的。",
+        "topic": "values",
+        "options": {
+          "radical": "该说就说，藏着掖着才出事。",
+          "conservative": "不该传的一个字都别传。",
+          "pleasing": "看会不会伤到人，别让人难堪。",
+          "pragmatic": "分事情轻重，关乎大家的才说。"
+        }
+      }
+    ],
+    "diva_mei": [
+      {
+        "q": "说真的，镇上这么素，办个节庆热闹热闹不好吗？",
+        "topic": "welfare",
+        "options": {
+          "radical": "办！办场全森林都来的大集会！",
+          "conservative": "热闹一阵，收拾一个月，算了吧。",
+          "pleasing": "办个小的，让大家都能开心一下。",
+          "pragmatic": "先看有多少人愿意来帮忙，量力办。"
+        }
+      },
+      {
+        "q": "广场那么旧，你打算就这么放着？",
+        "topic": "order",
+        "options": {
+          "radical": "推倒重来，做个像样的中心！",
+          "conservative": "旧有旧的味道，动它干嘛。",
+          "pleasing": "问问大家想要什么样的，照着做。",
+          "pragmatic": "先修最破的那几处，剩下慢慢来。"
+        }
+      },
+      {
+        "q": "外来的新玩意儿，你是拦着还是让进？",
+        "topic": "outsider",
+        "options": {
+          "radical": "全放进来，镇子早该换换样子了。",
+          "conservative": "外面的东西，先别急着往里搬。",
+          "pleasing": "大家喜欢什么就进什么。",
+          "pragmatic": "挑真用得上的进，花架子免了。"
         }
       }
     ]

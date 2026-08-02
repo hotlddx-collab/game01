@@ -23,6 +23,7 @@ import items
 
 # 好感解锁门槛
 TIER_GIFT    = 10    # 说出「最爱的东西」
+TIER_STANCE  = 20    # 说出「在什么议题上站哪边」——辩论日的准备工作
 TIER_DISLIKE = 30    # 说出「讨厌的东西」+ 对玩家态度
 TIER_VOTE    = 55    # 说出选情倾向
 
@@ -71,11 +72,14 @@ def build_tips(
     vote_pref: str,
     vote_pref_label: str,
     ties: Optional[List[Dict[str, Any]]] = None,
+    stance_intel: Optional[Dict[str, str]] = None,
 ) -> List[Dict[str, str]]:
     """按受访者好感分档，组装可下发的情报条目。
 
     ties: 目标与他人的关系列表（已按亲疏降序），元素含 name/value/label。
           用于告诉玩家「该找谁传这话」——造谣的核心决策信息。
+    stance_intel: {"topic","topic_label","stance_label","salience_word"}，
+          目标在某议题上的立场。打听到即在辩论面板解锁其站位显示。
     """
     tips: List[Dict[str, str]] = []
     prefs = (target_persona.get("gift_prefs") or {})
@@ -89,6 +93,15 @@ def build_tips(
                 "icon": "🎁", "kind": "gift",
                 "text": "%s 最稀罕的是 %s，送这个准没错。" % (target_name, names),
             })
+
+    if speaker_affection >= TIER_STANCE and stance_intel:
+        tips.append({
+            "icon": "🗣", "kind": "stance",
+            "text": "说到「%s」这事，%s 是%s那一派，而且%s。" % (
+                stance_intel.get("topic_label", ""), target_name,
+                stance_intel.get("stance_label", ""),
+                stance_intel.get("salience_word", "还算在意")),
+        })
 
     if speaker_affection >= TIER_DISLIKE:
         bad = list(prefs.get("hates") or []) or list(prefs.get("dislikes") or [])
@@ -137,6 +150,8 @@ def tier_hint(speaker_affection: int) -> str:
     """还没解锁时给玩家的提示，告诉他怎么撬开嘴。"""
     if speaker_affection < TIER_GIFT:
         return "（跟 TA 更熟一些，才肯透露别人的喜好）"
+    if speaker_affection < TIER_STANCE:
+        return "（再熟一点，能问出别人在镇务上的立场）"
     if speaker_affection < TIER_DISLIKE:
         return "（交情再深些，能问出更多）"
     if speaker_affection < TIER_VOTE:

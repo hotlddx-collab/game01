@@ -76,6 +76,31 @@ _TIES: Dict[Tuple[str, str], int] = {
     ("pirate_lao", "mystic_xuan"):    64,   # 心照不宣的旧相识，全镇最铁
     ("pirate_lao", "traveler_lan"):   30,   # 一个爱讲一个爱听
     ("mystic_xuan", "traveler_lan"): -18,   # 煊赫烦她刨根问底
+
+    # ---- 备选池 3 人（未上场时不参与，轮换迁入后即刻生效）----
+    # 设计意图：新人不是"空降的老好人"，一进镇就自带立场与摩擦，
+    # 否则轮换只是换张脸，镇上的关系格局毫无变化。
+    ("boar_shi", "bear_baker"):      45,   # 硬汉敬重不吹牛的老实人
+    ("boar_shi", "traveler_lan"):   -25,   # 嫌她话多，她偏爱缠着问
+    ("boar_shi", "mole_tu"):         -8,   # 大嗓门吓得鼹鼠往洞里钻
+    ("boar_shi", "diva_mei"):       -12,   # 一个嫌花哨一个嫌土
+    ("boar_shi", "fox_postman"):     20,
+    ("boar_shi", "herbalist_cui"):   16,
+    ("boar_shi", "pirate_lao"):      32,   # 都是干过粗活的，聊得来
+    ("boar_shi", "mystic_xuan"):      0,
+    ("mole_tu", "mystic_xuan"):      55,   # 夜行者同盟，全镇第二铁
+    ("mole_tu", "diva_mei"):        -30,   # 全镇最大裂缝，调解难度最高
+    ("mole_tu", "pirate_lao"):       26,   # 老咸爱讲，老土爱听
+    ("mole_tu", "herbalist_cui"):    22,   # 都安静，互不打扰
+    ("mole_tu", "bear_baker"):       14,
+    ("mole_tu", "fox_postman"):      -4,
+    ("mole_tu", "traveler_lan"):    -10,   # 怕她把听来的话传出去
+    ("diva_mei", "herbalist_cui"):   15,   # 塑料姐妹：表面和气，暗自较劲
+    ("diva_mei", "traveler_lan"):    40,   # 一个爱美一个爱聊，天生一对话搭子
+    ("diva_mei", "bear_baker"):      28,
+    ("diva_mei", "fox_postman"):     12,
+    ("diva_mei", "pirate_lao"):       6,
+    ("diva_mei", "mystic_xuan"):    -14,   # 嫌他阴沉，他嫌她吵
 }
 
 

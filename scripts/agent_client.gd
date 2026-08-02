@@ -23,6 +23,10 @@ signal quest_completed_received(animal_id: String, quest_id: String, title: Stri
 signal quest_progress_received(animal_id: String, quest_id: String, title: String, desc: String, progress: int, required: int)
 signal election_state_received(view: Dictionary)
 signal election_result_received(info: Dictionary)
+## 在场名单送达（前端据此动态实例化 NPC 节点）
+signal roster_received(present: Array)
+## 换届 NPC 轮换：有人离镇、有人搬入
+signal npc_rotation_received(info: Dictionary)
 signal opponent_action_received(info: Dictionary)
 signal promise_state_received(info: Dictionary)
 signal debate_questions_received(info: Dictionary)
@@ -84,6 +88,8 @@ func _process(delta: float) -> void:
 				_connected = true
 				print("[AgentClient] connected %s" % _resolve_url())
 				connected.emit()
+				# 连上先要在场名单：镇上有谁由后端说了算
+				request_roster()
 			# 收包
 			while _ws.get_available_packet_count() > 0:
 				var pkt: PackedByteArray = _ws.get_packet()
@@ -340,11 +346,12 @@ func request_debate_rebut(question_index: int, question: String, stance: String,
 
 
 ## 辩论日：提交全部答案，结算辩论分。answers = {question_index(int): stance(String)}
-func request_debate_submit(answers: Dictionary) -> bool:
+func request_debate_submit(answers: Dictionary, topics: Dictionary = {}) -> bool:
 	return _send({
 		"type": "debate_submit",
 		"game_day": WorldClock.get_day(),
 		"answers": answers,
+		"topics": topics,
 	})
 
 
@@ -460,6 +467,10 @@ func _on_world_hour_changed(hour: int) -> void:
 
 # ---------- 内部 ----------
 
+func request_roster() -> bool:
+	return _send({"type": "roster_query"})
+
+
 func _send(payload: Dictionary) -> bool:
 	if not _connected:
 		push_warning("[AgentClient] not connected, drop payload")
@@ -479,6 +490,10 @@ func _handle_packet(text: String) -> void:
 		return
 	var msg_type: String = data.get("type", "")
 	match msg_type:
+		"roster":
+			roster_received.emit(data.get("present", []))
+		"npc_rotation":
+			npc_rotation_received.emit(data)
 		"reply":
 			var aid: String = data.get("animal_id", "")
 			# silent=true 的 reply 只用于推好感变化（如权力巡视），不进对话框

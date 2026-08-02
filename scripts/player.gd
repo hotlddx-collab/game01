@@ -151,12 +151,12 @@ func _update_hover_target() -> void:
 		var lvl: String = _hover_target.get_affection_level()
 		var emote := ""
 		match lvl:
-			"love":    emote = "❤️"
-			"like":    emote = "😊"
-			"warm":    emote = "🙂"
-			"cold":    emote = "😒"
-			"hate":    emote = "😠"
-			_:         emote = ""  # neutral 不显示
+			"intimate": emote = "❤️"
+			"close":    emote = "😊"
+			"fond":     emote = "🙂"
+			"friendly": emote = "👋"
+			"hostile":  emote = "😠"
+			_:          emote = ""  # neutral 不显示
 		if emote != "":
 			_hover_target.show_emote(emote, 1.5, 8.0)  # 8秒内不重复
 

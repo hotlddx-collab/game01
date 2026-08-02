@@ -21,7 +21,9 @@ from typing import Dict, List, Optional, Any, Tuple, Callable
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 QUESTS_FILE = PROJECT_ROOT / "data" / "world" / "quests.json"
 
-LEVEL_ORDER = {"hate": 0, "cold": 1, "neutral": 2, "warm": 3, "like": 4, "love": 5}
+# 档位序统一由 affection 维护（新增 trust/devoted/soulmate 后必须同步，
+# 否则高档玩家会被判定为「达不到 love」而拿不到高级任务）
+from affection import LEVEL_ORDER  # noqa: E402
 
 # 同一 NPC 最近完成的这么多个任务，短期内不再重复派发（候选池被清空时才破例）
 COOLDOWN_SLOTS = 3
@@ -155,7 +157,18 @@ class QuestEngine:
         self._defs: Dict[str, Dict] = {}
         # 可选：判断某 NPC 是否当期竞选对手（对手不派任务，避免承诺加不上选票）
         self.is_opponent = None  # type: Optional[Callable[[str], bool]]
+        # 可选：在场判断。备选池 NPC 的任务、以及 target_npc 指向离镇者的任务，
+        # 玩家没法完成（场景里没这个人），必须整条隐藏而不是让它挂在任务栏里。
+        self.is_present = None  # type: Optional[Callable[[str], bool]]
         self._load()
+
+    def _npc_available(self, entry: Dict) -> bool:
+        if self.is_present is None:
+            return True
+        if not self.is_present(entry.get("npc_id", "")):
+            return False
+        target = (entry.get("requires") or {}).get("target_npc")
+        return not target or self.is_present(target)
 
     def _load(self) -> None:
         if not QUESTS_FILE.exists():
@@ -187,6 +200,8 @@ class QuestEngine:
         candidates: List[str] = []
         for qid, q in self._defs.items():
             if q.get("npc_id") != giver_id:
+                continue
+            if not self._npc_available(q):
                 continue
             min_lvl = LEVEL_ORDER.get(q.get("min_affection_level", "neutral"), 2)
             if player_lvl < min_lvl:

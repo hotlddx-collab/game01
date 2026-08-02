@@ -51,7 +51,7 @@
       "count": 4,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "bear_baker_collect_berry": {
@@ -103,7 +103,7 @@
       "count": 2,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "bear_baker_relay_lao": {
@@ -194,7 +194,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "fox_postman_deliver_letter_to_cui": {
@@ -212,7 +212,7 @@
       "count": 2,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "fox_postman_deliver_book_to_xuan": {
@@ -230,7 +230,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "fox_postman_relay_baker": {
@@ -291,7 +291,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "herbalist_cui_collect_mint": {
@@ -308,7 +308,7 @@
       "count": 2,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "herbalist_cui_collect_mushroom": {
@@ -342,7 +342,7 @@
       "count": 1,
       "affection": 7
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "herbalist_cui_collect_bark": {
@@ -377,7 +377,7 @@
       "count": 2,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "herbalist_cui_relay_lan": {
@@ -399,7 +399,7 @@
       "count": 2,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "traveler_lan_collect_acorn": {
@@ -416,7 +416,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "like",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "traveler_lan_collect_shell": {
@@ -433,7 +433,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "traveler_lan_collect_moonstone": {
@@ -456,7 +456,7 @@
   "traveler_lan_collect_water": {
     "npc_id": "traveler_lan",
     "title": "出发前灌满水",
-    "desc": "小蓝：'明天要走远路，得备壶水。小翠那种密封的陶壶最好使，能帮我讨 1 只来吗？'",
+    "desc": "小蓝：'明天要走远路，得备壶水。密封的陶壶最好使，能帮我讨 1 只来吗？'",
     "kind": "collect",
     "requires": {
       "item_id": "water_pot",
@@ -485,7 +485,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "traveler_lan_relay_baker": {
@@ -507,7 +507,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "traveler_lan_relay_lao": {
@@ -529,7 +529,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "pirate_lao_collect_rock": {
@@ -546,7 +546,7 @@
       "count": 1,
       "affection": 4
     },
-    "min_affection_level": "like",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "pirate_lao_collect_octopus": {
@@ -563,7 +563,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "like",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "pirate_lao_collect_fish": {
@@ -580,7 +580,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": true
   },
   "pirate_lao_collect_gourd": {
@@ -597,7 +597,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "pirate_lao_collect_pearl": {
@@ -614,7 +614,7 @@
       "count": 1,
       "affection": 8
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "pirate_lao_deliver_cup_to_baker": {
@@ -632,7 +632,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "like",
+    "min_affection_level": "fond",
     "repeatable": true
   },
   "pirate_lao_relay_cui": {
@@ -654,7 +654,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "like",
+    "min_affection_level": "fond",
     "repeatable": false
   },
   "pirate_lao_relay_xuan": {
@@ -676,7 +676,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_crystal": {
@@ -693,7 +693,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_deliver_book_to_lan": {
@@ -728,7 +728,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_moonstone": {
@@ -745,7 +745,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_collect_scroll": {
@@ -797,7 +797,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "mystic_xuan_relay_cui": {
@@ -819,7 +819,7 @@
       "count": 1,
       "affection": 5
     },
-    "min_affection_level": "love",
+    "min_affection_level": "close",
     "repeatable": false
   },
   "pirate_lao_collect_coin_purse": {
@@ -836,7 +836,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "mystic_xuan_collect_compass": {
@@ -853,7 +853,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "fox_postman_collect_cookie": {
@@ -887,7 +887,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "traveler_lan_collect_gem_red": {
@@ -904,7 +904,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "traveler_lan_collect_gold_cup": {
@@ -921,7 +921,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "mystic_xuan_collect_gold_key": {
@@ -938,7 +938,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "traveler_lan_collect_gourd": {
@@ -955,7 +955,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "herbalist_cui_collect_heart_pot": {
@@ -972,7 +972,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "pirate_lao_collect_medi_pack": {
@@ -989,7 +989,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "pirate_lao_collect_noodle": {
@@ -1006,7 +1006,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "herbalist_cui_collect_pan_flute": {
@@ -1023,7 +1023,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "mystic_xuan_collect_potion_tea": {
@@ -1040,7 +1040,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "fox_postman_collect_scroll_fire": {
@@ -1074,7 +1074,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "mystic_xuan_collect_scroll_thunder": {
@@ -1091,7 +1091,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "bear_baker_collect_silver_key": {
@@ -1108,7 +1108,7 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
     "repeatable": false
   },
   "pirate_lao_collect_treasure_small": {
@@ -1125,7 +1125,268 @@
       "count": 1,
       "affection": 6
     },
-    "min_affection_level": "warm",
+    "min_affection_level": "friendly",
+    "repeatable": false
+  },
+  "boar_shi_collect_rock": {
+    "npc_id": "boar_shi",
+    "title": "铺路差石头",
+    "desc": "石敢当：'广场西头还缺料。去河边搬 5 块石头来，别挑，能用就行。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "rock",
+      "count": 5
+    },
+    "reward": {
+      "item_id": "bar_copper",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "boar_shi_collect_branch": {
+    "npc_id": "boar_shi",
+    "title": "支模板要木料",
+    "desc": "石敢当：'路基得先支模板。砍 4 根树枝回来，直的，别拿弯的糊弄我。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "branch",
+      "count": 4
+    },
+    "reward": {
+      "item_id": "water_pot",
+      "count": 1,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "boar_shi_relay_bear": {
+    "npc_id": "boar_shi",
+    "title": "给苔老板带句话",
+    "desc": "石敢当：'跟苔老板说一声——明天路封半天，他那炉子要用的柴我提前给他堆门口了。'",
+    "kind": "relay",
+    "requires": {
+      "target_npc": "bear_baker",
+      "message_summary": "明天封路半天，柴已经提前堆在门口",
+      "keywords": ["封路", "柴", "门口"]
+    },
+    "reward": {
+      "item_id": "coin_purse",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "friendly",
+    "repeatable": false
+  },
+  "boar_shi_deliver_cui": {
+    "npc_id": "boar_shi",
+    "title": "把药包送去",
+    "desc": "石敢当：'队里有人手砸了。这包东西你替我送到小翠那儿，我脱不开身。'",
+    "kind": "deliver",
+    "requires": {
+      "target_npc": "herbalist_cui",
+      "item_id": "medi_pack",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "pickaxe",
+      "count": 1,
+      "affection": 8
+    },
+    "min_affection_level": "fond",
+    "repeatable": false
+  },
+  "boar_shi_collect_copper": {
+    "npc_id": "boar_shi",
+    "title": "祖传石锤要换箍",
+    "desc": "石敢当：'……我爹那把锤子，箍松了。弄 2 块铜锭来，我自己打。这事我只求你。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "bar_copper",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "gem_green",
+      "count": 1,
+      "affection": 10
+    },
+    "min_affection_level": "close",
+    "repeatable": false
+  },
+  "mole_tu_collect_mushroom": {
+    "npc_id": "mole_tu",
+    "title": "地道口的蘑菇",
+    "desc": "老土：'小点声……我洞口那片蘑菇被人踩了。你帮我采 4 朵回来补上，好吗？'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "mushroom",
+      "count": 4
+    },
+    "reward": {
+      "item_id": "dewdrop",
+      "count": 2,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "mole_tu_collect_resin": {
+    "npc_id": "mole_tu",
+    "title": "封地道缝要树脂",
+    "desc": "老土：'地道渗水……得拿树脂封上。你能弄 3 块来吗？我白天不好出去。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "resin",
+      "count": 3
+    },
+    "reward": {
+      "item_id": "map_piece",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "mole_tu_relay_xuan": {
+    "npc_id": "mole_tu",
+    "title": "捎话给煊赫",
+    "desc": "老土：'你路过煊赫那儿……跟他说，今晚地下有动静，让他别往北边走。'",
+    "kind": "relay",
+    "requires": {
+      "target_npc": "mystic_xuan",
+      "message_summary": "今晚地下有动静，别往北边走",
+      "keywords": ["今晚", "地下", "北边"]
+    },
+    "reward": {
+      "item_id": "dice",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "friendly",
+    "repeatable": false
+  },
+  "mole_tu_deliver_bear": {
+    "npc_id": "mole_tu",
+    "title": "把露珠送去面包店",
+    "desc": "老土：'这是地下最干净的水……苔老板揉面用得上。你替我送过去，我怕光。'",
+    "kind": "deliver",
+    "requires": {
+      "target_npc": "bear_baker",
+      "item_id": "dewdrop",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "silver_key",
+      "count": 1,
+      "affection": 8
+    },
+    "min_affection_level": "fond",
+    "repeatable": false
+  },
+  "mole_tu_collect_moonstone": {
+    "npc_id": "mole_tu",
+    "title": "照亮地道的石头",
+    "desc": "老土：'我想在最深那段挂几颗月光石……你要是弄得到 2 颗，我就带你下去看看。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "moonstone",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "gem_red",
+      "count": 1,
+      "affection": 10
+    },
+    "min_affection_level": "close",
+    "repeatable": false
+  },
+  "diva_mei_collect_flower": {
+    "npc_id": "diva_mei",
+    "title": "花摊要补货",
+    "desc": "莓莓：'拜托，今天摊子上都空了。帮我采 6 朵野花回来，挑开得好的！'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "flower",
+      "count": 6
+    },
+    "reward": {
+      "item_id": "bread",
+      "count": 2,
+      "affection": 5
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "diva_mei_collect_shell": {
+    "npc_id": "diva_mei",
+    "title": "做发饰要贝壳",
+    "desc": "莓莓：'说真的，我想做一顶贝壳发饰。你能去河边捡 4 个漂亮的来吗？'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "shell",
+      "count": 4
+    },
+    "reward": {
+      "item_id": "potion_tea",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "neutral",
+    "repeatable": true
+  },
+  "diva_mei_relay_cui": {
+    "npc_id": "diva_mei",
+    "title": "带话给小翠",
+    "desc": "莓莓：'……你帮我跟小翠说一声，上回那束干花，我是真心夸的，不是客套。'",
+    "kind": "relay",
+    "requires": {
+      "target_npc": "herbalist_cui",
+      "message_summary": "上回夸那束干花是真心的，不是客套",
+      "keywords": ["干花", "真心", "客套"]
+    },
+    "reward": {
+      "item_id": "letter",
+      "count": 1,
+      "affection": 6
+    },
+    "min_affection_level": "friendly",
+    "repeatable": false
+  },
+  "diva_mei_deliver_lan": {
+    "npc_id": "diva_mei",
+    "title": "把排笛还给小蓝",
+    "desc": "莓莓：'这支排笛是小蓝落我这儿的。你替我还回去——我怕她又拉着我聊一下午。'",
+    "kind": "deliver",
+    "requires": {
+      "target_npc": "traveler_lan",
+      "item_id": "pan_flute",
+      "count": 1
+    },
+    "reward": {
+      "item_id": "silver_cup",
+      "count": 1,
+      "affection": 8
+    },
+    "min_affection_level": "fond",
+    "repeatable": false
+  },
+  "diva_mei_collect_pearl": {
+    "npc_id": "diva_mei",
+    "title": "配得上那条丝带的东西",
+    "desc": "莓莓：'我想给那条丝带配点什么……珍珠，2 颗就够。这事我没跟别人说过。'",
+    "kind": "collect",
+    "requires": {
+      "item_id": "pearl",
+      "count": 2
+    },
+    "reward": {
+      "item_id": "treasure_small",
+      "count": 1,
+      "affection": 10
+    },
+    "min_affection_level": "close",
     "repeatable": false
   }
 }

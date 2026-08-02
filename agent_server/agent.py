@@ -13,7 +13,7 @@ from llm import LLMClient
 from memory import MemoryStore, Memory
 from profile import PlayerProfile
 from world_events import WorldEventStore, WorldEvent
-from affection import AffectionStore, level_of, level_label, delta_for_chat
+from affection import AffectionStore, level_of, level_label, delta_for_chat, at_least
 from retrieval import retrieve_relevant
 from fact_extractor import extract_facts, estimate_importance, importance_for_gift
 from reflection import ReflectionStore, reflect_if_needed, run_daily_reflection as _run_daily_refl, IntentStore
@@ -29,9 +29,10 @@ log = logging.getLogger("agent")
 # ─────────────────────────────────────────
 # {等级: (cooldown_days, affection_delta)}
 _REQUEST_RULES = {
-    "love": (1,  0),    # 关系最好：每天可索要，不扣分
-    "like": (2, -3),    # 较好：2 天 1 次，扣分（不爽）
-    "warm": (3, -5),    # 一般：3 天 1 次，扣得多（明显不爽）
+    "intimate": (1,  0),    # 亲密：每天可索要，不扣分
+    "close":    (1,  0),    # 好友：同上
+    "fond":     (2, -3),    # 喜欢：2 天 1 次，扣分（不爽）
+    "friendly": (3, -5),    # 友善：3 天 1 次，扣得多（明显不爽）
 }
 
 
@@ -191,6 +192,7 @@ class Agent:
         milestone_store: Optional["MilestoneStore"] = None,
         quest_engine: Optional["QuestEngine"] = None,
         mood_store: Optional["MoodStore"] = None,
+        item_source: Optional[Any] = None,
         max_history_turns: int = 12,
     ) -> None:
         self.persona = persona
@@ -204,6 +206,8 @@ class Agent:
         self.milestone_store = milestone_store
         self.quest_engine = quest_engine
         self.mood_store = mood_store
+        # 物品来源索引：索要被拒时用它告诉玩家「谁手上才真有」
+        self.item_source = item_source
         self.max_history_turns = max_history_turns
         # AgentManager 初始化完成后设置，供 intent 提示用
         self.npc_name_map: Dict[str, str] = {}  # {display_name: animal_id}
@@ -464,16 +468,16 @@ class Agent:
         lvl = level_of(v)
         label = level_label(lvl)
         hint = {
-            "hate":    "你对这位玩家有强烈反感，语气冷硬、想赶走对方，必要时直接呛回去。",
-            "cold":    "你对这位玩家有些不快，语气冷淡、敷衍，懒得多搭理。",
-            "neutral": "你跟这位玩家不算熟，礼貌但不亲昵。",
-            "warm":    "你对这位玩家有点初步好感，比之前自然一些，开始愿意多聊两句。",
-            "like":    "你对这位玩家有好感，热情一些、爱聊几句，会主动找话题。",
-            "love":    "你很喜欢这位玩家，语气亲近、关心、爱开玩笑，把对方当朋友。",
+            "hostile":  "你对这位玩家有强烈反感，语气冷硬、想赶走对方，必要时直接呛回去。",
+            "neutral":  "你跟这位玩家不算熟，礼貌但不亲昵。",
+            "friendly": "你对这位玩家有点初步好感，比之前自然一些，开始愿意多聊两句。",
+            "fond":     "你很喜欢这位玩家，热情、爱聊几句，会主动找话题。",
+            "close":    "你把这位玩家当朋友，语气亲近、关心、爱开玩笑，会说些心里话。",
+            "intimate": "这位玩家是你最亲近的人，你毫无保留，什么都肯给、什么都敢说。",
         }.get(lvl, "")
         extra = ""
         # 关系不错但还不知道对方名字 → 提示自然问一下
-        if lvl in ("like", "love", "warm"):
+        if at_least(lvl, "friendly"):
             prof = self.profile.get_all(self.animal_id)
             if not prof.get("name"):
                 extra = "\n- 你们已经聊了不少，但你还不知道对方叫什么，在合适时机可以自然地问一句名字。"
@@ -942,7 +946,7 @@ class Agent:
                 result["quest_progress"] = {
                     "quest_id": giver_qid,
                     "title": q.get("title", ""),
-                    "desc": q.get("desc", ""),
+                    "desc": self._quest_desc_with_source(q),
                     "progress": progress + in_bag,
                     "required": int(req.get("count", 1)),
                 }
@@ -965,7 +969,7 @@ class Agent:
                 offer: Dict[str, Any] = {
                     "quest_id": qid,
                     "title": quest.get("title", ""),
-                    "desc": quest.get("desc", ""),
+                    "desc": self._quest_desc_with_source(quest),
                     "kind": quest.get("kind", ""),
                 }
                 req = quest.get("requires", {})
@@ -1062,20 +1066,46 @@ class Agent:
 
         decision = _check_gift_request(level, game_day, last_day)
 
-        # 选择实际送出的物品（可送 = 偏好物 + 签名礼 + 自己捡到的野货）
-        prefs = self.persona.get("gift_prefs", {}) or {}
+        # 选择实际送出的物品。可送 = 偏好物 + 签名礼 + 自己捡到的野货 + **三档回礼池**。
+        #
+        # 回礼池此前被漏掉，是「关系深绿也要不到水壶」的根因：
+        # 水壶只存在于煊赫的 return_gifts 里，而 giveable 只认 loves/signature/野货，
+        # 于是无论好感多高，索要都会走到「手边没有合适的东西」那条分支。
+        # 回礼池本就是「这个 NPC 手上有什么」的权威清单，索要必须认它。
+        #
+        # 档位仍按好感解锁，保持「越熟越能要到好东西」：
+        #   warm 起 → common；like 起 → +mid；love → +rare
         sig = self.persona.get("signature_gift", "")
         forage_bag = self.profile.get_forage_bag(self.animal_id)
-        giveable = set(prefs.get("loves", []))
+        # 注意：**不能**把 loves 并进来。loves 是「喜欢收到什么」，不是「手上有什么」。
+        # 曾经并入 loves，导致焰仔把自己 loves 里的火卷轴送出去——可他根本没有，
+        # 火卷轴的唯一来源是小蓝。更糟的是这打通了刷好感闭环：
+        # 向他要走 → 再送回给他（他 loves）→ 白加好感，正是项目明令禁止的循环。
+        giveable = set()
         if sig:
             giveable.add(sig)
         giveable |= set(forage_bag.keys())
+        giveable |= set(self.persona.get("return_gifts", []) or [])
+        if at_least(level, "fond"):
+            giveable |= set(self.persona.get("mid_return_gifts", []) or [])
+        if at_least(level, "close"):
+            giveable |= set(self.persona.get("rare_return_gifts", []) or [])
         requested_id = str(intent_data.get("item_id", "")).strip()
 
-        # 严格校验：LLM 给的 item_id 必须在可送列表里，否则视为"手边没有"
+        # 严格校验：LLM 给的 item_id 必须在可送列表里，否则视为"手边没有"。
+        # 拒绝时明确告诉玩家「谁手上才有」，避免像旧任务提示那样让人白跑。
         if requested_id not in giveable or not items_module.get(requested_id):
-            result["text"] = result["text"] + "\n（对方翻了翻口袋：手边没有合适的东西可以给你。）"
-            log.info("[request] %s requested=%s 不在可送列表 %s", self.animal_id, requested_id, giveable)
+            tip = ""
+            if self.item_source is not None and items_module.get(requested_id):
+                # 高一档才有的东西：说明是关系还不够，而不是真没有
+                higher = self.item_source.tier_of(requested_id, self.animal_id)
+                if higher:
+                    tip = "\n（看得出他确实有，只是还没到肯拿出来的交情。）"
+                else:
+                    tip = "\n" + self.item_source.hint_for(requested_id, self.animal_id)
+            result["text"] = result["text"] + "\n（对方翻了翻口袋：手边没有合适的东西可以给你。）" + tip
+            log.info("[request] %s requested=%s 不在可送列表(level=%s)",
+                     self.animal_id, requested_id, level)
             return
 
         if decision["allow"] and requested_id and items_module.get(requested_id):
@@ -1115,13 +1145,41 @@ class Agent:
             result["text"] = result["text"] + "\n（对方翻了翻口袋：我手边没有合适的东西可以给你。）"
             log.info("[request] %s 无可送物品", self.animal_id)
 
+    def _quest_desc_with_source(self, quest: Dict[str, Any]) -> str:
+        """任务描述后面拼一句**真实**的物品来源提示。
+
+        quests.json 里的 desc 是手写文案，来源指向从不校验：
+        小蓝要水壶写的是「小翠那种密封的陶壶」，可小翠三档池子里压根没有水壶，
+        真正持有者是煊赫。玩家照着跑只会白费工夫。
+
+        这里按 items_source 索引实时生成，配置改了提示自动跟着变，永远不会说谎。
+        """
+        desc = quest.get("desc", "")
+        if self.item_source is None:
+            return desc
+        req = quest.get("requires", {}) or {}
+        item_id = req.get("item_id", "")
+        # deliver 类是「把东西送去给某人」，需求物通常玩家已持有，不必提示来源
+        if not item_id or quest.get("kind") == "deliver":
+            return desc
+        try:
+            hint = self.item_source.hint_for(item_id, asker_id=self.animal_id)
+        except Exception as e:
+            log.debug("[quest] 来源提示生成失败 %s: %s", item_id, e)
+            return desc
+        return desc + "\n" + hint if hint else desc
+
     def _check_love_gift(self, aff: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """当好感度首次升到 love 时，NPC 自动赠送签名礼物。
 
         每只 NPC 只触发一次（用 player_profile "love_gift_sent" 标记）。
         返回 {item_id, item_name, message} 或 None。
         """
-        if aff.get("level") != "love" or aff.get("prev_level") == "love":
+        # 首次跨入 close（好友，含更高档）时触发。用 at_least 而非 == ，
+        # 否则玩家一口气升到 intimate 就会跳过这份签名礼。
+        if not at_least(aff.get("level", ""), "close"):
+            return None
+        if at_least(aff.get("prev_level", ""), "close"):
             return None
         # 已经送过了
         if self.profile.get(self.animal_id, "love_gift_sent"):
@@ -1147,10 +1205,17 @@ class Agent:
         """回礼循环：玩家送 NPC 一件他 loves/likes 的礼物、且当天首次 → 回赠一件。
 
         三层回礼池，都要求「符合本 NPC 身份、地面捡不到、被别的 NPC 喜欢」，
-        按好感档位递进解锁，越熟拿到的东西越硬：
-        - persona.return_gifts      普通层 base 4-6，neutral/warm 就能掉，用于转送起步。
-        - persona.mid_return_gifts  中级层 base 7-9，好感到 like 档解锁。
-        - persona.rare_return_gifts 稀有层 base 10-15，好感到 love 档解锁，高端任务的需求物。
+        按好感档位**累加**解锁（不是替换）：
+        - persona.return_gifts      普通层 base 4-6，neutral/warm 起就能掉。
+        - persona.mid_return_gifts  中级层 base 7-9，好感到 like 档加入池子。
+        - persona.rare_return_gifts 稀有层 base 10-15，好感到 love 档加入池子。
+
+        为什么必须累加：早先按档位**替换**池子，导致好感升到 love 后低档物品
+        彻底消失——煊赫的水壶只配在 common 档，玩家跟他关系越好反而越拿不到，
+        而水壶又是小蓝任务的需求物，直接把任务链锁死。低档物品是任务经济的
+        基础耗材，任何时候都得可得。
+
+        高档物品给更高权重，保证「关系越好，掉好东西的概率越高」的手感不丢。
 
         两条硬规则（防刷好感）：
         - 回礼绝不能是发放者自己 loves/likes 的东西，否则玩家收了立刻送回去就能无限刷。
@@ -1166,28 +1231,30 @@ class Agent:
         if last == game_day:
             return None
 
-        # 按好感档位逐级解锁：like 开中级，love 开稀有。取到哪档就只发哪档，
-        # 让玩家明确感到「关系更进一步，东西也更好了」。
-        tier = "common"
-        pool = list(self.persona.get("return_gifts", []) or [])
         try:
             level = self.affection.snapshot(self.animal_id).get("level")
         except Exception:
             level = None
-        if level in ("like", "love"):
-            mid = list(self.persona.get("mid_return_gifts", []) or [])
-            if mid:
-                pool, tier = mid, "mid"
-        if level == "love":
-            rare = list(self.persona.get("rare_return_gifts", []) or [])
-            if rare:
-                pool, tier = rare, "rare"
-        pool = self._filter_self_liked(pool)
-        if not pool:
+
+        # 累加式解锁：低档永远保留，高档按好感加入并给更高权重
+        weighted: List[tuple] = []
+        for item_id in self._filter_self_liked(
+                list(self.persona.get("return_gifts", []) or [])):
+            weighted.append((item_id, "common", 1.0))
+        if at_least(level, "fond"):
+            for item_id in self._filter_self_liked(
+                    list(self.persona.get("mid_return_gifts", []) or [])):
+                weighted.append((item_id, "mid", 2.0))
+        if at_least(level, "close"):
+            for item_id in self._filter_self_liked(
+                    list(self.persona.get("rare_return_gifts", []) or [])):
+                weighted.append((item_id, "rare", 3.0))
+        if not weighted:
             return None
 
         import random
-        item_id = random.choice(pool)
+        picked = random.choices(weighted, weights=[w for _, _, w in weighted], k=1)[0]
+        item_id, tier, _ = picked
         item = items_module.get(item_id)
         if item is None:
             return None
@@ -1472,12 +1539,16 @@ class AgentManager:
         mood_store: Optional["MoodStore"] = None,
     ) -> None:
         max_turns = int(os.getenv("MAX_HISTORY_TURNS", "6"))
+        # 物品来源索引：全局共享一份，索要校验与来源提示都读它
+        from items_source import ItemSourceIndex
+        self.item_source = ItemSourceIndex(personas)
         self._agents: Dict[str, Agent] = {
             aid: Agent(
                 p, llm, memory, profile, world, affection, gifts,
                 reflection_store, milestone_store=milestone_store,
                 quest_engine=quest_engine,
                 mood_store=mood_store,
+                item_source=self.item_source,
                 max_history_turns=max_turns,
             )
             for aid, p in personas.items()
@@ -1486,25 +1557,42 @@ class AgentManager:
         npc_name_map: Dict[str, str] = {a.name: aid for aid, a in self._agents.items()}
         for agent in self._agents.values():
             agent.npc_name_map = npc_name_map
+        # 可选：动态在场名单来源（每会话独立），由 main 注入
+        self.present_provider = None  # type: Optional[Any]
 
     def get(self, animal_id: str) -> Optional[Agent]:
         return self._agents.get(animal_id)
 
-    def all_ids(self) -> List[str]:
+    def present_ids(self) -> List[str]:
+        """当前会话在场的 NPC。Agent 实例是全量常驻的（进程级共享），
+        但"谁在镇上"是每会话的存档状态，只能运行时查。"""
+        if self.present_provider is not None:
+            try:
+                ids = [a for a in self.present_provider() if a in self._agents]
+                if ids:
+                    return ids
+            except Exception:
+                pass
         return list(self._agents.keys())
+
+    def all_ids(self) -> List[str]:
+        return self.present_ids()
 
     async def run_all_daily_reflections(
         self,
         game_day: int,
         intent_store: IntentStore,
     ) -> None:
-        """依次对所有 NPC 触发每日反思（串行，避免并发 LLM 请求堆积）。"""
+        """依次对所有在场 NPC 触发每日反思（串行，避免并发 LLM 请求堆积）。"""
+        ids = self.present_ids()
         # 构建 name→id 映射（供 intent target 解析）
         npc_name_map: Dict[str, str] = {
-            agent.name: aid for aid, agent in self._agents.items()
+            self._agents[aid].name: aid for aid in ids if aid in self._agents
         }
         log.info("[reflect] 游戏日 %d 结束，开始全员反思…", game_day)
-        for aid in self._agents:
+        for aid in ids:
+            if aid not in self._agents:
+                continue
             await self._agents[aid].run_daily_reflection(game_day, npc_name_map, intent_store)
             await asyncio.sleep(0.5)
         log.info("[reflect] 全员反思完成")

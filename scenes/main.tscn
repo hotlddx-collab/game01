@@ -275,30 +275,6 @@ shape = SubResource("RectangleShape2D_eb6dy")
 unique_name_in_owner = true
 position = Vector2(600, 350)
 
-[node name="苔老板" parent="." unique_id=1144079488 instance=ExtResource("3_animal")]
-position = Vector2(200, 240)
-persona_file = "res://data/animals/bear_baker.json"
-
-[node name="焰仔" parent="." unique_id=1681814652 instance=ExtResource("3_animal")]
-position = Vector2(992, 240)
-persona_file = "res://data/animals/fox_postman.json"
-
-[node name="小翠" parent="." unique_id=220356369 instance=ExtResource("3_animal")]
-position = Vector2(-103, 229)
-persona_file = "res://data/animals/herbalist_cui.json"
-
-[node name="小蓝" parent="." unique_id=782544988 instance=ExtResource("3_animal")]
-position = Vector2(728, 714)
-persona_file = "res://data/animals/traveler_lan.json"
-
-[node name="老咸" parent="." unique_id=112233445 instance=ExtResource("3_animal")]
-position = Vector2(700, 240)
-persona_file = "res://data/animals/pirate_lao.json"
-
-[node name="煊赫" parent="." unique_id=556677889 instance=ExtResource("3_animal")]
-position = Vector2(1145, 425)
-persona_file = "res://data/animals/mystic_xuan.json"
-
 [node name="Pickups" type="Node2D" parent="." unique_id=1055352670]
 
 [node name="ItemSpawner" type="Node" parent="." unique_id=210065409]

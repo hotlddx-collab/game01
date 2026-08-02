@@ -45,12 +45,19 @@ func _ready() -> void:
 	AgentClient.opponent_action_received.connect(_on_opponent_action)
 	AgentClient.election_result_received.connect(_on_election_result)
 	AgentClient.observation_clue.connect(_on_observation_clue)
+	AgentClient.roster_received.connect(_on_roster_received)
+	AgentClient.npc_rotation_received.connect(_on_npc_rotation)
 	if AgentClient.has_signal("mayor_task_result_received"):
 		AgentClient.mayor_task_result_received.connect(_on_mayor_task_result)
 	if AgentClient.has_signal("mayor_task_state_received"):
 		AgentClient.mayor_task_state_received.connect(_on_mayor_task_state)
 
 	AudioManager.play_game_bgm()
+
+	# 若 4 秒内后端没给名单（未启动/断网），按兜底名单生成，保证单机可玩。
+	await get_tree().create_timer(4.0).timeout
+	if not _roster_built:
+		_spawn_npcs_fallback()
 
 
 func _process(_delta: float) -> void:
@@ -693,6 +700,20 @@ func _on_opponent_action(info: Dictionary) -> void:
 	if opponent and opponent.has_method("show_speech_bubble"):
 		opponent.show_speech_bubble(text, 5.0)
 
+	# 挖墙脚会真的扣好感。不给反馈的话，玩家只会看到好感莫名下跌，
+	# 却不知道是被人撬了——那这个机制对玩家就是不可见的，等于没做。
+	if String(info.get("action_type", "")) != "poach":
+		return
+	var effect = info.get("mechanical_effect", {})
+	var delta := 0
+	if typeof(effect) == TYPE_DICTIONARY:
+		delta = int(effect.get("affection_delta", 0))
+	if delta >= 0:
+		return
+	var target: Animal = _find_animal(String(info.get("target_npc", "")))
+	if target and target.has_method("show_speech_bubble"):
+		target.show_speech_bubble("……（对你的好感 %d）" % delta, 4.0)
+
 
 func _on_election_result(info: Dictionary) -> void:
 	## D7 投票结果到来 → 通过 ElectionHUD 触发投票演出。
@@ -774,3 +795,133 @@ func _track_talked_to(animal_id: String) -> void:
 	_talked_to_npcs.append(animal_id)
 	if _talked_to_npcs.size() > 12:
 		_talked_to_npcs.pop_front()
+
+
+# ---------- NPC 在场名单（动态实例化）----------
+#
+# 镇上有谁由后端的 npc_roster 表说了算，而不是 main.tscn 里写死几个节点。
+# 换届会有人离镇、有人搬入，写死的节点没法反映这件事——玩家看不见轮换，
+# 这套设计就等于没做。
+const ANIMAL_SCENE := preload("res://scenes/entities/animal.tscn")
+
+# 后端连不上时的兜底名单：与 roster.py 的 DEFAULT_PRESENT 一致。
+# 没有它，单机断网启动会是一座空镇。
+const FALLBACK_ROSTER := [
+	{"animal_id": "bear_baker",    "spawn": Vector2(200, 240)},
+	{"animal_id": "fox_postman",   "spawn": Vector2(992, 240)},
+	{"animal_id": "herbalist_cui", "spawn": Vector2(-103, 229)},
+	{"animal_id": "traveler_lan",  "spawn": Vector2(728, 714)},
+	{"animal_id": "pirate_lao",    "spawn": Vector2(700, 240)},
+	{"animal_id": "mystic_xuan",   "spawn": Vector2(1145, 425)},
+]
+
+var _roster_built := false
+
+
+func _spawn_npcs_fallback() -> void:
+	if _roster_built:
+		return
+	for e in FALLBACK_ROSTER:
+		_spawn_npc(String(e["animal_id"]), e["spawn"], {})
+	_roster_built = true
+	print("[Main] 后端未响应，按兜底名单生成 %d 个 NPC" % FALLBACK_ROSTER.size())
+
+
+func _on_roster_received(present: Array) -> void:
+	if _roster_built:
+		return
+	if present.is_empty():
+		_spawn_npcs_fallback()
+		return
+	for e in present:
+		if typeof(e) != TYPE_DICTIONARY:
+			continue
+		_spawn_npc(
+			String(e.get("animal_id", "")),
+			_to_vec(e.get("spawn", [])),
+			e.get("schedule_override", {}),
+		)
+	_roster_built = true
+	print("[Main] 按后端名单生成 %d 个 NPC" % present.size())
+
+
+func _to_vec(arr) -> Vector2:
+	if arr is Array and arr.size() >= 2:
+		return Vector2(float(arr[0]), float(arr[1]))
+	return Vector2(600, 350)
+
+
+func _spawn_npc(animal_id: String, pos: Vector2, sched_override) -> Node:
+	if animal_id == "":
+		return null
+	if _find_npc_node(animal_id) != null:
+		return null
+	var path := "res://data/animals/%s.json" % animal_id
+	if not FileAccess.file_exists(path):
+		push_error("Main: 找不到 persona %s" % path)
+		return null
+	var npc := ANIMAL_SCENE.instantiate()
+	npc.persona_file = path
+	npc.position = pos
+	# 必须在 add_child 之前赋值：_ready() 里就会读它来覆盖日程
+	if typeof(sched_override) == TYPE_DICTIONARY and not sched_override.is_empty():
+		npc.schedule_override = sched_override
+	add_child(npc)
+	return npc
+
+
+func _find_npc_node(animal_id: String) -> Node:
+	for n in get_tree().get_nodes_in_group("npc"):
+		if n.animal_id == animal_id:
+			return n
+	return null
+
+
+func _on_npc_rotation(info: Dictionary) -> void:
+	var leaver := String(info.get("leaver", ""))
+	var newcomer := String(info.get("newcomer", ""))
+	if newcomer == "":
+		return
+
+	# 离镇者退场。若正在跟他对话，先关掉对话框，否则会对着空节点。
+	var old := _find_npc_node(leaver)
+	if old != null:
+		if _current_animal == old:
+			dialog_ui.close()
+			_current_animal = null
+		old.queue_free()
+
+	_spawn_npc(newcomer, _to_vec(info.get("spawn", [])),
+			info.get("schedule_override", {}))
+
+	# 门牌换名：building_id 不动（path_network/日程/spawners 三处都引用它），
+	# 只改展示名，这正是 building.display_name 带 setter 的意义。
+	_rename_building(String(info.get("home_id", "")),
+			String(info.get("nameplate", "")))
+
+	var closed := String(info.get("closed_facility", ""))
+	if closed != "":
+		_set_facility_closed(closed, true)
+	var reopened := String(info.get("reopened_facility", ""))
+	if reopened != "":
+		_set_facility_closed(reopened, false)
+
+	print("[Main] 轮换：%s 离镇 → %s 迁入 %s" % [leaver, newcomer, info.get("home_id", "")])
+
+
+func _rename_building(building_id: String, new_name: String) -> void:
+	if building_id == "" or new_name == "":
+		return
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.get("building_id") == building_id:
+			b.display_name = "%s的家" % new_name
+			return
+
+
+func _set_facility_closed(building_id: String, closed: bool) -> void:
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.get("building_id") != building_id:
+			continue
+		var base := String(b.display_name).replace("（停业）", "")
+		b.display_name = base + ("（停业）" if closed else "")
+		return

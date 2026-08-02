@@ -176,6 +176,9 @@
 | `eavesdrop` | C→S | 玩家偷听到 NPC 对话，后端写双方 event 记忆 + 世界事件 |
 | `gift` | C→S | 玩家送礼给 NPC（item_id），后端走公式算 delta + 写记忆 + LLM 反应文本 |
 | `time_tick` | C→S | 游戏时间心跳（每游戏小时一次），后端 22:00 触发全员每日反思，无回包 |
+| `debate_start` | C→S | 拉取当场辩题，回包每题带 `topic` 与按题 `camps`（含 salience / unknown 分组） |
+| `debate_submit` | C→S | 提交答案，需同时带 `topics: {q_index: topic}`，后端据此算站位与在意度加权 |
+| `debate_result` | S→C | 辩论结算，含 `offended`（因立场对立掉好感的 NPC） |
 
 ---
 

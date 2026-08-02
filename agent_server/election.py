@@ -15,7 +15,7 @@ import json
 import logging
 import random
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from db import get_conn
 
@@ -71,7 +71,20 @@ RUMOR_SMEAR_BACKFIRE = 0.5   # 护主：抹黑某候选人的铁票选民 → �
 # 任期难度阶梯（陪玩定位）：对手总权重乘此系数，term1 最弱，逐届变强。
 # 直接作用于对手每个 voter 的合计权重 → 第一关开局近乎持平。
 TERM_DIFFICULTY: Dict[int, float] = {1: 0.5, 2: 0.7, 3: 0.85}
-TERM_DIFFICULTY_DEFAULT = 1.0  # term4+ 满难度
+# term4 之后不再封顶在 1.0：原先满难度即到头，玩家一旦摸清套路，
+# 后面每一届都是同一个对手、同一个强度，赢下来只是重复劳动。
+# 改为持续爬升 —— 每多一届 +TERM_DIFFICULTY_GROWTH，直到 MAX。
+# 上限 1.6 是有意留的天花板：再高会让对手权重压过好感经营本身，
+# 玩家做什么都翻不了盘，那是劝退而不是挑战。
+TERM_DIFFICULTY_DEFAULT = 1.0
+TERM_DIFFICULTY_GROWTH = 0.12
+TERM_DIFFICULTY_MAX = 1.6
+
+# 换届好感衰减：好感是全项目唯一零衰减的数值，导致「棘轮效应」——
+# 攒到顶就永远是顶，NPC 无从翻盘、玩家后期无事可做。
+# FLOOR 取「蓝·喜欢」下限 35：底子保住，只削顶端。
+AFFECTION_DECAY_FLOOR = 35
+AFFECTION_DECAY_RATE = 0.4
 
 # 亲近圈映射（NPC → 亲近 NPC 集合）：仅用于 election 的 loyalty 子项。
 # 谣言信念判定已改用 relations.py 的连续关系值，此处由其初始表按
@@ -130,10 +143,69 @@ class ElectionStore:
 
     def __init__(self, npc_ids: List[str], affection_store=None, world_store=None,
                  promise_store=None) -> None:
-        self.npc_ids: List[str] = list(npc_ids)
+        self._npc_ids: List[str] = list(npc_ids)
+        # 可选：动态在场名单来源。轮换后镇上的人会变，且"谁在镇上"是每会话
+        # 的存档状态，不能在构造时定死，否则多会话之间会串味。
+        self.present_provider = None  # type: Optional[Callable[[], List[str]]]
         self.affection_store = affection_store
         self.world_store = world_store
         self.promise_store = promise_store
+        # 可选回调：换届时执行 NPC 轮换，签名 (game_day) -> dict
+        self.rotate_npc = None  # type: Optional[Callable[[int], Dict]]
+
+    @property
+    def npc_ids(self) -> List[str]:
+        if self.present_provider is not None:
+            try:
+                ids = list(self.present_provider())
+                if ids:
+                    return ids
+            except Exception:
+                pass
+        return list(self._npc_ids)
+
+    # ---- 换届好感衰减 ----
+
+    def decay_affection_on_term_end(self) -> List[Dict]:
+        """任期结束时把每个 NPC 超出门槛的好感衰减 40%。
+
+        公式：v_new = FLOOR + (v - FLOOR) * (1 - RATE)，仅当 v > FLOOR。
+        为什么只削「超出部分」而不是整体打折：
+          * FLOOR 以下（含负数）不动 —— 已经把关系搞砸的人不该白白回暖，
+            否则玩家可以靠换届洗掉自己造的孽。
+          * 保底 fond：玩家上届经营的底子必须留住，不然每届从零开始是惩罚不是挑战。
+          * 只削顶端 → close / intimate 需要每届重新争取，
+            这正是把顶档阈值拉到 85 的意义：给长线目标一个会被消耗的池子。
+        返回每个 NPC 的 {npc_id, before, after, delta}，供结算面板展示。
+        """
+        if self.affection_store is None:
+            return []
+        out: List[Dict] = []
+        for npc_id in self.npc_ids:
+            try:
+                before = int(self.affection_store.get(npc_id))
+            except Exception:
+                continue
+            if before <= AFFECTION_DECAY_FLOOR:
+                continue
+            after = int(round(
+                AFFECTION_DECAY_FLOOR
+                + (before - AFFECTION_DECAY_FLOOR) * (1.0 - AFFECTION_DECAY_RATE)
+            ))
+            if after == before:
+                continue
+            try:
+                self.affection_store.adjust(npc_id, after - before)
+            except Exception as e:
+                log.warning("[election] 好感衰减失败 %s: %s", npc_id, e)
+                continue
+            out.append({
+                "npc_id": npc_id, "before": before,
+                "after": after, "delta": after - before,
+            })
+        if out:
+            log.info("[election] 换届好感衰减 %s", out)
+        return out
 
     # ---- 任期生命周期 ----
 
@@ -499,7 +571,12 @@ class ElectionStore:
     @staticmethod
     def _term_factor(term: Dict) -> float:
         tid = int(term.get("term_id", 1))
-        return TERM_DIFFICULTY.get(tid, TERM_DIFFICULTY_DEFAULT)
+        if tid in TERM_DIFFICULTY:
+            return TERM_DIFFICULTY[tid]
+        # term4 起持续爬升：term4 仍是原来的满难度 1.0，之后每届 +GROWTH。
+        # 从 term4 就跳到 1.12 会造成断层，玩家会觉得"这届突然打不过了"。
+        extra = (tid - (max(TERM_DIFFICULTY) + 1)) * TERM_DIFFICULTY_GROWTH
+        return min(TERM_DIFFICULTY_MAX, TERM_DIFFICULTY_DEFAULT + max(0.0, extra))
 
     def _calc_promise(self, voter_id: str, candidate_id: str) -> float:
         """promise 子项。
@@ -917,6 +994,19 @@ class ElectionStore:
                 log.warning("[election] break promise 失败: %s", e)
         self.end_term(int(term["term_id"]), end_day=game_day, winner_id=winner_id, result=result)
 
+        # 换届好感回落：全项目里好感是唯一零衰减的数值，导致「棘轮效应」——
+        # 攒到顶就永远是顶，NPC 无法翻盘、玩家无事可做。这里按温和曲线回落。
+        result["affection_decay"] = self.decay_affection_on_term_end()
+
+        # NPC 轮换：好感最高的那位离镇，备选池补一人进来。
+        # 挑「最高」而不是随机，是因为随机走人只是扰动，走掉玩家经营最深的
+        # 那个才真正构成告别与重来。由 main 注入，避免 election 反向依赖 roster。
+        if self.rotate_npc is not None:
+            try:
+                result["rotation"] = self.rotate_npc(game_day)
+            except Exception as e:
+                log.warning("[election] NPC 轮换失败: %s", e)
+
         # 立即开下一任期（D8 起）
         new_term = self.ensure_term_active(game_day + 1)
 
@@ -937,4 +1027,6 @@ class ElectionStore:
             "votes": votes,
             "tie_break": result["tie_break"],
             "next_opponent_id": new_term["opponent_id"],
+            "affection_decay": result.get("affection_decay", []),
+            "rotation": result.get("rotation", {}),
         }

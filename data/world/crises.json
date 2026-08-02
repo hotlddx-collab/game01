@@ -2,6 +2,70 @@
   "_comment": "危机调解池 - 镇上 NPC 间的纠纷/突发事件，玩家以镇长身份介入断案。事实由本模板定死，LLM 只补台词与反应。",
   "_format": "{ title, parties:[npc_id..], scene(展示用地点标签), summary(事件经过), min_day(达到该游戏日才可能触发，注意 game_day 从 0 起算), weight(抽取权重), cooldown_days(解决后冷却), options:[{ id, label, requires:{item,count}(可空), effects:{npc_id:delta..}, tag, town_mood(可空) }] }",
 
+  "mud_on_flowers": {
+    "title": "花摊与土堆之争",
+    "parties": ["diva_mei", "mole_tu"],
+    "scene": "广场",
+    "summary": "老土夜里在广场边挖了条新岔道，翻出的土正堆在莓莓花摊的位置上。莓莓一早来摆摊，花全沾了泥，当场就炸了；老土缩在洞口小声说他挖之前问过，只是没人听见。两个人一个嗓门越来越大、一个越缩越深，谁也不肯先让。",
+    "min_day": 2,
+    "weight": 9,
+    "cooldown_days": 4,
+    "options": [
+      { "id": "side_mei", "label": "判老土把土清走，往后挖洞得先打招呼",
+        "requires": {}, "effects": { "diva_mei": 8, "mole_tu": -6 }, "tag": "护营生" },
+      { "id": "side_tu", "label": "广场本就是公用的，劝莓莓换个位置摆摊",
+        "requires": {}, "effects": { "diva_mei": -6, "mole_tu": 6 }, "tag": "偏袒一方" },
+      { "id": "compensate", "label": "你自掏 3 朵野花赔给莓莓，再帮老土把土填回去",
+        "requires": { "item": "flower", "count": 3 }, "effects": { "diva_mei": 10, "mole_tu": 5 }, "tag": "破财消灾" },
+      { "id": "mediate", "label": "划出一块专供挖掘的地界，花摊挪到上风口",
+        "requires": {}, "effects": { "diva_mei": 4, "mole_tu": 4 }, "tag": "老练调解" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "diva_mei": -4, "mole_tu": -3 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "road_vs_gossip": {
+    "title": "封路那半天",
+    "parties": ["boar_shi", "traveler_lan"],
+    "scene": "广场",
+    "summary": "石敢当把广场主路封了半天赶工，小蓝的货担进不来，一整天的生意黄了。小蓝嚷嚷说提前招呼一声能死吗，石敢当梗着脖子说他贴了告示、是她自己整天光顾着说话没看见。围观的人越来越多，两边都下不来台。",
+    "min_day": 2,
+    "weight": 9,
+    "cooldown_days": 4,
+    "options": [
+      { "id": "side_boar", "label": "工期要紧，告示贴了就算通知到位",
+        "requires": {}, "effects": { "boar_shi": 8, "traveler_lan": -6 }, "tag": "重效率" },
+      { "id": "side_lan", "label": "责令石敢当往后封路必须挨家知会",
+        "requires": {}, "effects": { "boar_shi": -6, "traveler_lan": 8 }, "tag": "护民生" },
+      { "id": "mediate", "label": "封路照旧，但给小蓝在路口留个临时摊位",
+        "requires": {}, "effects": { "boar_shi": 4, "traveler_lan": 5 }, "tag": "老练调解" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "boar_shi": -3, "traveler_lan": -4 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
+  "dig_vs_quarry": {
+    "title": "夜里的响动",
+    "parties": ["boar_shi", "mole_tu"],
+    "scene": "森林边",
+    "summary": "石敢当天没亮就开工凿石，震得老土的地道直掉土渣，睡不成觉；老土夜里挖洞的动静又让石敢当以为路基塌了，惊起来查了两回。一个早起一个晚睡，正好把对方的觉全搅了。石敢当嗓门一大，老土直接钻回洞里不出来，话都说不拢。",
+    "min_day": 3,
+    "weight": 8,
+    "cooldown_days": 5,
+    "options": [
+      { "id": "side_boar", "label": "修路是正事，让老土挪去远处挖",
+        "requires": {}, "effects": { "boar_shi": 7, "mole_tu": -6 }, "tag": "重发展" },
+      { "id": "side_tu", "label": "责令石敢当天亮后才准动工",
+        "requires": {}, "effects": { "boar_shi": -6, "mole_tu": 7 }, "tag": "护居民" },
+      { "id": "mediate", "label": "错开时辰：清早不凿石，深夜不挖洞",
+        "requires": {}, "effects": { "boar_shi": 5, "mole_tu": 5 }, "tag": "老练调解" },
+      { "id": "gift_resin", "label": "送 2 块树脂给老土加固地道，再劝石敢当缓两天",
+        "requires": { "item": "resin", "count": 2 }, "effects": { "boar_shi": 4, "mole_tu": 10 }, "tag": "破财消灾" },
+      { "id": "ignore", "label": "不管，让他们自己解决",
+        "requires": {}, "effects": { "boar_shi": -3, "mole_tu": -3 }, "tag": "镇长失职", "town_mood": -1 }
+    ]
+  },
+
   "acorn_theft": {
     "title": "橡果失窃案",
     "parties": ["traveler_lan", "pirate_lao"],

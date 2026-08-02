@@ -19,6 +19,13 @@ const STANCE_ICON := {
 	"pleasing": "💖",
 	"pragmatic": "🧭",
 }
+## 对立象限：站到这边会得罪对面那些人
+const OPPOSITE_STANCE := {
+	"radical": "conservative",
+	"conservative": "radical",
+	"pleasing": "pragmatic",
+	"pragmatic": "pleasing",
+}
 
 @onready var backdrop: ColorRect = $Backdrop
 @onready var title: RichTextLabel = %Title
@@ -45,6 +52,8 @@ var _current_term_id: int = -1
 var _waiting_rebut: bool = false
 ## 各象限站了哪些镇民：{stance: [名字, ...]}，供选项按钮标出「选它能拿下谁」
 var _camp_names: Dictionary = {}
+## 立场不明的镇民（好感不够又没打听过），本题看不出他站哪边
+var _unknown_names: Array[String] = []
 ## 已信对手黑料、不会再站到对手那边的镇民名字（八卦日的回报）
 var _smeared_names: Array[String] = []
 
@@ -136,9 +145,11 @@ func _on_questions(info: Dictionary) -> void:
 	_show_question()
 
 
-## 解析后端下发的阵营分布，缓存成 {stance: [名字...]} 供选项按钮标注
+## 解析后端下发的阵营分布，缓存成 {stance: [显示名...]} 供选项按钮标注。
+## 站位随议题变化，故优先吃「当前这道题」的 camps，回落到整场的。
 func _read_camps(info: Dictionary) -> void:
 	_camp_names = {}
+	_unknown_names = []
 	var smeared_ids: Array = info.get("smeared_voters", [])
 	var id_to_name: Dictionary = {}
 	for camp in info.get("camps", []):
@@ -146,9 +157,18 @@ func _read_camps(info: Dictionary) -> void:
 		var names: Array[String] = []
 		for npc in camp.get("npcs", []):
 			var nm := String(npc.get("name", ""))
+			# 在意度：他把这议题当命根子，还是压根不关心
+			var sal := float(npc.get("salience", 1.0))
+			if sal >= 1.4:
+				nm += "‼"
+			elif sal <= 0.7:
+				nm += "·"
 			names.append(nm)
-			id_to_name[String(npc.get("npc_id", ""))] = nm
-		_camp_names[stance] = names
+			id_to_name[String(npc.get("npc_id", ""))] = String(npc.get("name", ""))
+		if stance == "unknown":
+			_unknown_names = names
+		else:
+			_camp_names[stance] = names
 	_smeared_names = []
 	for nid in smeared_ids:
 		_smeared_names.append(String(id_to_name.get(String(nid), String(nid))))
@@ -177,9 +197,16 @@ func _show_question() -> void:
 	next_button.visible = false
 
 	var q: Dictionary = _questions[_index]
+	# 站位随议题变化：每题单独取一次阵营分布
+	if q.has("camps"):
+		_read_camps(q)
 	var asker := String(q.get("asker_name", "?"))
-	asker_label.text = "[center][color=#ffd479]%s 提问  (%d/%d)[/color][/center]" % [
-		asker, _index + 1, _questions.size()
+	var topic_label := String(q.get("topic_label", ""))
+	var topic_txt := ""
+	if topic_label != "":
+		topic_txt = "  [color=#7fb3ff]议题：%s[/color]" % topic_label
+	asker_label.text = "[center][color=#ffd479]%s 提问  (%d/%d)[/color]%s[/center]" % [
+		asker, _index + 1, _questions.size(), topic_txt
 	]
 	question_label.text = "[center]%s[/center]" % String(q.get("q", ""))
 
@@ -192,13 +219,17 @@ func _show_question() -> void:
 		if not options.has(stance):
 			continue
 		var btn := Button.new()
-		# 选项上直接标出站在该象限的镇民：玩家要能看见「选它能拿下谁」，取舍才成立
+		# 选项上标出站在该象限的镇民：玩家要能看见「选它能拿下谁、会得罪谁」。
+		# ‼ = 他极在意这议题（分量重），· = 他不太在乎（分量轻）
 		var camp: Array = _camp_names.get(stance, [])
 		var camp_txt := ""
 		if camp.size() > 0:
 			camp_txt = "\n　└ 站这边的：%s" % ", ".join(camp)
 		else:
 			camp_txt = "\n　└ 无人站这边（谁也拿不到，但保住了立场）"
+		var foe: Array = _camp_names.get(OPPOSITE_STANCE.get(stance, ""), [])
+		if foe.size() > 0:
+			camp_txt += "　[得罪：%s]" % ", ".join(foe)
 		btn.text = "%s %s%s" % [
 			STANCE_ICON.get(stance, ""), String(options[stance]), camp_txt,
 		]
@@ -209,6 +240,15 @@ func _show_question() -> void:
 		btn.set_meta("opt_text", String(options[stance]))
 		btn.pressed.connect(_on_option_pressed.bind(btn))
 		options_vbox.add_child(btn)
+
+	# 立场不明的镇民：提示玩家「事先去打听」才是完整玩法
+	if _unknown_names.size() > 0:
+		var tip := Label.new()
+		tip.text = "❓ 立场不明：%s　（多打听、多来往，才能看穿他们）" % ", ".join(_unknown_names)
+		tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tip.add_theme_font_size_override("font_size", 12)
+		tip.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
+		options_vbox.add_child(tip)
 
 
 func _on_option_pressed(btn: Button) -> void:
@@ -266,9 +306,14 @@ func _on_next_pressed() -> void:
 func _submit() -> void:
 	# 键转字符串发后端（JSON 对象键为字符串）
 	var payload: Dictionary = {}
+	var topics: Dictionary = {}
 	for k in _answers.keys():
 		payload[str(k)] = _answers[k]
-	AgentClient.request_debate_submit(payload)
+		# 后端按议题算 NPC 站位与在意度，故必须回传每题的 topic
+		var idx := int(k)
+		if idx >= 0 and idx < _questions.size():
+			topics[str(k)] = String((_questions[idx] as Dictionary).get("topic", ""))
+	AgentClient.request_debate_submit(payload, topics)
 	next_button.visible = false
 	rebuttal_box.visible = false
 	asker_label.text = "[center][color=#ffd479]辩论结束，正在统计反响……[/color][/center]"
@@ -307,6 +352,13 @@ func _on_result(info: Dictionary) -> void:
 	var c_color := "#88ee88" if consistency >= 0.85 else ("#ffd479" if consistency >= 0.7 else "#ff8888")
 	var c_word := "立场坚定" if consistency >= 0.85 else ("略有摇摆" if consistency >= 0.7 else "反复无常")
 	lines.append("镇民眼中的你：[color=%s]%s（得分 ×%.2f）[/color]" % [c_color, c_word, consistency])
+	# 站到对立面的代价：这些人记了仇
+	var offended: Dictionary = info.get("offended", {})
+	if not offended.is_empty():
+		var off_txt: Array[String] = []
+		for nid in offended.keys():
+			off_txt.append("%s −%d" % [_id_to_name(String(nid)), int(offended[nid])])
+		lines.append("[color=#ff8888]💔 你的立场得罪了：%s[/color]" % ", ".join(off_txt))
 	# 对手每题站了哪儿
 	var picks: Array = info.get("opponent_picks", [])
 	if picks.size() > 0:

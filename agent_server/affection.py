@@ -2,16 +2,17 @@
 
 存储：SQLite 独立表 `affection(animal_id PK, value, updated_at, last_greet_day)`，范围 [VALUE_MIN, VALUE_MAX]。
 
-等级映射（6 档，配合 gift 系统的小数值 delta，反馈频繁）：
-  hate    : value < -10        → 讨厌（名字板 红色）
-  cold    : -10 <= value < 0   → 冷漠（名字板 淡红）
-  neutral : 0 <= value < 5     → 中立（名字板 白色，默认）
-  warm    : 5 <= value < 15    → 略有好感（名字板 浅黄）
-  like    : 15 <= value < 30   → 好感（名字板 淡绿）
-  love    : value >= 30        → 喜欢（名字板 绿色）
+等级映射（6 档，与名字板颜色一一对应）：
+  hostile  : value < 0        → 敌对（名字板 红色）
+  neutral  : 0  <= value < 15 → 普通（名字板 白色，默认）
+  friendly : 15 <= value < 35 → 友善（名字板 黄色）
+  fond     : 35 <= value < 60 → 喜欢（名字板 蓝色）
+  close    : 60 <= value < 85 → 好友（名字板 绿色）
+  intimate : value >= 85      → 亲密（名字板 深绿）
 
 delta 规则（"有事才跳"，避免廉价感）：
-  greet : 每个 NPC 每"游戏日"最多 +1（首次 / 久别重逢）
+  greet : 每个 NPC 每"游戏日"最多加一次，且增益按档位递减
+          （neutral/friendly +1；fond 及以上每 4 天才 +1，堵住零成本刷满）
   chat  : 普通对话 0；含正向词 +2；含负向词 -3（正负互斥时取一边）
   gift  : 公式化（见 gifts.py），最大 +5，普通 +1~+3
 
@@ -29,17 +30,41 @@ VALUE_MIN = -50
 VALUE_MAX = 100
 
 # 等级阈值（下限），从高到低排
-# 6 档：hate / cold / neutral / warm / like / love
-# 配合 gift 系统的小数值 delta，区间收紧到 5-15，
-# 送 2-3 次普通礼物就能从 neutral 升到 warm，反馈频繁
+#
+# 6 档，且与名字板颜色严格一一对应——档位数不能超过颜色数，
+# 否则玩家从名字板读不出自己处在哪一档，多出来的档等于没加：
+#   hostile  红    < 0
+#   neutral  白    0  ~ 14
+#   friendly 黄    15 ~ 34
+#   fond     蓝    35 ~ 59
+#   close    绿    60 ~ 84
+#   intimate 深绿  >= 85
+#
+# 阈值刻意拉开：旧版顶档门槛只有 30，上限 100 的 70% 区间对等级毫无影响，
+# 玩家刷到顶就再无成长反馈——这才是「好感升级困难」的真实成因
+# （不是难升，是没得升）。顶档提到 85，30-100 这段才真正被用起来，
+# 也给换届衰减留出了可削的纵深。
 _LEVELS = [
-    ("love",    30),
-    ("like",    15),
-    ("warm",     5),
-    ("neutral",  0),
-    ("cold",   -10),
-    ("hate", VALUE_MIN),
+    ("intimate", 85),
+    ("close",    60),
+    ("fond",     35),
+    ("friendly", 15),
+    ("neutral",   0),
+    ("hostile", VALUE_MIN),
 ]
+
+# 从低到高的档位序，供跨模块比较大小用。
+# 各处档位判断一律走 at_least()，不要写 == ，
+# 否则新增/调整档位时会静默漏掉高档玩家。
+LEVEL_ORDER = {
+    "hostile": 0, "neutral": 1, "friendly": 2,
+    "fond": 3, "close": 4, "intimate": 5,
+}
+
+
+def at_least(level: str, floor: str) -> bool:
+    """level 是否达到 floor 档（含）。所有档位判断都该走这里。"""
+    return LEVEL_ORDER.get(level, 0) >= LEVEL_ORDER.get(floor, 0)
 
 # 关键词权重（命中即应用，正负互斥取一边）
 POSITIVE_WORDS = (
@@ -52,22 +77,53 @@ NEGATIVE_WORDS = (
 )
 
 
+# 打招呼每日增益（按当前档位递减）。
+#
+# 为什么要递减：打招呼是零成本的——不花道具、不消耗疲劳、不看内容，
+# 每天见一面就 +1。这是绕过送礼疲劳与换届衰减的唯一白嫖通道：
+# 原本 30 天就能把全镇刷满，让所有平衡设计失效。
+#
+# 递减后，寒暄只能把关系带到「友善」附近，
+# 再往上必须靠送礼、任务、危机抉择——即「点头之交靠碰面，深交靠做事」。
+_GREET_GAIN = {
+    "hostile":  1,   # 敌对时肯搭理就是破冰，保留完整增益
+    "neutral":  1,
+    "friendly": 1,
+    "fond":     0,   # 蓝档起，单靠寒暄不再涨
+    "close":    0,
+    "intimate": 0,
+}
+
+# fond 及以上：每 N 天寒暄仍给 +1，避免完全归零显得关系「冻住」。
+# 留一条极细的通道，但速度不足以支撑刷满。
+_GREET_SLOW_EVERY = 4
+
+
+def greet_gain(value: int, game_day: int) -> int:
+    """按当前好感档位算这次打招呼的增益。"""
+    lvl = level_of(value)
+    base = _GREET_GAIN.get(lvl, 1)
+    if base > 0:
+        return base
+    return 1 if game_day % _GREET_SLOW_EVERY == 0 else 0
+
+
 def level_of(value: int) -> str:
     for name, threshold in _LEVELS:
         if value >= threshold:
             return name
-    return "hate"
+    return "hostile"
 
 
 def level_label(level: str) -> str:
     return {
-        "hate":    "讨厌",
-        "cold":    "冷漠",
-        "neutral": "中立",
-        "warm":    "略有好感",
-        "like":    "好感",
-        "love":    "喜欢",
-    }.get(level, "中立")
+        "hostile":  "敌对",
+        "neutral":  "普通",
+        "friendly": "友善",
+        "fond":     "喜欢",
+        "close":    "好友",
+        "intimate": "亲密",
+    }.get(level, "普通")
 
 
 def _classify_text(text: str) -> int:
@@ -142,15 +198,17 @@ class AffectionStore:
         }
 
     def adjust_for_greet(self, animal_id: str, game_day: int) -> Dict[str, int | str]:
-        """打招呼：同一游戏日只 +1 一次，返回 {value, delta, level}。"""
+        """打招呼：同一游戏日只加一次，增益按档位递减，返回 {value, delta, level}。"""
         rec = self.get_record(animal_id)
         cur = rec["value"]
         last_day = rec["last_greet_day"]
         if game_day < 0 or game_day == last_day:
             # 同一日已加过 / 客户端没传 day → 不加
             return {"value": cur, "delta": 0, "level": level_of(cur)}
-        new_v = max(VALUE_MIN, min(VALUE_MAX, cur + 1))
+        gain = greet_gain(cur, game_day)
+        new_v = max(VALUE_MIN, min(VALUE_MAX, cur + gain))
         applied = new_v - cur
+        # 即使本次没涨也要记 last_greet_day，否则玩家可以反复触发直到撞上「慢通道日」
         self._upsert(animal_id, new_v, game_day)
         return {
             "value": new_v,

@@ -87,6 +87,19 @@ CREATE TABLE IF NOT EXISTS affection (
   last_greet_day  INTEGER NOT NULL DEFAULT -1
 );
 
+-- NPC 在场名单：present=镇上 / reserve=备选池（不参与任何镇上系统）
+-- 单独建表而非在 persona JSON 里标记，因为轮换是运行时状态，需要随存档走。
+CREATE TABLE IF NOT EXISTS npc_roster (
+  animal_id   TEXT PRIMARY KEY,
+  status      TEXT NOT NULL DEFAULT 'present',
+  home_id     TEXT NOT NULL DEFAULT '',
+  joined_day  INTEGER NOT NULL DEFAULT 0,
+  left_day    INTEGER NOT NULL DEFAULT -1,
+  frozen_value INTEGER NOT NULL DEFAULT 0,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_roster_status ON npc_roster(status);
+
 CREATE TABLE IF NOT EXISTS gift_log (
   animal_id      TEXT NOT NULL,
   item_id        TEXT NOT NULL,
@@ -170,6 +183,15 @@ CREATE TABLE IF NOT EXISTS debate_scores (
   detail_json TEXT,                    -- 立场匹配明细
   created_at INTEGER NOT NULL,
   PRIMARY KEY (term_id, voter_id, candidate_id)
+);
+
+-- 辩论情报：玩家打听到的「某 NPC 在某议题上的立场」。
+-- 没打听过且好感不够时，辩论面板上该 NPC 显示为立场不明。
+CREATE TABLE IF NOT EXISTS debate_intel (
+  npc_id     TEXT NOT NULL,
+  topic      TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (npc_id, topic)
 );
 
 -- 危机调解：镇上 NPC 间纠纷事件，玩家介入断案

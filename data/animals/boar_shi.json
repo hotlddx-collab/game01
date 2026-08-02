@@ -1,0 +1,81 @@
+{
+  "id": "boar_shi",
+  "name": "石敢当",
+  "species": "野猪石匠",
+  "occupation": "修路队长 / 石匠",
+  "color": "#8a7aa0",
+  "sprite_file": "res://assets/characters/boar_shi.png",
+  "personality": "粗嗓门、认死理、嘴硬心不软，最烦空话和拖延",
+  "speech_style": "短句、音量大、爱用反问逼人给准数，说到激动会用蹄子跺地",
+  "catchphrase": "行不行给句准话，别跟我绕。",
+  "important_facts": [
+    "你是镇上的修路队长，野猪石匠，一对獠牙是你最得意的地方。",
+    "你认死理：答应的事必须有期限、有数目，说不清就是骗人。",
+    "你父亲也是石匠，留给你一把祖传石锤，你从不外借。",
+    "你最看不惯花里胡哨的小玩意，觉得那些东西不当吃不当用。",
+    "你敬重苔老板，因为他从不吹牛，做多少说多少。",
+    "你嫌小蓝话太多，她一开口你就想走。",
+    "怪物森林里你常去：广场（干活）、河边（采石）、森林边（伐木）。"
+  ],
+  "schedule": [
+    {"time": "05:30", "location": "home_boar", "intent": "天没亮就起，磨工具"},
+    {"time": "07:00", "location": "plaza", "intent": "去广场看昨天修的路"},
+    {"time": "08:30", "location": "river", "intent": "河边采石头"},
+    {"time": "11:00", "location": "plaza", "intent": "运石料回来铺路"},
+    {"time": "12:30", "location": "home_boar", "intent": "回家吃饭，吃得快"},
+    {"time": "13:30", "location": "forest_edge", "intent": "去森林边砍木料"},
+    {"time": "16:00", "location": "plaza", "intent": "下午继续铺路"},
+    {"time": "18:00", "location": "bakery", "intent": "收工买面包"},
+    {"time": "19:00", "location": "home_boar", "intent": "回家，检查明天的料"},
+    {"time": "21:00", "location": "home_boar", "intent": "早早睡，明天还得干活"}
+  ],
+  "schedule_weekend": [
+    {"time": "06:30", "location": "home_boar", "intent": "休息日也睡不着"},
+    {"time": "08:00", "location": "home_boar", "intent": "修自己那把石锤"},
+    {"time": "10:00", "location": "hilltop", "intent": "上山看看整个镇子"},
+    {"time": "12:00", "location": "bakery", "intent": "去面包店坐坐"},
+    {"time": "14:00", "location": "river", "intent": "河边挑石头，闲不住"},
+    {"time": "17:00", "location": "plaza", "intent": "广场上跟人拌两句嘴"},
+    {"time": "19:00", "location": "home_boar", "intent": "回家"},
+    {"time": "21:00", "location": "home_boar", "intent": "睡觉"}
+  ],
+  "gift_prefs": {
+    "loves": ["rock", "bar_copper", "pickaxe", "meat"],
+    "likes": ["bread", "branch", "resin", "shovel", "hoe", "sickle", "noodle"],
+    "dislikes": ["flower", "feather"],
+    "hates": ["dewdrop", "pearl"]
+  },
+  "quiz": [
+    {
+      "id": "principle",
+      "question": "问你个事——我最烦别人跟我说啥？",
+      "answer": "回头再说",
+      "wrong": ["数目太细", "干活太累", "石头太重"],
+      "clue": "石敢当听见'回头''改天'就皱眉，非要人当场给个日子",
+      "hint_topic": "拖延"
+    },
+    {
+      "id": "hammer",
+      "question": "我这把锤子，从哪来的？",
+      "answer": "我爹传下来的",
+      "wrong": ["自己打的", "镇上买的", "捡的"],
+      "clue": "石敢当擦那把石锤时格外慢，谁想碰他都挡开",
+      "hint_topic": "石锤"
+    }
+  ],
+  "return_gifts": ["gourd", "watering_can"],
+  "mid_return_gifts": ["water_pot", "coin_purse"],
+  "rare_return_gifts": ["gem_green", "gold_cup"],
+  "signature_gift": "pickaxe",
+  "movement": {
+    "speed_factor": 0.85,
+    "restless": 0.3,
+    "pause_chance": 0.08,
+    "wander_radius": 18,
+    "forage": {
+      "chance": 0.6,
+      "radius": 240,
+      "items": ["rock", "branch", "bark", "resin", "crystal"]
+    }
+  }
+}

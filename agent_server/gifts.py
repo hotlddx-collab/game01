@@ -44,12 +44,14 @@ PREF_MULT = {
 }
 
 AFFECTION_MULT = {
-    "hate":    0.2,
-    "cold":    0.6,
-    "neutral": 1.0,
-    "warm":    1.05,
-    "like":    1.1,
-    "love":    1.3,
+    "hostile":  0.3,
+    "neutral":  1.0,
+    "friendly": 1.1,
+    "fond":     1.2,
+    # 高位边际递减：关系越深，同样的礼物越难再打动人。
+    # 若继续放大，35-100 这段新拉开的区间会被送礼一口气刷穿，等于白调阈值。
+    "close":    0.8,
+    "intimate": 0.5,
 }
 
 FATIGUE_DECAY_DAYS = 3     # 每过 N 个游戏日没送 → count -1（2 → 3：恢复更慢）
