@@ -23,7 +23,15 @@ class LLMClient:
         if not api_key:
             raise RuntimeError("缺少 DEEPSEEK_API_KEY，请配置 .env")
 
-        self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        # 原来没设超时，SDK 默认约 600s，一旦请求卡住（网络抖动/API 侧挂起）
+        # 前端会一直显示"正在思考..."长达数分钟。收紧到 20s + 少重试，
+        # 让调用方（agent.py）的 except 分支能及时兜底出文案。
+        self._client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=20.0,
+            max_retries=1,
+        )
 
     async def chat(
         self,
