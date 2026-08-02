@@ -114,6 +114,13 @@ func _show_intro() -> void:
 	layer.queue_free()
 	player.input_enabled = true
 
+	# 黑幕层级(100)比 ElectionHUD 高，黑幕没撤之前弹出的 day_event 横幅
+	# 会被完全挡住看不见（尤其是第一天的提示，几乎总撞在这段时间里）。
+	# 通知 HUD 补放被吞掉的那一条。
+	var election_hud := get_node_or_null("ElectionHUD")
+	if election_hud and election_hud.has_method("notify_intro_done"):
+		election_hud.notify_intro_done()
+
 
 func _process(_delta: float) -> void:
 	# 对话期间，玩家走远 → 自动关闭

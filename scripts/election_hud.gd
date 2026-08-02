@@ -110,8 +110,15 @@ const _REASON_LABEL := {
 var _log_btn: Button = null
 var _log_panel: PanelContainer = null
 var _log_list: VBoxContainer = null
-var _growth_log: Array = [] # [{day:int, time:String, name:String, delta:int, reason:String}]
+var _growth_log: Array = [] # [{day:int, time:String, id:String, delta:int, reason:String}]
 var _id_name_map: Dictionary = {} # animal_id -> 中文名，来自 roster 包，不依赖 NPC 节点是否已生成
+
+# 开局黑幕（main.gd _show_intro）盖在最上层（layer 100），这段时间弹出的
+# day_event 横幅会被完全挡住看不见。默认按"黑幕还没撤"处理，先攒着，
+# 等 main.gd 在黑幕淡出后调用 notify_intro_done() 才补放，避免第一天的
+# 提示被吞掉。
+var _intro_active: bool = true
+var _pending_day_event: Dictionary = {}
 
 
 func _id_to_name(npc_id: String) -> String:
@@ -320,18 +327,21 @@ func _render_growth_log() -> void:
 		lbl.fit_content = true
 		lbl.scroll_active = false
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# 名字按 id 现查现取（_id_to_name），不用记录时就存死的字符串——
+		# 否则记录发生在 roster 中文名表还没到位的那一刻（游戏刚开局那几秒），
+		# 这条记录就会永久卡成英文 id，roster 后来到了也救不回来。
 		lbl.text = "[color=#888]D%s %s[/color] %s [color=%s]%s%d[/color] [color=#b8b8b8]%s[/color]" % [
-			e.get("day", 0), e.get("time", ""), e.get("name", ""), col, sign, delta, e.get("reason", ""),
+			e.get("day", 0), e.get("time", ""), _id_to_name(String(e.get("id", ""))), col, sign, delta, e.get("reason", ""),
 		]
 		_log_list.add_child(lbl)
 
 
 ## 记一笔增减；面板开着时立刻重绘，关着时下次打开自然是最新的。
-func _push_growth_log(subject_name: String, delta: int, reason: String) -> void:
+func _push_growth_log(subject_id: String, delta: int, reason: String) -> void:
 	_growth_log.append({
 		"day": WorldClock.get_day(),
 		"time": WorldClock.format_time(),
-		"name": subject_name,
+		"id": subject_id,
 		"delta": delta,
 		"reason": reason,
 	})
@@ -342,6 +352,9 @@ func _push_growth_log(subject_name: String, delta: int, reason: String) -> void:
 
 
 func _on_day_event(info: Dictionary) -> void:
+	if _intro_active:
+		_pending_day_event = info
+		return
 	if _day_banner == null:
 		return
 	var di := int(info.get("day_index", 1))
@@ -352,6 +365,15 @@ func _on_day_event(info: Dictionary) -> void:
 		title, di, td, hint
 	]
 	_show_banner(9.0)
+
+
+## main.gd 的开局黑幕淡出后调用，把被挡住的第一条 day_event 补放出来。
+func notify_intro_done() -> void:
+	_intro_active = false
+	if not _pending_day_event.is_empty():
+		var info := _pending_day_event
+		_pending_day_event = {}
+		_on_day_event(info)
 
 
 ## 镇务结果中央横幅（复用 day_banner）
@@ -412,7 +434,7 @@ func _on_state(view: Dictionary) -> void:
 		if rp == "":
 			rp = _infer_component_reason(prev_view, "player", view, "player")
 		_float_delta(player_score_lbl, dp, rp)
-		_push_growth_log("你", dp, rp)
+		_push_growth_log("player", dp, rp)
 	if do_ != 0:
 		var ro := _pending_action_reason("opponent")
 		if ro == "":
@@ -420,7 +442,7 @@ func _on_state(view: Dictionary) -> void:
 		if ro == "":
 			ro = _infer_component_reason(prev_view, prev_opp, view, _opponent_id)
 		_float_delta(opponent_score_lbl, do_, ro)
-		_push_growth_log(_id_to_name(_opponent_id), do_, ro)
+		_push_growth_log(_opponent_id, do_, ro)
 	_pending_opponent_actions.clear()
 
 
